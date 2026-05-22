@@ -15,7 +15,7 @@ import { useAuth } from "../auth/AuthContext";
 function HomeRedirect() {
   const { user, loading } = useAuth();
   if (loading) return <main className="center-page">Loading LineLink...</main>;
-  if (!user) return <Navigate to="/rooms" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   if (user.role === "tenant") return <Navigate to="/tenant" replace />;
   if (user.role === "admin") return <Navigate to="/admin" replace />;
   return <Navigate to="/landlord" replace />;

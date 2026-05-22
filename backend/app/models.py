@@ -319,6 +319,17 @@ class RoomListing(Base, TimestampMixin):
     status: Mapped[ListingStatus] = mapped_column(Enum(ListingStatus, name="listing_status"), default=ListingStatus.draft, index=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
+    room: Mapped[Room] = relationship(viewonly=True)
+    listing_property: Mapped[Property] = relationship("Property", viewonly=True)
+
+    @property
+    def room_number(self) -> str | None:
+        return self.room.room_number if self.room else None
+
+    @property
+    def property_name(self) -> str | None:
+        return self.listing_property.name if self.listing_property else None
+
 
 class ListingPhoto(Base, TimestampMixin):
     __tablename__ = "listing_photos"

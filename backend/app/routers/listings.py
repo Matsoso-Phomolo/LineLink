@@ -50,6 +50,8 @@ def listing_in_scope(db: Session, user: User, listing_id: uuid.UUID) -> RoomList
 def create_listing(payload: ListingCreate, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
     prop = get_property_in_scope(db, user, payload.property_id)
     room = get_room_in_scope(db, user, payload.room_id)
+    if room.property_id != prop.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Room does not belong to the selected property")
     listing = RoomListing(**payload.model_dump(), landlord_id=prop.landlord_id)
     if room.status == RoomStatus.occupied:
         listing.status = ListingStatus.rented
@@ -113,6 +115,8 @@ def listing_applications(listing_id: uuid.UUID, db: Session = Depends(get_db), u
 @router.put("/applications/{application_id}/approve", response_model=TenantApplicationRead)
 def approve_application(application_id: uuid.UUID, payload: ApplicationDecision, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
     application = db.get(TenantApplication, application_id)
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
     listing = listing_in_scope(db, user, application.listing_id)
     application.status = ApplicationStatus.approved
     application.landlord_note = payload.landlord_note
@@ -124,6 +128,8 @@ def approve_application(application_id: uuid.UUID, payload: ApplicationDecision,
 @router.put("/applications/{application_id}/reject", response_model=TenantApplicationRead)
 def reject_application(application_id: uuid.UUID, payload: ApplicationDecision, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
     application = db.get(TenantApplication, application_id)
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
     listing_in_scope(db, user, application.listing_id)
     application.status = ApplicationStatus.rejected
     application.landlord_note = payload.landlord_note
@@ -135,6 +141,8 @@ def reject_application(application_id: uuid.UUID, payload: ApplicationDecision, 
 @router.post("/applications/{application_id}/request-info", response_model=TenantApplicationRead)
 def request_application_info(application_id: uuid.UUID, payload: ApplicationDecision, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
     application = db.get(TenantApplication, application_id)
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
     listing_in_scope(db, user, application.listing_id)
     application.status = ApplicationStatus.info_requested
     application.landlord_note = payload.landlord_note
@@ -150,22 +158,36 @@ def assign_application_room(application_id: uuid.UUID, payload: ApplicationAssig
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
     listing = listing_in_scope(db, user, application.listing_id)
     room = get_room_in_scope(db, user, listing.room_id)
+    if listing.property_id != room.property_id or listing.landlord_id != room.landlord_id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Listing, property, and room linkage is inconsistent")
     if room.status == RoomStatus.occupied:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room is already occupied")
-    tenant = Tenant(
-        user_id=application.applicant_user_id,
-        landlord_id=listing.landlord_id,
-        tenant_type=application.tenant_type,
-        full_name=application.full_name,
-        phone=application.phone,
-        email=application.email,
-        student_number=application.student_number,
-        occupation=application.occupation,
-        next_of_kin_name=application.emergency_contact,
-    )
-    db.add(tenant)
-    db.flush()
-    db.add(OnboardingChecklist(tenant_id=tenant.id, documents_submitted=bool(application.document_path), room_assigned=True, occupancy_activated=True))
+    tenant = None
+    if application.applicant_user_id:
+        tenant = db.query(Tenant).filter(Tenant.user_id == application.applicant_user_id).first()
+        if tenant and tenant.landlord_id != listing.landlord_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Applicant tenant profile belongs to another landlord")
+    if not tenant:
+        tenant = Tenant(
+            user_id=application.applicant_user_id,
+            landlord_id=listing.landlord_id,
+            tenant_type=application.tenant_type,
+            full_name=application.full_name,
+            phone=application.phone,
+            email=application.email,
+            student_number=application.student_number,
+            occupation=application.occupation,
+            next_of_kin_name=application.emergency_contact,
+        )
+        db.add(tenant)
+        db.flush()
+    checklist = db.query(OnboardingChecklist).filter(OnboardingChecklist.tenant_id == tenant.id).first()
+    if not checklist:
+        checklist = OnboardingChecklist(tenant_id=tenant.id)
+        db.add(checklist)
+    checklist.documents_submitted = bool(application.document_path)
+    checklist.room_assigned = True
+    checklist.occupancy_activated = True
     occupancy = Occupancy(
         landlord_id=listing.landlord_id,
         tenant_id=tenant.id,

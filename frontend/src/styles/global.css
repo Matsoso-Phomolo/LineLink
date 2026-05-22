@@ -19,7 +19,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -71,6 +72,15 @@ button {
   background: #eef4ef;
 }
 
+.landing-brand {
+  align-self: flex-start;
+}
+
+.hero-copy {
+  display: grid;
+  gap: 8px;
+}
+
 .login-copy h1 {
   max-width: 680px;
   margin: 0;
@@ -84,31 +94,6 @@ button {
   color: #53615f;
   font-size: 17px;
   line-height: 1.6;
-}
-
-.demo-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.demo-grid button {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid #d6dfdb;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #172026;
-  text-align: left;
-}
-
-.demo-grid button:hover {
-  border-color: #3d756c;
-}
-
-.demo-grid small {
-  color: #667370;
 }
 
 .login-card {
@@ -132,7 +117,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 44px;
   padding: 0 14px;
@@ -142,8 +128,15 @@ select {
   color: #172026;
 }
 
+textarea {
+  min-height: 96px;
+  padding-top: 12px;
+  resize: vertical;
+}
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: 2px solid #83b7ad;
   outline-offset: 1px;
 }
@@ -161,7 +154,35 @@ select:focus {
   opacity: 0.65;
 }
 
-.room-finder-cta {
+.link-button,
+.secondary-button {
+  min-height: 44px;
+  justify-content: center;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.secondary-button {
+  border: 1px solid #246b61;
+  background: #ffffff;
+  color: #246b61;
+}
+
+.text-button {
+  width: fit-content;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #246b61;
+  font-weight: 800;
+}
+
+.vacant-preview {
   margin-top: 10px;
   padding: 16px;
   border: 1px solid #dce4df;
@@ -171,28 +192,65 @@ select:focus {
   gap: 14px;
 }
 
-.room-finder-cta h3 {
+.vacant-preview-header,
+.vacant-room-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vacant-preview h3 {
   margin: 0;
   font-size: 20px;
 }
 
-.room-finder-cta p:not(.eyebrow) {
-  margin: 6px 0 0;
-  color: #667370;
-  line-height: 1.45;
-}
-
-.room-finder-cta a {
-  min-height: 44px;
-  justify-content: center;
-  padding: 0 14px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 8px;
-  background: #246b61;
-  color: #ffffff;
+.vacant-preview-header a {
+  color: #246b61;
+  font-size: 13px;
   font-weight: 800;
   text-decoration: none;
+}
+
+.vacant-preview-list {
+  display: grid;
+  gap: 10px;
+}
+
+.vacant-room-mini {
+  padding: 12px;
+  border: 1px solid #e5ece8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.vacant-room-mini strong,
+.vacant-room-mini span,
+.vacant-room-mini b {
+  display: block;
+}
+
+.vacant-room-mini span,
+.vacant-empty {
+  color: #667370;
+  font-size: 13px;
+}
+
+.vacant-room-mini > div:last-child {
+  text-align: right;
+}
+
+.vacant-room-skeleton {
+  height: 58px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #edf3ef, #f8faf7, #edf3ef);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite linear;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
 }
 
 .form-error,
@@ -387,6 +445,10 @@ select:focus {
   gap: 12px;
 }
 
+.toolbar.wide {
+  grid-template-columns: minmax(220px, 1.4fr) 180px 160px 150px;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -541,6 +603,48 @@ select:focus {
   padding-top: 14px;
 }
 
+.listing-card footer button {
+  white-space: nowrap;
+}
+
+.listing-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.listing-detail-card {
+  display: grid;
+  gap: 18px;
+}
+
+.listing-detail-card h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.form-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.form-panel h2 {
+  margin-bottom: 4px;
+}
+
+.form-panel p:not(.eyebrow) {
+  margin: 0;
+  color: #667370;
+  line-height: 1.45;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .detail-grid {
   margin: 0;
   display: grid;
@@ -563,6 +667,10 @@ select:focus {
 .detail-grid dd {
   margin: 6px 0 0;
   font-weight: 800;
+}
+
+.detail-grid.compact {
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
 }
 
 .table-panel {
@@ -603,6 +711,59 @@ th {
 
 .row-item.rich {
   align-items: flex-start;
+}
+
+.listing-review-card {
+  align-items: stretch;
+}
+
+.listing-review-main {
+  flex: 1;
+  display: grid;
+  gap: 16px;
+}
+
+.application-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.application-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #edf1ee;
+  border-radius: 8px;
+  background: #f8faf7;
+}
+
+.application-card small {
+  display: block;
+  margin-top: 8px;
+  color: #667370;
+}
+
+.review-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.review-actions button {
+  min-height: 36px;
+  border: 1px solid #ccd7d2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172026;
+  font-weight: 800;
+}
+
+.review-actions button:first-child,
+.review-actions button:last-child {
+  border-color: #246b61;
+  background: #246b61;
+  color: #ffffff;
 }
 
 .row-money {
@@ -670,7 +831,8 @@ th {
 
   .metric-grid,
   .listing-grid,
-  .landlord-grid {
+  .landlord-grid,
+  .listing-detail-layout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -701,10 +863,20 @@ th {
   }
 
   .toolbar,
+  .toolbar.wide,
   .metric-grid,
   .listing-grid,
   .landlord-grid,
-  .detail-grid {
+  .detail-grid,
+  .detail-grid.compact,
+  .listing-detail-layout,
+  .form-grid,
+  .application-card {
     grid-template-columns: 1fr;
+  }
+
+  .vacant-preview-header,
+  .vacant-room-mini {
+    align-items: flex-start;
   }
 }

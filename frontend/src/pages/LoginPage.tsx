@@ -3,17 +3,11 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { VacantRoomsPreview } from "../components/VacantRoomsPreview";
 
-const demoAccounts = [
-  { label: "Landlord", email: "landlord1@linelink.com", password: "Password123!" },
-  { label: "Tenant", email: "tenant1@linelink.com", password: "Password123!" },
-  { label: "Admin", email: "admin@linelink.local", password: "ChangeMe123!" }
-];
-
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("landlord1@linelink.com");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,25 +33,19 @@ export function LoginPage() {
     <main className="login-page">
       <section className="login-panel">
         <div className="login-copy">
-          <p className="eyebrow">LineLink</p>
-          <h1>Manage line-houses remotely. Find vacant rooms faster.</h1>
-          <p>
-            A focused workspace for Roma and NUL landlords, caretakers, tenants, and room seekers.
-          </p>
-          <div className="demo-grid">
-            {demoAccounts.map((account) => (
-              <button
-                type="button"
-                key={account.email}
-                onClick={() => {
-                  setEmail(account.email);
-                  setPassword(account.password);
-                }}
-              >
-                <span>{account.label}</span>
-                <small>{account.email}</small>
-              </button>
-            ))}
+          <div className="brand-mark light landing-brand">
+            <span>LL</span>
+            <div>
+              <strong>LineLink</strong>
+              <small>Remote line-house management</small>
+            </div>
+          </div>
+          <div className="hero-copy">
+            <p className="eyebrow">LineLink</p>
+            <h1>Manage line-houses remotely. Find vacant rooms faster.</h1>
+            <p>
+              A focused platform for Roma and NUL landlords, caretakers, tenants, and room seekers to manage rentals, applications, occupancy, rent, and support without walking from house to house.
+            </p>
           </div>
         </div>
         <form className="login-card" onSubmit={handleSubmit}>

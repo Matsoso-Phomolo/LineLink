@@ -49,6 +49,8 @@ export type Listing = {
   landlord_id: string;
   property_id: string;
   room_id: string;
+  room_number?: string | null;
+  property_name?: string | null;
   title: string;
   description?: string | null;
   rent_price: number;
@@ -65,6 +67,25 @@ export type Listing = {
   house_rules?: string | null;
   status: "draft" | "published" | "rented" | "archived";
   is_public: boolean;
+};
+
+export type TenantApplication = {
+  id: string;
+  listing_id: string;
+  applicant_user_id?: string | null;
+  full_name: string;
+  phone: string;
+  email?: string | null;
+  tenant_type: "student" | "non_student";
+  student_number?: string | null;
+  occupation?: string | null;
+  preferred_move_in_date?: string | null;
+  emergency_contact?: string | null;
+  document_path?: string | null;
+  message?: string | null;
+  status: "pending" | "under_review" | "approved" | "rejected" | "withdrawn" | "info_requested";
+  landlord_note?: string | null;
+  created_at: string;
 };
 
 export type PaymentSubmission = {

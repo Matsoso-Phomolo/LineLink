@@ -254,6 +254,8 @@ class ListingUpdate(BaseModel):
 class ListingRead(ListingBase, ORMModel):
     id: uuid.UUID
     landlord_id: uuid.UUID
+    room_number: str | None = None
+    property_name: str | None = None
     created_at: datetime
 
 
