@@ -48,6 +48,87 @@ LineLink treats every line-house or apartment as belonging to one landlord. Land
 - Frontend: React/Vite on Vercel.
 - Secrets: provided through Render and Vercel environment variables, not committed to Git.
 
+## Production Admin Setup
+
+LineLink does not rely on demo users in production. On Render, the backend start command runs migrations and then `python -m app.seed`.
+
+With:
+
+```env
+APP_ENV=production
+SEED_DEMO_DATA=false
+ADMIN_EMAIL=your-admin-email
+ADMIN_PASSWORD=your-secure-password
+ADMIN_FULL_NAME=LineLink Admin
+```
+
+the seed script creates only the first admin if needed and skips landlord, tenant, listing, payment, and ticket demo records.
+
+## Render Backend Deployment
+
+Build command:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start command:
+
+```bash
+alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Required backend environment variables:
+
+```env
+APP_ENV=production
+SEED_DEMO_DATA=false
+ADMIN_EMAIL=your-admin-email
+ADMIN_PASSWORD=your-secure-password
+ADMIN_FULL_NAME=LineLink Admin
+DATABASE_URL=Render PostgreSQL URL
+SECRET_KEY=secure-random-secret
+ALLOWED_ORIGINS=https://your-vercel-domain.vercel.app
+PUBLIC_BASE_URL=https://your-render-backend.onrender.com
+```
+
+Run deployment validation:
+
+```bash
+python -m app.validate_deployment --health-url https://your-render-backend.onrender.com/health
+```
+
+## Vercel Frontend Deployment
+
+Set:
+
+```env
+VITE_API_BASE_URL=https://your-render-backend.onrender.com
+```
+
+Use Vite defaults:
+
+- Build command: `npm run build`
+- Output directory: `dist`
+
+## Security Notes
+
+- Never use `ChangeMe123!` in production.
+- Never expose or commit `.env`.
+- Rotate `SECRET_KEY` before production.
+- Keep demo seed data only for local or staging deployments.
+- Keep `SEED_DEMO_DATA=false` for production.
+
+## Post-Deployment Test Checklist
+
+1. Backend `/health` returns `200`.
+2. Swagger `/docs` opens on the backend.
+3. Vercel frontend can call `GET /public/listings` without CORS errors.
+4. Production admin can log in.
+5. Public users can submit viewing requests and applications under a listing.
+6. Landlord/caretaker can approve, reject, request info, and assign an application.
+7. Assignment creates an occupancy, marks the room occupied, and hides the public listing.
+
 ## Roadmap
 
 - Mobile app with React Native/Expo

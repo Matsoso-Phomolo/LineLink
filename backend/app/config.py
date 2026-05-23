@@ -5,6 +5,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    app_env: str = "local"
+    seed_demo_data: bool = False
+    admin_email: str | None = None
+    admin_password: str | None = None
+    admin_full_name: str = "LineLink Admin"
     database_url: str = "postgresql+psycopg://linelink:linelink@localhost:5432/linelink"
     secret_key: str = "change-me-in-production"
     algorithm: str = "HS256"

@@ -19,6 +19,16 @@ copy .env.example .env
 
 Edit `backend/.env` with your local database URL and a local secret key. Do not commit `.env`.
 
+For local development, you may keep demo seeding enabled:
+
+```env
+APP_ENV=local
+SEED_DEMO_DATA=true
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=replace-with-a-secure-password
+ADMIN_FULL_NAME=LineLink Admin
+```
+
 ## PostgreSQL Setup
 
 Create a database named `linelink`, then set:
@@ -34,6 +44,12 @@ cd backend
 alembic upgrade head
 python -m app.seed
 ```
+
+`python -m app.seed` is environment-aware:
+
+- Local/default mode creates the demo admin, landlord, tenant, rooms, listings, rent due, payment submission, ticket, and notifications.
+- `APP_ENV=production` with `SEED_DEMO_DATA=false` creates only the first admin from `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_FULL_NAME`.
+- Demo seed data is for local/staging only.
 
 ## Run Backend
 
@@ -75,6 +91,23 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 
 Open `http://127.0.0.1:8001/`.
 
+## Deployment Validation
+
+Run this before deploying or after setting production environment variables:
+
+```powershell
+cd backend
+python -m app.validate_deployment
+```
+
+After the backend is running, include a health URL:
+
+```powershell
+python -m app.validate_deployment --health-url http://127.0.0.1:8001/health
+```
+
+The validation checks app imports, required environment variables, database connection, Alembic migration state, CORS origins, frontend build presence, and `/health` if a URL is provided.
+
 ## Demo Logins
 
 After `python -m app.seed`:
@@ -84,6 +117,69 @@ After `python -m app.seed`:
 - Tenant: `tenant1@linelink.com` / `Password123!`
 
 Demo credentials are for local testing only and are intentionally not shown on the public login screen.
+
+Never use `ChangeMe123!` in production.
+
+## Render Backend Deployment
+
+Build command:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start command:
+
+```bash
+alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Production environment example:
+
+```env
+APP_ENV=production
+SEED_DEMO_DATA=false
+ADMIN_EMAIL=your-admin-email
+ADMIN_PASSWORD=your-secure-password
+ADMIN_FULL_NAME=LineLink Admin
+DATABASE_URL=Render PostgreSQL URL
+SECRET_KEY=secure-random-secret
+ALLOWED_ORIGINS=https://your-vercel-domain.vercel.app
+PUBLIC_BASE_URL=https://your-render-backend.onrender.com
+```
+
+Security notes:
+
+- Never expose `.env`.
+- Never use `ChangeMe123!` in production.
+- Rotate `SECRET_KEY` before production.
+- Keep `SEED_DEMO_DATA=false` in production.
+- Demo seed is only for local/staging.
+
+## Vercel Frontend Deployment
+
+Set the frontend environment variable:
+
+```env
+VITE_API_BASE_URL=https://your-render-backend.onrender.com
+```
+
+Use:
+
+- Framework preset: Vite
+- Build command: `npm run build`
+- Output directory: `dist`
+
+If deploying from the repository root, use the root `vercel.json`.
+
+## Post-Deployment Tests
+
+1. Visit `https://your-render-backend.onrender.com/health`.
+2. Open `https://your-render-backend.onrender.com/docs`.
+3. Confirm CORS by opening the Vercel frontend and loading public listings.
+4. Log in with the production admin created from `ADMIN_EMAIL`.
+5. Confirm no demo landlord/tenant/listings exist when `SEED_DEMO_DATA=false`.
+6. Create a landlord/property/room/listing, submit a public application, then approve and assign it.
 
 ## Troubleshooting
 

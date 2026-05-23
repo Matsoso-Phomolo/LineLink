@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.auth import get_password_hash
+from app.config import settings
 from app.database import SessionLocal
 from app.models import (
     AllowedTenantType,
@@ -33,6 +34,8 @@ from app.models import (
 ADMIN_EMAIL = "admin@linelink.local"
 LANDLORD_EMAIL = "landlord1@linelink.com"
 TENANT_EMAIL = "tenant1@linelink.com"
+DEMO_ADMIN_PASSWORD = "ChangeMe123!"
+DEMO_USER_PASSWORD = "Password123!"
 
 
 def current_month() -> date:
@@ -53,6 +56,42 @@ def get_or_create_user(db: Session, email: str, password: str, full_name: str, r
         user.hashed_password = get_password_hash(password)
         if phone:
             user.phone = phone
+    return user
+
+
+def bool_env(value: bool | str | None) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def is_production() -> bool:
+    return settings.app_env.strip().lower() == "production"
+
+
+def should_seed_demo_data() -> bool:
+    return bool_env(settings.seed_demo_data)
+
+
+def seed_admin(db: Session, *, email: str | None = None, password: str | None = None, full_name: str | None = None) -> User:
+    admin_email = email or settings.admin_email or (ADMIN_EMAIL if not is_production() else None)
+    admin_password = password or settings.admin_password or (DEMO_ADMIN_PASSWORD if not is_production() else None)
+    admin_full_name = full_name or settings.admin_full_name or "LineLink Admin"
+    if not admin_email or not admin_password:
+        raise RuntimeError("ADMIN_EMAIL and ADMIN_PASSWORD are required when seeding the first admin")
+    user = db.query(User).filter(User.email == admin_email).first()
+    if not user:
+        user = User(email=admin_email, full_name=admin_full_name, role=UserRole.admin, hashed_password=get_password_hash(admin_password))
+        db.add(user)
+        db.flush()
+    else:
+        user.full_name = admin_full_name
+        user.role = UserRole.admin
+        user.is_active = True
+        if not is_production():
+            user.hashed_password = get_password_hash(admin_password)
     return user
 
 
@@ -290,48 +329,84 @@ def seed_notification(db: Session, user: User, title: str, body: str, category: 
     return notification
 
 
-def seed_demo() -> None:
+def seed_demo_data(db: Session) -> dict[str, object]:
+    if is_production() and not should_seed_demo_data():
+        raise RuntimeError("Refusing to seed demo data in production when SEED_DEMO_DATA=false")
+    seed_admin(db, email=ADMIN_EMAIL, password=DEMO_ADMIN_PASSWORD, full_name="LineLink Admin")
+    landlord_user = get_or_create_user(db, LANDLORD_EMAIL, DEMO_USER_PASSWORD, "Matsoso Holdings", UserRole.landlord, "+26658000000")
+    tenant_user = get_or_create_user(db, TENANT_EMAIL, DEMO_USER_PASSWORD, "Test Tenant", UserRole.tenant, "+26659000000")
+
+    landlord = seed_landlord(db, landlord_user)
+    prop = seed_property(db, landlord)
+    rooms = seed_rooms(db, landlord, prop)
+    tenant = seed_tenant(db, landlord, tenant_user)
+    occupancy, due = seed_occupancy_and_rent(db, landlord, tenant, rooms["B-101"])
+    listings = seed_listings(db, landlord, prop, rooms)
+    payment = seed_payment(db, landlord, tenant, due)
+    seed_support_ticket(db, landlord, tenant)
+    seed_notification(db, landlord_user, "New payment submission", "Test Tenant submitted MPESA-DEMO-001 for M450.", "payments")
+    seed_notification(db, tenant_user, "Rent due created", "Your current month rent due is M450.", "rent_dues")
+    return {
+        "landlord": landlord,
+        "property": prop,
+        "rooms": rooms,
+        "tenant": tenant,
+        "occupancy": occupancy,
+        "due": due,
+        "listings": listings,
+        "payment": payment,
+    }
+
+
+def seed() -> None:
     db = SessionLocal()
     try:
-        admin_user = get_or_create_user(db, ADMIN_EMAIL, "ChangeMe123!", "LineLink Admin", UserRole.admin)
-        landlord_user = get_or_create_user(db, LANDLORD_EMAIL, "Password123!", "Matsoso Holdings", UserRole.landlord, "+26658000000")
-        tenant_user = get_or_create_user(db, TENANT_EMAIL, "Password123!", "Test Tenant", UserRole.tenant, "+26659000000")
+        demo_enabled = should_seed_demo_data() or not is_production()
+        if demo_enabled:
+            result = seed_demo_data(db)
+            db.commit()
 
-        landlord = seed_landlord(db, landlord_user)
-        prop = seed_property(db, landlord)
-        rooms = seed_rooms(db, landlord, prop)
-        tenant = seed_tenant(db, landlord, tenant_user)
-        occupancy, due = seed_occupancy_and_rent(db, landlord, tenant, rooms["B-101"])
-        listings = seed_listings(db, landlord, prop, rooms)
-        payment = seed_payment(db, landlord, tenant, due)
-        seed_support_ticket(db, landlord, tenant)
-        seed_notification(db, landlord_user, "New payment submission", "Test Tenant submitted MPESA-DEMO-001 for M450.", "payments")
-        seed_notification(db, tenant_user, "Rent due created", "Your current month rent due is M450.", "rent_dues")
-
-        db.commit()
-
-        print("LineLink demo seed complete")
-        print("")
-        print("Demo logins")
-        print(f"- admin: {ADMIN_EMAIL} / ChangeMe123!")
-        print(f"- landlord: {LANDLORD_EMAIL} / Password123!")
-        print(f"- tenant: {TENANT_EMAIL} / Password123!")
-        print("")
-        print(f"landlord_id: {landlord.id}")
-        print(f"property_id: {prop.id}")
-        print("room IDs:")
-        for room_number, room in rooms.items():
-            print(f"- {room_number}: {room.id}")
-        print("listing IDs:")
-        for room_number, listing in listings.items():
-            print(f"- {room_number}: {listing.id}")
-        print(f"tenant_id: {tenant.id}")
-        print(f"occupancy_id: {occupancy.id}")
-        print(f"rent_due_id: {due.id}")
-        print(f"payment_submission_id: {payment.id}")
+            print("LineLink demo seed complete")
+            print("")
+            print("Demo logins")
+            print(f"- admin: {ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}")
+            print(f"- landlord: {LANDLORD_EMAIL} / {DEMO_USER_PASSWORD}")
+            print(f"- tenant: {TENANT_EMAIL} / {DEMO_USER_PASSWORD}")
+            print("")
+            landlord = result["landlord"]
+            prop = result["property"]
+            tenant = result["tenant"]
+            occupancy = result["occupancy"]
+            due = result["due"]
+            payment = result["payment"]
+            rooms = result["rooms"]
+            listings = result["listings"]
+            print(f"landlord_id: {landlord.id}")
+            print(f"property_id: {prop.id}")
+            print("room IDs:")
+            for room_number, room in rooms.items():
+                print(f"- {room_number}: {room.id}")
+            print("listing IDs:")
+            for room_number, listing in listings.items():
+                print(f"- {room_number}: {listing.id}")
+            print(f"tenant_id: {tenant.id}")
+            print(f"occupancy_id: {occupancy.id}")
+            print(f"rent_due_id: {due.id}")
+            print(f"payment_submission_id: {payment.id}")
+        else:
+            admin = seed_admin(db)
+            db.commit()
+            print("LineLink production admin setup complete")
+            print(f"admin_email: {admin.email}")
+            print(f"admin_id: {admin.id}")
+            print("Demo data skipped because APP_ENV=production and SEED_DEMO_DATA=false")
     finally:
         db.close()
 
 
+def seed_demo() -> None:
+    seed()
+
+
 if __name__ == "__main__":
-    seed_demo()
+    seed()
