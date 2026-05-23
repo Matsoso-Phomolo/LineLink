@@ -66,6 +66,8 @@ the seed script creates only the first admin if needed and skips landlord, tenan
 
 ## Render Backend Deployment
 
+Use a clean PostgreSQL database dedicated to LineLink in production. Do not reuse another project database unless LineLink is isolated in a separate schema.
+
 Build command:
 
 ```bash
@@ -122,6 +124,20 @@ Use Vite defaults:
 ## Deployment Troubleshooting
 
 - If Render uses Python 3.14 and `pydantic-core` fails while building Rust dependencies, force Python 3.11.9. This repository pins the backend with `backend/runtime.txt` and `backend/.python-version`.
+- If Render fails with `relation already exists` or an Alembic table conflict, the database is not clean or a previous failed deployment partially created tables.
+
+Database conflict fixes:
+
+Option A, recommended: create a fresh PostgreSQL database dedicated to LineLink, update `DATABASE_URL`, and redeploy.
+
+Option B, dangerous reset: only if the database contains no important data, run:
+
+```sql
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+```
+
+Never add automatic table/schema drops to LineLink startup or seed code.
 
 ## Post-Deployment Test Checklist
 

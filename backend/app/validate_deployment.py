@@ -5,9 +5,10 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 from app.config import settings
+from app.database import Base
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -73,6 +74,40 @@ def check_database(failures: list[str]) -> None:
         fail(f"Database connection failed: {exc}", failures)
 
 
+def check_schema_conflicts(failures: list[str]) -> None:
+    try:
+        engine = create_engine(settings.database_url)
+        schema = "public" if engine.dialect.name == "postgresql" else None
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names(schema=schema))
+        if not existing_tables:
+            ok("Database schema has no existing tables")
+            return
+
+        linelink_tables = set(Base.metadata.tables.keys())
+        allowed_tables = linelink_tables | {"alembic_version"}
+        non_linelink_tables = sorted(existing_tables - allowed_tables)
+        if non_linelink_tables:
+            fail(
+                "Database contains non-LineLink tables. Use a clean database or a separate schema: "
+                + ", ".join(non_linelink_tables),
+                failures,
+            )
+            return
+
+        if "alembic_version" not in existing_tables and existing_tables.intersection(linelink_tables):
+            fail(
+                "LineLink tables exist but alembic_version is missing. This looks like a partial/manual schema; "
+                "use a clean database or reset only if the data is disposable.",
+                failures,
+            )
+            return
+
+        ok("Existing database tables look compatible with LineLink")
+    except Exception as exc:
+        fail(f"Schema conflict check failed: {exc}", failures)
+
+
 def check_migrations(failures: list[str]) -> None:
     try:
         alembic_cfg = Config(str(BACKEND_ROOT / "alembic.ini"))
@@ -134,6 +169,7 @@ def main() -> int:
     check_required_env(failures)
     check_app_import(failures)
     check_database(failures)
+    check_schema_conflicts(failures)
     check_migrations(failures)
     check_cors(failures)
     check_frontend_build()
