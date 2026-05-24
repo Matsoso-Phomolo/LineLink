@@ -335,6 +335,16 @@ label {
   font-weight: 700;
 }
 
+.field-group {
+  display: grid;
+  gap: 8px;
+}
+
+.field-group > label {
+  color: #34413f;
+  font-weight: 700;
+}
+
 input,
 select,
 textarea {

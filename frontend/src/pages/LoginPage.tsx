@@ -77,17 +77,17 @@ export function LoginPage() {
           </div>
           <label>
             Username / ID number
-            <input required value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="LL-LND-000001" />
+            <input id="login-identifier" required value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="LL-LND-000001" />
           </label>
-          <label>
-            Password
+          <div className="field-group">
+            <label htmlFor="login-password">Password</label>
             <div className="password-field">
-              <input required value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" />
+              <input id="login-password" required value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" />
               <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-          </label>
+          </div>
           {error ? <div className="form-error">{error}</div> : null}
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? "Signing in..." : "Sign in"}

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440
     upload_dir: str = "uploads"
     public_base_url: str = "http://localhost:8000"
-    allowed_origins: str = Field(default="http://localhost:5173,http://localhost:3000")
+    allowed_origins: str = Field(default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000")
     mpesa_base_url: str | None = None
     mpesa_client_id: str | None = None
     mpesa_client_secret: str | None = None
@@ -33,7 +33,17 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        configured = [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        if self.app_env.lower() in {"local", "development", "dev"}:
+            configured.extend([
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:8001",
+                "http://127.0.0.1:8001",
+            ])
+        return list(dict.fromkeys(configured))
 
 
 @lru_cache

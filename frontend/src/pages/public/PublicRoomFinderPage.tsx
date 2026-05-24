@@ -13,14 +13,6 @@ type ApplicationForm = {
   message: string;
 };
 
-type ViewingForm = {
-  full_name: string;
-  phone: string;
-  email: string;
-  preferred_date: string;
-  message: string;
-};
-
 const emptyApplication: ApplicationForm = {
   full_name: "",
   phone: "",
@@ -29,13 +21,6 @@ const emptyApplication: ApplicationForm = {
   message: ""
 };
 
-const emptyViewing: ViewingForm = {
-  full_name: "",
-  phone: "",
-  email: "",
-  preferred_date: "",
-  message: ""
-};
 const lineLocations = ["Mafikeng", "Hatabutle", "Thoteng", "Mangopeng", "Ten House", "Liphehleng", "Liphakoeng", "Ha Ntja"];
 const responseHelp = {
   phone_call: "The landlord/caretaker will call this number.",
@@ -73,7 +58,6 @@ export function PublicRoomFinderPage() {
   const [mustHaveElectricity, setMustHaveElectricity] = useState(false);
   const [mustBeFurnished, setMustBeFurnished] = useState(false);
   const [application, setApplication] = useState<ApplicationForm>(emptyApplication);
-  const [viewing, setViewing] = useState<ViewingForm>(emptyViewing);
   const [formMessage, setFormMessage] = useState("");
   const [submitting, setSubmitting] = useState("");
 
@@ -111,10 +95,6 @@ export function PublicRoomFinderPage() {
     setApplication((current) => ({ ...current, [key]: value }));
   }
 
-  function updateViewing(key: keyof ViewingForm, value: string) {
-    setViewing((current) => ({ ...current, [key]: value }));
-  }
-
   async function submitApplication(event: FormEvent) {
     event.preventDefault();
     if (!selectedListing) return;
@@ -135,31 +115,6 @@ export function PublicRoomFinderPage() {
       setFormMessage("Your request has been submitted. The landlord/caretaker will respond using your selected contact method.");
     } catch (err) {
       setFormMessage(err instanceof Error ? err.message : "Application could not be submitted");
-    } finally {
-      setSubmitting("");
-    }
-  }
-
-  async function submitViewing(event: FormEvent) {
-    event.preventDefault();
-    if (!selectedListing) return;
-    setSubmitting("viewing");
-    setFormMessage("");
-    try {
-      await apiFetch(`/public/listings/${selectedListing.id}/viewing-requests`, {
-        method: "POST",
-        body: JSON.stringify({
-          full_name: viewing.full_name,
-          phone: viewing.phone,
-          email: toNullable(viewing.email),
-          preferred_date: toNullable(viewing.preferred_date),
-          message: toNullable(viewing.message)
-        })
-      });
-      setViewing(emptyViewing);
-      setFormMessage("Viewing request sent. The landlord will contact you using the details provided.");
-    } catch (err) {
-      setFormMessage(err instanceof Error ? err.message : "Viewing request could not be submitted");
     } finally {
       setSubmitting("");
     }
@@ -186,8 +141,8 @@ export function PublicRoomFinderPage() {
           <h1>{selectedListing ? selectedListing.title : "Find vacant rooms near Roma and NUL"}</h1>
           <p>
             {selectedListing
-              ? "Apply or request a viewing for this exact listing. Applications remain pending until the landlord or caretaker approves them."
-              : "Browse published vacant rooms, filter by price and room type, then apply under the correct landlord, property, and room listing."}
+              ? "Send a private interest request for this exact room. The landlord or caretaker decides whether to send you the secure full application link."
+              : "Browse published vacant rooms, filter by price and room type, then request a room under the correct landlord, property, and listing."}
           </p>
         </div>
         <div className="header-stat">
@@ -274,7 +229,7 @@ export function PublicRoomFinderPage() {
                     {listing.contact_phone ? <a className="text-button" href={`tel:${listing.contact_phone}`}>Call</a> : null}
                     {listing.contact_phone ? <a className="text-button" href={`https://wa.me/${listing.contact_phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">WhatsApp</a> : null}
                     <button className="secondary-button" type="button" onClick={() => setSelectedListingId(listing.id)}>
-                      Book / Apply
+                      Interested / Request Room
                     </button>
                   </footer>
                 </article>
@@ -330,10 +285,10 @@ export function PublicRoomFinderPage() {
             </div>
           </article>
 
-          <form className="panel form-panel" onSubmit={submitApplication}>
+          <form className="panel form-panel request-panel" onSubmit={submitApplication}>
             <div>
-              <p className="eyebrow">Apply under this listing</p>
-              <h2>Request this room</h2>
+              <p className="eyebrow">Private room request</p>
+              <h2>Interested in this room?</h2>
               <p>Send basic details first. The landlord or caretaker can then send you a secure application form link.</p>
               <p className="privacy-note">Your information is private and only visible to the landlord/caretaker of this listing.</p>
             </div>
@@ -350,21 +305,6 @@ export function PublicRoomFinderPage() {
             <label>Message<textarea value={application.message} onChange={(event) => updateApplication("message", event.target.value)} /></label>
             <button className="primary-button" disabled={submitting === "application"} type="submit">
               {submitting === "application" ? "Submitting..." : "Interested / Request Room"}
-            </button>
-          </form>
-
-          <form className="panel form-panel" onSubmit={submitViewing}>
-            <div>
-              <p className="eyebrow">Viewing request</p>
-              <h2>Schedule a viewing</h2>
-            </div>
-            <label>Full name<input required value={viewing.full_name} onChange={(event) => updateViewing("full_name", event.target.value)} /></label>
-            <label>Phone<input required value={viewing.phone} onChange={(event) => updateViewing("phone", event.target.value)} /></label>
-            <label>Email optional<input type="email" value={viewing.email} onChange={(event) => updateViewing("email", event.target.value)} /></label>
-            <label>Preferred date<input type="date" value={viewing.preferred_date} onChange={(event) => updateViewing("preferred_date", event.target.value)} /></label>
-            <label>Message<textarea value={viewing.message} onChange={(event) => updateViewing("message", event.target.value)} /></label>
-            <button className="secondary-button" disabled={submitting === "viewing"} type="submit">
-              {submitting === "viewing" ? "Sending..." : "Request viewing"}
             </button>
             {formMessage ? <div className="data-state">{formMessage}</div> : null}
           </form>

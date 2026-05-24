@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { apiFetch, loginRequest } from "../api/client";
 import type { User } from "../types";
+import { tokenStorage } from "./tokenStorage";
 
 type AuthContextValue = {
   user: User | null;
@@ -14,12 +15,12 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("linelink_token"));
+  const [token, setToken] = useState<string | null>(() => tokenStorage.get());
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(Boolean(token));
 
   async function refreshUser() {
-    if (!localStorage.getItem("linelink_token")) {
+    if (!tokenStorage.get()) {
       setUser(null);
       setLoading(false);
       return;
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await apiFetch("/auth/me");
       setUser(currentUser);
     } catch {
-      localStorage.removeItem("linelink_token");
+      tokenStorage.remove();
       setToken(null);
       setUser(null);
     } finally {
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(identifier: string, password: string) {
     const response = await loginRequest(identifier, password);
-    localStorage.setItem("linelink_token", response.access_token);
+    tokenStorage.set(response.access_token);
     setToken(response.access_token);
     const currentUser = await apiFetch("/auth/me");
     setUser(currentUser);
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    localStorage.removeItem("linelink_token");
+    tokenStorage.remove();
     setToken(null);
     setUser(null);
   }
