@@ -184,9 +184,16 @@ def assign_application_room(application_id: uuid.UUID, payload: ApplicationAssig
             occupation=application.occupation,
             next_of_kin_name=application.emergency_contact_name or application.emergency_contact,
             next_of_kin_phone=application.emergency_contact_phone,
+            lease_start_date=payload.move_in_date,
+            monthly_rent=payload.monthly_rent,
+            deposit_amount=payload.deposit_amount,
+            outstanding_balance=payload.monthly_rent,
         )
         db.add(tenant)
         db.flush()
+    tenant.lease_start_date = payload.move_in_date
+    tenant.monthly_rent = payload.monthly_rent
+    tenant.deposit_amount = payload.deposit_amount
     checklist = db.query(OnboardingChecklist).filter(OnboardingChecklist.tenant_id == tenant.id).first()
     if not checklist:
         checklist = OnboardingChecklist(tenant_id=tenant.id)

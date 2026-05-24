@@ -8,13 +8,34 @@ export function PaymentSubmissionsPage() {
   const [payments, setPayments] = useState<PaymentSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busyId, setBusyId] = useState("");
 
-  useEffect(() => {
+  async function loadData() {
+    setLoading(true);
     apiFetch("/payment-submissions")
       .then(setPayments)
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load payment submissions"))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  async function decide(payment: PaymentSubmission, action: "approve" | "reject") {
+    setBusyId(payment.id);
+    setNotice("");
+    try {
+      await apiFetch(`/payment-submissions/${payment.id}/${action}`, { method: "PUT" });
+      setNotice(action === "approve" ? "Payment approved and receipt generated." : "Payment rejected.");
+      await loadData();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not update payment");
+    } finally {
+      setBusyId("");
+    }
+  }
 
   return (
     <section className="page-stack">
@@ -27,6 +48,7 @@ export function PaymentSubmissionsPage() {
       </div>
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
+      {notice ? <div className="data-state">{notice}</div> : null}
       <div className="table-panel">
         <table>
           <thead>
@@ -36,6 +58,7 @@ export function PaymentSubmissionsPage() {
               <th>Amount</th>
               <th>Status</th>
               <th>Submitted</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -46,6 +69,12 @@ export function PaymentSubmissionsPage() {
                 <td>M{Number(payment.amount).toLocaleString()}</td>
                 <td><StatusPill value={payment.status} /></td>
                 <td>{new Date(payment.created_at).toLocaleDateString()}</td>
+                <td>
+                  <div className="table-actions">
+                    <button disabled={busyId === payment.id || payment.status !== "pending"} type="button" onClick={() => decide(payment, "approve")}>Approve</button>
+                    <button disabled={busyId === payment.id || payment.status !== "pending"} type="button" onClick={() => decide(payment, "reject")}>Reject</button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -20,6 +20,12 @@ export type DashboardSummary = {
   pending_payment_submissions: number;
   published_listings: number;
   pending_applications: number;
+  pending_room_requests: number;
+  maintenance_tickets: number;
+  overdue_rent_dues: number;
+  active_landlords: number;
+  pending_landlord_requests: number;
+  total_tenants: number;
 };
 
 export type PropertyItem = {
@@ -134,7 +140,7 @@ export type PaymentSubmission = {
   tenant_id: string;
   rent_due_id?: string | null;
   amount: number;
-  method: "mpesa" | "ecocash" | "bank" | "cash";
+  method: "mpesa" | "ecocash" | "orange_money" | "bank_transfer" | "bank" | "cash";
   transaction_reference: string;
   status: "pending" | "approved" | "rejected";
   created_at: string;
@@ -147,7 +153,9 @@ export type SupportTicket = {
   category: string;
   priority?: string | null;
   description: string;
-  status: "open" | "in_progress" | "resolved" | "closed";
+  assigned_to_user_id?: string | null;
+  resolved_at?: string | null;
+  status: "open" | "assigned" | "in_progress" | "resolved" | "closed";
   created_at: string;
 };
 

@@ -50,6 +50,13 @@ class TenantVerificationStatus(str, enum.Enum):
     rejected_verification = "rejected_verification"
 
 
+class TenantStatus(str, enum.Enum):
+    active = "active"
+    overdue = "overdue"
+    moved_out = "moved_out"
+    disabled = "disabled"
+
+
 class OccupancyStatus(str, enum.Enum):
     active = "active"
     ended = "ended"
@@ -60,11 +67,14 @@ class RentDueStatus(str, enum.Enum):
     unpaid = "unpaid"
     partial = "partial"
     paid = "paid"
+    overdue = "overdue"
 
 
 class PaymentMethod(str, enum.Enum):
     mpesa = "mpesa"
     ecocash = "ecocash"
+    orange_money = "orange_money"
+    bank_transfer = "bank_transfer"
     bank = "bank"
     cash = "cash"
 
@@ -117,6 +127,7 @@ class InvitationStatus(str, enum.Enum):
 
 class TicketStatus(str, enum.Enum):
     open = "open"
+    assigned = "assigned"
     in_progress = "in_progress"
     resolved = "resolved"
     closed = "closed"
@@ -127,11 +138,14 @@ class AuditAction(str, enum.Enum):
     update_tenant = "UPDATE_TENANT"
     create_payment = "CREATE_PAYMENT"
     approve_payment_submission = "APPROVE_PAYMENT_SUBMISSION"
+    reject_payment_submission = "REJECT_PAYMENT_SUBMISSION"
     create_occupancy = "CREATE_OCCUPANCY"
     room_transfer = "ROOM_TRANSFER"
     create_room_listing = "CREATE_ROOM_LISTING"
     update_room_listing = "UPDATE_ROOM_LISTING"
     create_support_ticket = "CREATE_SUPPORT_TICKET"
+    update_support_ticket = "UPDATE_SUPPORT_TICKET"
+    approve_landlord = "APPROVE_LANDLORD"
     login_success = "LOGIN_SUCCESS"
     login_failure = "LOGIN_FAILURE"
 
@@ -267,6 +281,14 @@ class Tenant(Base, TimestampMixin):
         Enum(TenantVerificationStatus, name="tenant_verification_status"),
         default=TenantVerificationStatus.pending_verification,
     )
+    tenant_status: Mapped[TenantStatus] = mapped_column(Enum(TenantStatus, name="tenant_status"), default=TenantStatus.active, index=True)
+    lease_start_date: Mapped[date | None] = mapped_column(Date)
+    lease_end_date: Mapped[date | None] = mapped_column(Date)
+    monthly_rent: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    deposit_amount: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    deposit_paid: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    outstanding_balance: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    notices: Mapped[str | None] = mapped_column(Text)
     profile_photo_path: Mapped[str | None] = mapped_column(String(500))
 
     user: Mapped[User | None] = relationship(back_populates="tenant_profile")
@@ -297,6 +319,9 @@ class RentDue(Base, TimestampMixin):
     due_month: Mapped[date] = mapped_column(Date)
     amount_due: Mapped[float] = mapped_column(Numeric(12, 2))
     amount_paid: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    due_date: Mapped[date | None] = mapped_column(Date)
+    late_penalty_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    is_late: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     status: Mapped[RentDueStatus] = mapped_column(Enum(RentDueStatus, name="rent_due_status"), default=RentDueStatus.unpaid)
 
     __table_args__ = (UniqueConstraint("occupancy_id", "due_month", name="uq_due_occupancy_month"),)
@@ -321,6 +346,20 @@ class PaymentSubmission(Base, TimestampMixin):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (UniqueConstraint("landlord_id", "transaction_reference", name="uq_landlord_transaction_ref"),)
+
+
+class PaymentReceipt(Base, TimestampMixin):
+    __tablename__ = "payment_receipts"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    payment_submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("payment_submissions.id"), unique=True, index=True)
+    receipt_number: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    amount: Mapped[float] = mapped_column(Numeric(12, 2))
+    method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod, name="payment_method"))
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    pdf_path: Mapped[str | None] = mapped_column(String(500))
 
 
 class RoomListing(Base, TimestampMixin):
@@ -477,6 +516,8 @@ class SupportTicket(Base, TimestampMixin):
     category: Mapped[str] = mapped_column(String(80))
     priority: Mapped[str | None] = mapped_column(String(40))
     description: Mapped[str] = mapped_column(Text)
+    assigned_to_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[TicketStatus] = mapped_column(Enum(TicketStatus, name="ticket_status"), default=TicketStatus.open, index=True)
 
 

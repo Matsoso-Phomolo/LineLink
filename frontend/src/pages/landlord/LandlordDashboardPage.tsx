@@ -41,6 +41,10 @@ export function LandlordDashboardPage() {
             <Metric label="Pending payments" value={summary.pending_payment_submissions} />
             <Metric label="Public listings" value={summary.published_listings} />
             <Metric label="Applications" value={summary.pending_applications} />
+            <Metric label="Room requests" value={summary.pending_room_requests} />
+            <Metric label="Overdue rent" value={summary.overdue_rent_dues} />
+            <Metric label="Maintenance" value={summary.maintenance_tickets} />
+            <Metric label="Tenants" value={summary.total_tenants} />
           </div>
           <section className="panel">
             <h2>Recent notifications</h2>

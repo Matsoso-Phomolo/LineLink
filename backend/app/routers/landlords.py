@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth import get_password_hash
+from app.audit import log_action
 from app.database import get_db
 from app.dependencies import require_roles
-from app.models import Landlord, LandlordRequest, LandlordRequestStatus, User, UserRole
+from app.models import AuditAction, Landlord, LandlordRequest, LandlordRequestStatus, User, UserRole
 from app.schemas import (
     LandlordCreate,
     LandlordManualCreate,
@@ -141,6 +142,7 @@ def approve_landlord_request(
     request.landlord_id = landlord.id
     request.approved_by_user_id = admin.id
     request.approved_at = datetime.now(timezone.utc)
+    log_action(db, AuditAction.approve_landlord, admin, landlord.id, "LandlordRequest", request.id)
     db.commit()
     db.refresh(request)
     db.refresh(landlord)

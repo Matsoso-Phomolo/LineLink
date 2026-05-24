@@ -823,6 +823,22 @@ th {
   color: #ffffff;
 }
 
+.table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-actions button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #ccd7d2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172026;
+  font-weight: 800;
+}
+
 .row-money {
   min-width: 120px;
   text-align: right;

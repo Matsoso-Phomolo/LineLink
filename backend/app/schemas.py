@@ -14,6 +14,7 @@ from app.models import (
     RentDueStatus,
     RoomStatus,
     RoomType,
+    TenantStatus,
     TenantType,
     TenantVerificationStatus,
     UserRole,
@@ -187,6 +188,14 @@ class TenantUpdate(BaseModel):
     phone: str | None = None
     email: EmailStr | None = None
     verification_status: TenantVerificationStatus | None = None
+    tenant_status: TenantStatus | None = None
+    lease_start_date: date | None = None
+    lease_end_date: date | None = None
+    monthly_rent: float | None = None
+    deposit_amount: float | None = None
+    deposit_paid: bool | None = None
+    outstanding_balance: float | None = None
+    notices: str | None = None
     next_of_kin_name: str | None = None
     next_of_kin_phone: str | None = None
 
@@ -196,6 +205,14 @@ class TenantRead(TenantBase, ORMModel):
     user_id: uuid.UUID | None
     landlord_id: uuid.UUID
     verification_status: TenantVerificationStatus
+    tenant_status: TenantStatus = TenantStatus.active
+    lease_start_date: date | None = None
+    lease_end_date: date | None = None
+    monthly_rent: float | None = None
+    deposit_amount: float | None = None
+    deposit_paid: bool = False
+    outstanding_balance: float = 0
+    notices: str | None = None
     profile_photo_path: str | None
     created_at: datetime
 
@@ -228,8 +245,11 @@ class RentDueRead(ORMModel):
     tenant_id: uuid.UUID
     occupancy_id: uuid.UUID
     due_month: date
+    due_date: date | None = None
     amount_due: float
     amount_paid: float
+    late_penalty_amount: float = 0
+    is_late: bool = False
     status: RentDueStatus
 
 
@@ -249,6 +269,18 @@ class PaymentSubmissionRead(PaymentSubmissionCreate, ORMModel):
     approved_by_user_id: uuid.UUID | None
     approved_at: datetime | None
     created_at: datetime
+
+
+class PaymentReceiptRead(ORMModel):
+    id: uuid.UUID
+    landlord_id: uuid.UUID
+    tenant_id: uuid.UUID
+    payment_submission_id: uuid.UUID
+    receipt_number: str
+    amount: float
+    method: PaymentMethod
+    issued_at: datetime
+    pdf_path: str | None = None
 
 
 class ListingBase(BaseModel):
@@ -442,3 +474,9 @@ class DashboardSummary(BaseModel):
     pending_payment_submissions: int
     published_listings: int
     pending_applications: int
+    pending_room_requests: int = 0
+    maintenance_tickets: int = 0
+    overdue_rent_dues: int = 0
+    active_landlords: int = 0
+    pending_landlord_requests: int = 0
+    total_tenants: int = 0

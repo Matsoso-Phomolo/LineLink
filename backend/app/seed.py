@@ -230,6 +230,11 @@ def seed_tenant(db: Session, landlord: Landlord, user: User) -> Tenant:
     tenant.student_number = "20240001"
     tenant.institution = "National University of Lesotho"
     tenant.verification_status = TenantVerificationStatus.pending_verification
+    tenant.lease_start_date = current_month()
+    tenant.monthly_rent = 450
+    tenant.deposit_amount = 450
+    tenant.deposit_paid = False
+    tenant.outstanding_balance = 450
     return tenant
 
 
