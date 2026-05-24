@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
-import type { PaymentSubmission } from "../../types";
+import type { PaymentSubmission, PaymentTransaction } from "../../types";
 
 export function PaymentSubmissionsPage() {
   const [payments, setPayments] = useState<PaymentSubmission[]>([]);
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -13,8 +14,11 @@ export function PaymentSubmissionsPage() {
 
   async function loadData() {
     setLoading(true);
-    apiFetch("/payment-submissions")
-      .then(setPayments)
+    Promise.all([apiFetch("/payment-submissions"), apiFetch("/payments/transactions")])
+      .then(([paymentItems, transactionItems]) => {
+        setPayments(paymentItems);
+        setTransactions(transactionItems);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load payment submissions"))
       .finally(() => setLoading(false));
   }
@@ -49,6 +53,22 @@ export function PaymentSubmissionsPage() {
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
       {notice ? <div className="data-state">{notice}</div> : null}
+      <section className="panel">
+        <h2>Mobile money and bank transactions</h2>
+        <div className="list-stack">
+          {transactions.length === 0 ? <div className="data-state">No provider transactions yet.</div> : null}
+          {transactions.slice(0, 10).map((transaction) => (
+            <article className="row-item" key={transaction.id}>
+              <div>
+                <strong>{transaction.method.replace("_", " ")} - M{Number(transaction.amount).toLocaleString()}</strong>
+                <p>{transaction.provider_reference ?? transaction.checkout_request_id ?? transaction.idempotency_key}</p>
+                {transaction.provider_error ? <small>{transaction.provider_error}</small> : null}
+              </div>
+              <StatusPill value={transaction.status} />
+            </article>
+          ))}
+        </div>
+      </section>
       <div className="table-panel">
         <table>
           <thead>

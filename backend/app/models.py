@@ -85,6 +85,14 @@ class PaymentSubmissionStatus(str, enum.Enum):
     rejected = "rejected"
 
 
+class PaymentTransactionStatus(str, enum.Enum):
+    pending = "pending"
+    successful = "successful"
+    failed = "failed"
+    timeout = "timeout"
+    pending_verification = "pending_verification"
+
+
 class ListingStatus(str, enum.Enum):
     draft = "draft"
     published = "published"
@@ -430,6 +438,27 @@ class PaymentReceipt(Base, TimestampMixin):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     pdf_path: Mapped[str | None] = mapped_column(String(500))
     pdf_url: Mapped[str | None] = mapped_column(String(500))
+
+
+class PaymentTransaction(Base, TimestampMixin):
+    __tablename__ = "payment_transactions"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    rent_due_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rent_dues.id"), nullable=True, index=True)
+    payment_submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("payment_submissions.id"), nullable=True, index=True)
+    amount: Mapped[float] = mapped_column(Numeric(12, 2))
+    method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod, name="payment_method"), index=True)
+    payer_phone: Mapped[str | None] = mapped_column(String(40))
+    status: Mapped[PaymentTransactionStatus] = mapped_column(Enum(PaymentTransactionStatus, name="payment_transaction_status"), default=PaymentTransactionStatus.pending, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(160), unique=True, index=True)
+    checkout_request_id: Mapped[str | None] = mapped_column(String(160), unique=True, nullable=True, index=True)
+    provider_reference: Mapped[str | None] = mapped_column(String(160), unique=True, nullable=True, index=True)
+    provider_message: Mapped[str | None] = mapped_column(Text)
+    provider_error: Mapped[str | None] = mapped_column(Text)
+    raw_callback_json: Mapped[str | None] = mapped_column(Text)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class RoomListing(Base, TimestampMixin):

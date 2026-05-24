@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
@@ -30,6 +30,8 @@ export function TenantPortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [payingDueId, setPayingDueId] = useState("");
+  const [paymentForm, setPaymentForm] = useState({ amount: "", method: "mpesa", payer_phone: "" });
 
   async function loadPortal() {
     setLoading(true);
@@ -55,6 +57,37 @@ export function TenantPortalPage() {
       await loadPortal();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not sign lease");
+    }
+  }
+
+  function startPayment(due: TenantPortal["rent_dues"][number]) {
+    setPayingDueId(due.id);
+    setPaymentForm({
+      amount: String(Math.max(0, Number(due.amount_due) - Number(due.amount_paid))),
+      method: "mpesa",
+      payer_phone: portal?.tenant?.phone ?? ""
+    });
+  }
+
+  async function initiatePayment(event: FormEvent) {
+    event.preventDefault();
+    setNotice("");
+    try {
+      const result = await apiFetch("/payments/initiate", {
+        method: "POST",
+        body: JSON.stringify({
+          rent_due_id: payingDueId,
+          amount: Number(paymentForm.amount),
+          method: paymentForm.method,
+          payer_phone: paymentForm.payer_phone,
+          idempotency_key: `${payingDueId}-${paymentForm.method}-${paymentForm.amount}`
+        })
+      }) as { provider_message?: string | null };
+      setNotice(result.provider_message ?? "Payment request sent. Confirm on your phone using your mobile money PIN.");
+      setPayingDueId("");
+      await loadPortal();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not initiate payment");
     }
   }
 
@@ -112,11 +145,38 @@ export function TenantPortalPage() {
                     <strong>{new Date(due.due_month).toLocaleDateString(undefined, { month: "long", year: "numeric" })}</strong>
                     <p>M{Number(due.amount_paid).toLocaleString()} paid of M{Number(due.amount_due).toLocaleString()}{due.is_late ? " - late" : ""}</p>
                   </div>
-                  <StatusPill value={due.status} />
+                  <div className="review-actions">
+                    <StatusPill value={due.status} />
+                    <button type="button" disabled={due.status === "paid"} onClick={() => startPayment(due)}>Pay rent</button>
+                  </div>
                 </article>
               ))}
             </div>
           </section>
+
+          {payingDueId ? (
+            <form className="panel form-panel" onSubmit={initiatePayment}>
+              <div>
+                <p className="eyebrow">Secure mobile money</p>
+                <h2>Submit payment request</h2>
+                <p>LineLink never asks for or stores wallet PINs. Confirm only on the official wallet prompt, USSD, or app.</p>
+              </div>
+              <div className="form-grid">
+                <label>Amount<input required inputMode="numeric" value={paymentForm.amount} onChange={(event) => setPaymentForm((current) => ({ ...current, amount: event.target.value }))} /></label>
+                <label>Method<select value={paymentForm.method} onChange={(event) => setPaymentForm((current) => ({ ...current, method: event.target.value }))}>
+                  <option value="mpesa">MPESA</option>
+                  <option value="ecocash">EcoCash</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                </select></label>
+              </div>
+              <label>Wallet phone number<input required value={paymentForm.payer_phone} onChange={(event) => setPaymentForm((current) => ({ ...current, payer_phone: event.target.value }))} /></label>
+              {paymentForm.method === "bank_transfer" ? <div className="data-state">Bank transfer remains pending verification. Proof upload will be attached in the next payment-proof step.</div> : null}
+              <div className="review-actions">
+                <button className="primary-button" type="submit">Submit Payment Request</button>
+                <button type="button" onClick={() => setPayingDueId("")}>Cancel</button>
+              </div>
+            </form>
+          ) : null}
 
           <section className="panel">
             <h2>Occupancy</h2>

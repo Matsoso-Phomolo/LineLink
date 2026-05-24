@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     public_base_url: str = "http://localhost:8000"
     allowed_origins: str = Field(default="http://localhost:5173,http://localhost:3000")
+    mpesa_base_url: str | None = None
+    mpesa_client_id: str | None = None
+    mpesa_client_secret: str | None = None
+    mpesa_short_code: str | None = None
+    mpesa_callback_url: str | None = None
+    ecocash_base_url: str | None = None
+    ecocash_client_id: str | None = None
+    ecocash_client_secret: str | None = None
+    ecocash_merchant_code: str | None = None
+    ecocash_callback_url: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

@@ -20,6 +20,7 @@ from app.models import (
     SubscriptionStatus,
     PaymentMethod,
     PaymentSubmissionStatus,
+    PaymentTransactionStatus,
     RentDueStatus,
     RoomStatus,
     RoomType,
@@ -380,6 +381,42 @@ class PaymentReceiptRead(ORMModel):
     issued_at: datetime
     pdf_path: str | None = None
     pdf_url: str | None = None
+
+
+class PaymentInitiateRequest(BaseModel):
+    rent_due_id: uuid.UUID
+    amount: float
+    method: PaymentMethod
+    payer_phone: str
+    tenant_id: uuid.UUID | None = None
+    idempotency_key: str | None = None
+
+
+class PaymentInitiateResponse(ORMModel):
+    id: uuid.UUID
+    rent_due_id: uuid.UUID | None = None
+    tenant_id: uuid.UUID
+    amount: float
+    method: PaymentMethod
+    payer_phone: str | None = None
+    status: PaymentTransactionStatus
+    idempotency_key: str
+    checkout_request_id: str | None = None
+    provider_reference: str | None = None
+    provider_message: str | None = None
+    provider_error: str | None = None
+    created_at: datetime
+
+
+class PaymentCallbackPayload(BaseModel):
+    checkout_request_id: str | None = None
+    provider_reference: str | None = None
+    idempotency_key: str | None = None
+    status: str
+    amount: float | None = None
+    transaction_reference: str | None = None
+    message: str | None = None
+    error_message: str | None = None
 
 
 class ListingBase(BaseModel):

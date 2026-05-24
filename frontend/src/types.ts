@@ -194,6 +194,22 @@ export type PaymentSubmission = {
   created_at: string;
 };
 
+export type PaymentTransaction = {
+  id: string;
+  rent_due_id?: string | null;
+  tenant_id: string;
+  amount: number;
+  method: "mpesa" | "ecocash" | "orange_money" | "bank_transfer" | "bank" | "cash";
+  payer_phone?: string | null;
+  status: "pending" | "successful" | "failed" | "timeout" | "pending_verification";
+  idempotency_key: string;
+  checkout_request_id?: string | null;
+  provider_reference?: string | null;
+  provider_message?: string | null;
+  provider_error?: string | null;
+  created_at: string;
+};
+
 export type SupportTicket = {
   id: string;
   tenant_id: string;
