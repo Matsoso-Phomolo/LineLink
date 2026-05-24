@@ -53,9 +53,18 @@ def get_or_create_user(db: Session, email: str, password: str, full_name: str, r
         user.full_name = full_name
         user.role = role
         user.is_active = True
+        user.must_change_password = False
         user.hashed_password = get_password_hash(password)
         if phone:
             user.phone = phone
+    if not user.username:
+        prefix = {
+            UserRole.admin: "LL-ADM",
+            UserRole.landlord: "LL-LND",
+            UserRole.caretaker: "LL-CRT",
+            UserRole.tenant: "LL-TNT",
+        }[role]
+        user.username = f"{prefix}-000001"
     return user
 
 
@@ -78,18 +87,20 @@ def should_seed_demo_data() -> bool:
 def seed_admin(db: Session, *, email: str | None = None, password: str | None = None, full_name: str | None = None) -> User:
     admin_email = email or settings.admin_email or (ADMIN_EMAIL if not is_production() else None)
     admin_password = password or settings.admin_password or (DEMO_ADMIN_PASSWORD if not is_production() else None)
-    admin_full_name = full_name or settings.admin_full_name or "LineLink Admin"
+    admin_full_name = full_name or settings.admin_full_name or "Phomolo Matsoso"
     if not admin_email or not admin_password:
         raise RuntimeError("ADMIN_EMAIL and ADMIN_PASSWORD are required when seeding the first admin")
     user = db.query(User).filter(User.email == admin_email).first()
     if not user:
-        user = User(email=admin_email, full_name=admin_full_name, role=UserRole.admin, hashed_password=get_password_hash(admin_password))
+        user = User(username="LL-ADM-000001", email=admin_email, full_name=admin_full_name, role=UserRole.admin, hashed_password=get_password_hash(admin_password))
         db.add(user)
         db.flush()
     else:
         user.full_name = admin_full_name
+        user.username = user.username or "LL-ADM-000001"
         user.role = UserRole.admin
         user.is_active = True
+        user.must_change_password = False
         if not is_production():
             user.hashed_password = get_password_hash(admin_password)
     return user
@@ -108,6 +119,7 @@ def seed_landlord(db: Session, user: User) -> Landlord:
     landlord.is_active = True
     if not landlord.system_landlord_number:
         landlord.system_landlord_number = "LL-LND-000001"
+    user.username = landlord.system_landlord_number
     return landlord
 
 
@@ -190,6 +202,7 @@ def seed_listings(db: Session, landlord: Landlord, prop: Property, rooms: dict[s
                 house_rules="No excessive noise",
                 status=ListingStatus.published,
                 is_public=True,
+                is_verified=True,
             )
             db.add(listing)
             db.flush()
@@ -212,6 +225,7 @@ def seed_listings(db: Session, landlord: Landlord, prop: Property, rooms: dict[s
         listing.house_rules = "No excessive noise"
         listing.status = ListingStatus.published
         listing.is_public = True
+        listing.is_verified = True
         listings[room.room_number] = listing
     return listings
 
@@ -230,6 +244,9 @@ def seed_tenant(db: Session, landlord: Landlord, user: User) -> Tenant:
     tenant.student_number = "20240001"
     tenant.institution = "National University of Lesotho"
     tenant.verification_status = TenantVerificationStatus.pending_verification
+    if user:
+        user.username = user.username or "LL-TNT-000001"
+        user.must_change_password = False
     tenant.lease_start_date = current_month()
     tenant.monthly_rent = 450
     tenant.deposit_amount = 450
@@ -340,7 +357,7 @@ def seed_notification(db: Session, user: User, title: str, body: str, category: 
 def seed_demo_data(db: Session) -> dict[str, object]:
     if is_production() and not should_seed_demo_data():
         raise RuntimeError("Refusing to seed demo data in production when SEED_DEMO_DATA=false")
-    seed_admin(db, email=ADMIN_EMAIL, password=DEMO_ADMIN_PASSWORD, full_name="LineLink Admin")
+    seed_admin(db, email=ADMIN_EMAIL, password=DEMO_ADMIN_PASSWORD, full_name="Phomolo Matsoso")
     landlord_user = get_or_create_user(db, LANDLORD_EMAIL, DEMO_USER_PASSWORD, "Matsoso Holdings", UserRole.landlord, "+26658000000")
     tenant_user = get_or_create_user(db, TENANT_EMAIL, DEMO_USER_PASSWORD, "Test Tenant", UserRole.tenant, "+26659000000")
 
@@ -377,9 +394,10 @@ def seed() -> None:
             print("LineLink demo seed complete")
             print("")
             print("Demo logins")
-            print(f"- admin: {ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}")
-            print(f"- landlord: {LANDLORD_EMAIL} / {DEMO_USER_PASSWORD}")
-            print(f"- tenant: {TENANT_EMAIL} / {DEMO_USER_PASSWORD}")
+            print(f"- admin: LL-ADM-000001 / {DEMO_ADMIN_PASSWORD}")
+            print(f"- landlord: LL-LND-000001 / {DEMO_USER_PASSWORD}")
+            print(f"- tenant: LL-TNT-000001 / {DEMO_USER_PASSWORD}")
+            print("Legacy email login is still accepted for local compatibility.")
             print("")
             landlord = result["landlord"]
             prop = result["property"]

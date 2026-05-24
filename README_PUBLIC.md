@@ -19,7 +19,7 @@ Room seekers often discover vacancies by physically asking around. Landlords and
 
 ## Roles
 
-- Admin: platform oversight
+- Admin: platform owner/operator. The initial platform owner is Phomolo Matsoso.
 - Landlord: owns properties, rooms, listings, tenants, payments, and applications
 - Caretaker: acts within an assigned landlord/property scope
 - Tenant: sees only their own tenant portal data
@@ -50,7 +50,7 @@ LineLink treats every line-house or apartment as belonging to one landlord. Land
 
 ## Production Admin Setup
 
-LineLink does not rely on demo users in production. On Render, the backend start command runs migrations and then `python -m app.seed`.
+LineLink does not rely on demo users in production. On Render, the backend start command runs migrations and then `python -m app.seed`. Users sign in with system identifiers such as `LL-ADM-000001`, `LL-LND-000001`, and `LL-TNT-000001`; email login remains a compatibility fallback.
 
 With:
 
@@ -59,10 +59,14 @@ APP_ENV=production
 SEED_DEMO_DATA=false
 ADMIN_EMAIL=your-admin-email
 ADMIN_PASSWORD=your-secure-password
-ADMIN_FULL_NAME=LineLink Admin
+ADMIN_FULL_NAME=Phomolo Matsoso
 ```
 
 the seed script creates only the first admin if needed and skips landlord, tenant, listing, payment, and ticket demo records.
+
+## Repository Safety
+
+Local setup notes, `.env` files, and internal deployment notes are not public product artifacts. Do not expose `README_LOCAL.md`, internal docs, or environment files through frontend routes, static hosting, or production builds.
 
 ## Render Backend Deployment
 

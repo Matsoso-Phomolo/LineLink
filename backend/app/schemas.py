@@ -6,6 +6,8 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field
 from app.models import (
     AllowedTenantType,
     ApplicationStatus,
+    ComplaintStatus,
+    ComplaintVisibility,
     InvitationStatus,
     LandlordRequestStatus,
     ListingStatus,
@@ -14,6 +16,7 @@ from app.models import (
     RentDueStatus,
     RoomStatus,
     RoomType,
+    RuleVisibility,
     TenantStatus,
     TenantType,
     TenantVerificationStatus,
@@ -41,12 +44,29 @@ class UserCreate(BaseModel):
 
 class UserRead(ORMModel):
     id: uuid.UUID
+    username: str | None = None
     email: str
     phone: str | None
     full_name: str
     role: UserRole
     is_active: bool
+    must_change_password: bool = False
     created_at: datetime
+
+
+class PasswordResetRequest(BaseModel):
+    identifier: str
+    channel: str = "email"
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
 
 
 class LandlordCreate(BaseModel):
@@ -126,16 +146,19 @@ class PropertyBase(BaseModel):
 
 class PropertyCreate(PropertyBase):
     landlord_id: uuid.UUID | None = None
+    category_id: uuid.UUID | None = None
 
 
 class PropertyRead(PropertyBase, ORMModel):
     id: uuid.UUID
     landlord_id: uuid.UUID
+    category_id: uuid.UUID | None = None
     created_at: datetime
 
 
 class RoomBase(BaseModel):
     property_id: uuid.UUID
+    category_id: uuid.UUID | None = None
     room_number: str
     status: RoomStatus = RoomStatus.vacant
     room_type: RoomType
@@ -150,6 +173,7 @@ class RoomCreate(RoomBase):
 
 
 class RoomUpdate(BaseModel):
+    category_id: uuid.UUID | None = None
     room_number: str | None = None
     status: RoomStatus | None = None
     room_type: RoomType | None = None
@@ -303,6 +327,7 @@ class ListingBase(BaseModel):
     house_rules: str | None = None
     status: ListingStatus = ListingStatus.draft
     is_public: bool = False
+    is_verified: bool = False
 
 
 class ListingCreate(ListingBase):
@@ -323,6 +348,7 @@ class ListingUpdate(BaseModel):
     house_rules: str | None = None
     status: ListingStatus | None = None
     is_public: bool | None = None
+    is_verified: bool | None = None
 
 
 class ListingRead(ListingBase, ORMModel):
@@ -480,3 +506,48 @@ class DashboardSummary(BaseModel):
     active_landlords: int = 0
     pending_landlord_requests: int = 0
     total_tenants: int = 0
+
+
+class PropertyCategoryCreate(BaseModel):
+    name: str
+    description: str | None = None
+
+
+class PropertyCategoryRead(PropertyCategoryCreate, ORMModel):
+    id: uuid.UUID
+    landlord_id: uuid.UUID
+    created_at: datetime
+
+
+class LineRuleCreate(BaseModel):
+    tenant_id: uuid.UUID | None = None
+    title: str
+    content: str
+    visibility: RuleVisibility = RuleVisibility.public
+
+
+class LineRuleRead(LineRuleCreate, ORMModel):
+    id: uuid.UUID
+    landlord_id: uuid.UUID
+    created_at: datetime
+
+
+class ComplaintCreate(BaseModel):
+    receiver_user_id: uuid.UUID | None = None
+    property_id: uuid.UUID | None = None
+    room_id: uuid.UUID | None = None
+    title: str
+    description: str
+    visibility: ComplaintVisibility = ComplaintVisibility.private
+
+
+class ComplaintUpdate(BaseModel):
+    status: ComplaintStatus | None = None
+
+
+class ComplaintRead(ComplaintCreate, ORMModel):
+    id: uuid.UUID
+    landlord_id: uuid.UUID | None = None
+    sender_user_id: uuid.UUID
+    status: ComplaintStatus
+    created_at: datetime

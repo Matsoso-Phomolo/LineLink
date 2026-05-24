@@ -7,6 +7,9 @@ from app.audit import log_action
 from app.database import get_db
 from app.dependencies import require_roles
 from app.file_storage import save_upload_file
+from app.auth import get_password_hash
+from app.identity import first_name_password, next_identifier
+from app.notification_channels import send_login_credentials
 from app.models import (
     ApplicationStatus,
     AuditAction,
@@ -91,6 +94,18 @@ def archive_listing(listing_id: uuid.UUID, db: Session = Depends(get_db), user: 
     return listing
 
 
+@router.put("/{listing_id}/verify", response_model=ListingRead)
+def verify_listing(listing_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin))):
+    listing = db.get(RoomListing, listing_id)
+    if not listing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+    listing.is_verified = True
+    log_action(db, AuditAction.update_room_listing, user, listing.landlord_id, "RoomListing", listing.id)
+    db.commit()
+    db.refresh(listing)
+    return listing
+
+
 @router.post("/{listing_id}/photos", response_model=ListingPhotoRead)
 def add_listing_photo(listing_id: uuid.UUID, file: UploadFile, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
     listing = listing_in_scope(db, user, listing_id)
@@ -170,6 +185,22 @@ def assign_application_room(application_id: uuid.UUID, payload: ApplicationAssig
         if tenant and tenant.landlord_id != listing.landlord_id:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Applicant tenant profile belongs to another landlord")
     if not tenant:
+        temporary_password = None
+        tenant_user = None
+        if not application.applicant_user_id:
+            temporary_password = first_name_password(application.full_name)
+            tenant_user = User(
+                username=next_identifier(db, UserRole.tenant),
+                email=application.email or f"{uuid.uuid4()}@tenant.linelink.local",
+                phone=application.phone,
+                full_name=application.full_name,
+                role=UserRole.tenant,
+                hashed_password=get_password_hash(temporary_password),
+                must_change_password=True,
+            )
+            db.add(tenant_user)
+            db.flush()
+            application.applicant_user_id = tenant_user.id
         tenant = Tenant(
             user_id=application.applicant_user_id,
             landlord_id=listing.landlord_id,
@@ -191,6 +222,8 @@ def assign_application_room(application_id: uuid.UUID, payload: ApplicationAssig
         )
         db.add(tenant)
         db.flush()
+        if tenant_user and temporary_password:
+            send_login_credentials(tenant_user, temporary_password)
     tenant.lease_start_date = payload.move_in_date
     tenant.monthly_rent = payload.monthly_rent
     tenant.deposit_amount = payload.deposit_amount
@@ -229,4 +262,5 @@ def assign_application_room(application_id: uuid.UUID, payload: ApplicationAssig
         db.add(Notification(user_id=landlord.user_id, title="Room assigned", body=f"{application.full_name} has been assigned to {room.room_number}.", category="applications"))
     log_action(db, AuditAction.create_occupancy, user, listing.landlord_id, "TenantApplication", application.id)
     db.commit()
-    return {"tenant_id": tenant.id, "occupancy_id": occupancy.id, "invitation_id": invitation.id if invitation else None}
+    tenant_user = db.get(User, tenant.user_id) if tenant.user_id else None
+    return {"tenant_id": tenant.id, "occupancy_id": occupancy.id, "invitation_id": invitation.id if invitation else None, "username": tenant_user.username if tenant_user else None}

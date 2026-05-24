@@ -35,8 +35,9 @@ def decode_token(token: str) -> dict[str, Any] | None:
         return None
 
 
-def authenticate_user(db: Session, email: str, password: str) -> User | None:
-    user = db.query(User).filter(User.email == email).first()
+def authenticate_user(db: Session, identifier: str, password: str) -> User | None:
+    normalized = identifier.strip()
+    user = db.query(User).filter((User.username == normalized) | (User.email == normalized)).first()
     if not user or not verify_password(password, user.hashed_password):
         return None
     return user if user.is_active else None

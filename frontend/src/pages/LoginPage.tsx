@@ -1,13 +1,13 @@
 import { FormEvent, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { VacantRoomsPreview } from "../components/VacantRoomsPreview";
 
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -20,8 +20,12 @@ export function LoginPage() {
     setSubmitting(true);
     setError("");
     try {
-      const currentUser = await login(email, password);
-      navigate(currentUser.role === "tenant" ? "/tenant" : currentUser.role === "admin" ? "/admin" : "/landlord");
+      const currentUser = await login(identifier, password);
+      if (currentUser.must_change_password) {
+        navigate("/change-password");
+      } else {
+        navigate(currentUser.role === "tenant" ? "/tenant" : currentUser.role === "admin" ? "/admin" : "/landlord");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in");
     } finally {
@@ -54,18 +58,24 @@ export function LoginPage() {
             <h2>Sign in</h2>
           </div>
           <label>
-            Email
-            <input value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+            Username / ID number
+            <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="LL-LND-000001" />
           </label>
           <label>
             Password
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
+            <div className="password-field">
+              <input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" />
+              <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
           {error ? <div className="form-error">{error}</div> : null}
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? "Signing in..." : "Sign in"}
           </button>
-          <VacantRoomsPreview />
+          <a className="secondary-button" href="#/rooms">Find vacant rooms</a>
+          <a className="text-button" href="#/forgot-password">Forgot password?</a>
         </form>
       </section>
     </main>

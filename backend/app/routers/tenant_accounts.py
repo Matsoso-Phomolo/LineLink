@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_password_hash
 from app.database import get_db
 from app.dependencies import get_actor_landlord_id, require_roles
+from app.identity import next_identifier
 from app.models import Tenant, TenantInvitation, User, UserRole, InvitationStatus
 from app.schemas import TenantInvitationAccept, TenantInvitationCreate, TenantInvitationRead
 
@@ -35,7 +36,7 @@ def accept_invitation(payload: TenantInvitationAccept, db: Session = Depends(get
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
-    user = User(email=str(payload.email), phone=payload.phone, full_name=payload.full_name, role=UserRole.tenant, hashed_password=get_password_hash(payload.password))
+    user = User(username=next_identifier(db, UserRole.tenant), email=str(payload.email), phone=payload.phone, full_name=payload.full_name, role=UserRole.tenant, hashed_password=get_password_hash(payload.password))
     db.add(user)
     db.flush()
     if invitation.tenant_id:

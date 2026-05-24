@@ -19,9 +19,9 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   return response.json();
 }
 
-export async function loginRequest(email: string, password: string) {
+export async function loginRequest(identifier: string, password: string) {
   const body = new URLSearchParams();
-  body.set("username", email);
+  body.set("username", identifier);
   body.set("password", password);
 
   const response = await fetch(`${API_BASE_URL}/auth/login`, {

@@ -6,7 +6,7 @@ type AuthContextValue = {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (identifier: string, password: string) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 };
@@ -40,8 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser();
   }, []);
 
-  async function login(email: string, password: string) {
-    const response = await loginRequest(email, password);
+  async function login(identifier: string, password: string) {
+    const response = await loginRequest(identifier, password);
     localStorage.setItem("linelink_token", response.access_token);
     setToken(response.access_token);
     const currentUser = await apiFetch("/auth/me");

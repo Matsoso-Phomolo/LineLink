@@ -11,7 +11,7 @@ const landlordLinks = [
 ];
 
 const tenantLinks = [{ to: "/tenant", label: "Tenant portal" }];
-const adminLinks = [{ to: "/admin", label: "Admin overview" }];
+const adminLinks = [{ to: "/admin", label: "Admin overview" }, { to: "/rooms", label: "Room finder" }];
 
 export function AppLayout() {
   const { user, logout } = useAuth();
@@ -34,7 +34,6 @@ export function AppLayout() {
           </div>
         </div>
         <nav className="nav-list">
-          <NavLink to="/rooms">Room finder</NavLink>
           {links.map((link) => (
             <NavLink key={link.to} to={link.to} end={link.to === "/landlord" || link.to === "/tenant" || link.to === "/admin"}>
               {link.label}

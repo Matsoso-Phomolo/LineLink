@@ -163,12 +163,14 @@ class User(Base, TimestampMixin):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = uuid_pk()
+    username: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(40), unique=True, nullable=True)
     full_name: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     landlord_profile: Mapped["Landlord | None"] = relationship(back_populates="user")
     caretaker_profile: Mapped["Caretaker | None"] = relationship(back_populates="user")
@@ -232,6 +234,7 @@ class Property(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
+    category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("property_categories.id"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     location_area: Mapped[str] = mapped_column(String(120), index=True)
@@ -249,6 +252,7 @@ class Room(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = uuid_pk()
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
     property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id"), index=True)
+    category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("property_categories.id"), nullable=True, index=True)
     room_number: Mapped[str] = mapped_column(String(80))
     status: Mapped[RoomStatus] = mapped_column(Enum(RoomStatus, name="room_status"), default=RoomStatus.vacant, index=True)
     room_type: Mapped[RoomType] = mapped_column(Enum(RoomType, name="room_type"))
@@ -386,6 +390,7 @@ class RoomListing(Base, TimestampMixin):
     house_rules: Mapped[str | None] = mapped_column(Text)
     status: Mapped[ListingStatus] = mapped_column(Enum(ListingStatus, name="listing_status"), default=ListingStatus.draft, index=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     room: Mapped[Room] = relationship(viewonly=True)
     listing_property: Mapped[Property] = relationship("Property", viewonly=True)
@@ -491,6 +496,81 @@ class Notification(Base, TimestampMixin):
     body: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(80), index=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+
+class RuleVisibility(str, enum.Enum):
+    public = "public"
+    private = "private"
+
+
+class LineRule(Base, TimestampMixin):
+    __tablename__ = "line_rules"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    content: Mapped[str] = mapped_column(Text)
+    visibility: Mapped[RuleVisibility] = mapped_column(Enum(RuleVisibility, name="rule_visibility"), default=RuleVisibility.public, index=True)
+
+
+class RuleAcknowledgement(Base, TimestampMixin):
+    __tablename__ = "rule_acknowledgements"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    rule_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("line_rules.id"), index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    acknowledged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("rule_id", "tenant_id", name="uq_rule_acknowledgement"),)
+
+
+class ComplaintVisibility(str, enum.Enum):
+    public = "public"
+    private = "private"
+
+
+class ComplaintStatus(str, enum.Enum):
+    open = "open"
+    in_review = "in_review"
+    resolved = "resolved"
+
+
+class Complaint(Base, TimestampMixin):
+    __tablename__ = "complaints"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    landlord_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("landlords.id"), nullable=True, index=True)
+    sender_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    receiver_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    property_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("properties.id"), nullable=True, index=True)
+    room_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rooms.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    visibility: Mapped[ComplaintVisibility] = mapped_column(Enum(ComplaintVisibility, name="complaint_visibility"), default=ComplaintVisibility.private, index=True)
+    status: Mapped[ComplaintStatus] = mapped_column(Enum(ComplaintStatus, name="complaint_status"), default=ComplaintStatus.open, index=True)
+
+
+class PropertyCategory(Base, TimestampMixin):
+    __tablename__ = "property_categories"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (UniqueConstraint("landlord_id", "name", name="uq_property_category_landlord_name"),)
+
+
+class PasswordResetToken(Base, TimestampMixin):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    token: Mapped[str] = mapped_column(String(160), unique=True, index=True)
+    channel: Mapped[str] = mapped_column(String(40), default="email")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AuditLog(Base):

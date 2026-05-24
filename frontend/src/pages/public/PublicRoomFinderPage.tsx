@@ -152,14 +152,7 @@ export function PublicRoomFinderPage() {
           </div>
         </div>
         <div className="public-actions">
-          {user ? (
-            <>
-              <a href={`#/${user.role === "tenant" ? "tenant" : user.role === "admin" ? "admin" : "landlord"}`}>Dashboard</a>
-              <button type="button" onClick={logout}>Sign out</button>
-            </>
-          ) : (
-            <a href="#/login">Sign in</a>
-          )}
+          <a href="#/login" onClick={() => { if (user) logout(); }}>Leave</a>
         </div>
       </div>
 

@@ -180,6 +180,38 @@ textarea {
   resize: vertical;
 }
 
+.password-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.password-field input {
+  border-radius: 8px 0 0 8px;
+}
+
+.password-field button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #ccd7d2;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #f8faf7;
+  color: #246b61;
+  font-weight: 800;
+}
+
+.standalone-card {
+  width: min(520px, 100%);
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.compact-auth {
+  min-height: 560px;
+}
+
 input:focus,
 select:focus,
 textarea:focus {

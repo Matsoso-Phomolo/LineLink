@@ -29,6 +29,7 @@ def get_public_listing(db: Session, listing_id: uuid.UUID) -> RoomListing:
         RoomListing.id == listing_id,
         RoomListing.status == ListingStatus.published,
         RoomListing.is_public.is_(True),
+        RoomListing.is_verified.is_(True),
         Room.status == RoomStatus.vacant,
     ).first()
     if not listing:
@@ -41,6 +42,7 @@ def public_listings(location_area: str | None = None, room_type: str | None = No
     query = db.query(RoomListing).join(Room, Room.id == RoomListing.room_id).filter(
         RoomListing.status == ListingStatus.published,
         RoomListing.is_public.is_(True),
+        RoomListing.is_verified.is_(True),
         Room.status == RoomStatus.vacant,
     )
     if location_area:

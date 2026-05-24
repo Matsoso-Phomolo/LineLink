@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "../layouts/AppLayout";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { LoginPage } from "../pages/LoginPage";
+import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { ChangePasswordPage } from "../pages/ChangePasswordPage";
 import { PublicRoomFinderPage } from "../pages/public/PublicRoomFinderPage";
 import { ApplicationFormPage } from "../pages/public/ApplicationFormPage";
 import { LandlordDashboardPage } from "../pages/landlord/LandlordDashboardPage";
@@ -27,10 +29,12 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/rooms" element={<PublicRoomFinderPage />} />
       <Route path="/apply/:token" element={<ApplicationFormPage />} />
       <Route path="/" element={<HomeRedirect />} />
       <Route element={<ProtectedRoute />}>
+        <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route element={<AppLayout />}>
           <Route element={<ProtectedRoute roles={["admin"]} />}>
             <Route path="/admin" element={<AdminDashboardPage />} />

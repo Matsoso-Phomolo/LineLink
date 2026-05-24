@@ -26,6 +26,12 @@ dist/
 build/
 *.log
 
+# Internal/local docs
+README_LOCAL.md
+*_LOCAL.md
+docs/internal/
+internal/
+
 # IDE
 .vscode/
 .idea/

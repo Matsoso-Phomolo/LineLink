@@ -2,11 +2,13 @@ export type Role = "admin" | "landlord" | "caretaker" | "tenant";
 
 export type User = {
   id: string;
+  username?: string | null;
   email: string;
   phone?: string | null;
   full_name: string;
   role: Role;
   is_active: boolean;
+  must_change_password: boolean;
   created_at: string;
 };
 
@@ -73,6 +75,7 @@ export type Listing = {
   house_rules?: string | null;
   status: "draft" | "published" | "rented" | "archived";
   is_public: boolean;
+  is_verified: boolean;
 };
 
 export type TenantApplication = {

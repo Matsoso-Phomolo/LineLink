@@ -10,8 +10,11 @@ from app.routers import (
     audit_logs,
     applications,
     caretakers,
+    categories,
+    complaints,
     dashboard,
     landlords,
+    line_rules,
     listings,
     notifications,
     occupancies,
@@ -51,6 +54,7 @@ def health_check() -> dict[str, str]:
 app.include_router(users.router)
 app.include_router(landlords.router)
 app.include_router(caretakers.router)
+app.include_router(categories.router)
 app.include_router(properties.router)
 app.include_router(rooms.router)
 app.include_router(tenants.router)
@@ -69,6 +73,8 @@ app.include_router(uploads.router)
 app.include_router(notifications.router)
 app.include_router(audit_logs.router)
 app.include_router(applications.router)
+app.include_router(line_rules.router)
+app.include_router(complaints.router)
 app.include_router(dashboard.router)
 
 if (FRONTEND_DIST / "assets").exists():

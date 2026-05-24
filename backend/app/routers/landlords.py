@@ -9,6 +9,7 @@ from app.auth import get_password_hash
 from app.audit import log_action
 from app.database import get_db
 from app.dependencies import require_roles
+from app.identity import next_identifier
 from app.models import AuditAction, Landlord, LandlordRequest, LandlordRequestStatus, User, UserRole
 from app.schemas import (
     LandlordCreate,
@@ -61,16 +62,19 @@ def create_landlord_account(
     user = existing_user
     if not user:
         user = User(
+            username=next_identifier(db, UserRole.landlord),
             email=email,
             phone=phone,
             full_name=full_name,
             hashed_password=get_password_hash(password),
             role=UserRole.landlord,
             is_active=True,
+            must_change_password=True,
         )
         db.add(user)
         db.flush()
     user.is_active = True
+    user.must_change_password = True
     landlord = db.query(Landlord).filter(Landlord.user_id == user.id).first()
     if landlord:
         landlord.business_name = business_name
@@ -80,6 +84,7 @@ def create_landlord_account(
         landlord.is_active = True
         if not landlord.system_landlord_number:
             landlord.system_landlord_number = generate_landlord_number(db)
+        user.username = landlord.system_landlord_number
         return landlord
     landlord = Landlord(
         user_id=user.id,
@@ -92,6 +97,7 @@ def create_landlord_account(
     )
     db.add(landlord)
     db.flush()
+    user.username = landlord.system_landlord_number
     return landlord
 
 
