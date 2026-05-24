@@ -117,13 +117,35 @@ class ApplicationStatus(str, enum.Enum):
     inquiry_pending = "inquiry_pending"
     form_sent = "form_sent"
     submitted = "submitted"
+    accepted = "accepted"
     pending = "pending"
     under_review = "under_review"
     approved = "approved"
     rejected = "rejected"
     withdrawn = "withdrawn"
     info_requested = "info_requested"
+    contacted = "contacted"
     expired = "expired"
+
+
+class PreferredResponseMethod(str, enum.Enum):
+    phone_call = "phone_call"
+    whatsapp = "whatsapp"
+    email = "email"
+    sms = "sms"
+
+
+class RequestResponseStatus(str, enum.Enum):
+    queued = "queued"
+    sent = "sent"
+    failed = "failed"
+    scaffolded = "scaffolded"
+
+
+class CallTaskStatus(str, enum.Enum):
+    pending_call = "pending_call"
+    contacted = "contacted"
+    no_answer = "no_answer"
 
 
 class ViewingRequestStatus(str, enum.Enum):
@@ -556,10 +578,38 @@ class TenantApplication(Base, TimestampMixin):
     message: Mapped[str | None] = mapped_column(Text)
     status: Mapped[ApplicationStatus] = mapped_column(Enum(ApplicationStatus, name="application_status"), default=ApplicationStatus.pending, index=True)
     landlord_note: Mapped[str | None] = mapped_column(Text)
+    preferred_response_method: Mapped[PreferredResponseMethod | None] = mapped_column(Enum(PreferredResponseMethod, name="preferred_response_method"), nullable=True)
+    response_contact_value: Mapped[str | None] = mapped_column(String(255))
+    response_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    response_status: Mapped[RequestResponseStatus | None] = mapped_column(Enum(RequestResponseStatus, name="request_response_status"), nullable=True)
     application_token: Mapped[str | None] = mapped_column(String(160), unique=True, nullable=True, index=True)
     token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     form_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RequestResponseLog(Base, TimestampMixin):
+    __tablename__ = "request_response_logs"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    request_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenant_applications.id"), index=True)
+    recipient_name: Mapped[str] = mapped_column(String(255))
+    recipient_phone: Mapped[str | None] = mapped_column(String(40))
+    recipient_email: Mapped[str | None] = mapped_column(String(255))
+    channel: Mapped[PreferredResponseMethod] = mapped_column(Enum(PreferredResponseMethod, name="preferred_response_method"), index=True)
+    message: Mapped[str] = mapped_column(Text)
+    status: Mapped[RequestResponseStatus] = mapped_column(Enum(RequestResponseStatus, name="request_response_status"), default=RequestResponseStatus.scaffolded, index=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RequestCallLog(Base, TimestampMixin):
+    __tablename__ = "request_call_logs"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    request_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenant_applications.id"), index=True)
+    caller_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    recipient_phone: Mapped[str] = mapped_column(String(40))
+    status: Mapped[CallTaskStatus] = mapped_column(Enum(CallTaskStatus, name="call_task_status"), default=CallTaskStatus.pending_call, index=True)
 
 
 class TenantInvitation(Base, TimestampMixin):

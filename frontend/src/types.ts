@@ -114,12 +114,29 @@ export type TenantApplication = {
   emergency_contact?: string | null;
   document_path?: string | null;
   message?: string | null;
-  status: "inquiry_pending" | "form_sent" | "submitted" | "pending" | "under_review" | "approved" | "rejected" | "withdrawn" | "info_requested" | "expired";
+  status: "inquiry_pending" | "form_sent" | "submitted" | "accepted" | "pending" | "under_review" | "approved" | "rejected" | "withdrawn" | "info_requested" | "contacted" | "expired";
   landlord_note?: string | null;
+  preferred_response_method?: "phone_call" | "whatsapp" | "email" | "sms" | null;
+  response_contact_value?: string | null;
+  response_sent_at?: string | null;
+  response_status?: "queued" | "sent" | "failed" | "scaffolded" | null;
   application_token?: string | null;
   token_expires_at?: string | null;
   form_sent_at?: string | null;
   submitted_at?: string | null;
+  created_at: string;
+};
+
+export type RequestResponseLog = {
+  id: string;
+  request_id: string;
+  recipient_name: string;
+  recipient_phone?: string | null;
+  recipient_email?: string | null;
+  channel: "phone_call" | "whatsapp" | "email" | "sms";
+  message: string;
+  status: "queued" | "sent" | "failed" | "scaffolded";
+  sent_at?: string | null;
   created_at: string;
 };
 

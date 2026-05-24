@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { HeroPhotoCarousel } from "../components/HeroPhotoCarousel";
@@ -9,6 +9,7 @@ export function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,6 +34,17 @@ export function LoginPage() {
       setSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    if (!showAdminModal) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowAdminModal(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showAdminModal]);
 
   return (
     <main className="login-page">
@@ -84,6 +96,55 @@ export function LoginPage() {
           <a className="secondary-button" href="#/rooms">Find vacant rooms</a>
         </form>
       </section>
+      <section className="public-footer-card" aria-label="LineLink public contacts">
+        <div className="footer-heading">
+          <div>
+            <p className="eyebrow">Contact</p>
+            <h2>Built and operated by PHOMOLO MATSOSO</h2>
+          </div>
+          <button className="tiny-outline-button" type="button" onClick={() => setShowAdminModal(true)}>About Admin</button>
+        </div>
+        <div className="contact-card-grid">
+          <a className="contact-card" href="mailto:phomolomatsoso@gmail.com">
+            <span>Email</span>
+            <strong>phomolomatsoso@gmail.com</strong>
+          </a>
+          <a className="contact-card" href="https://wa.me/26657260714" target="_blank" rel="noreferrer">
+            <span>WhatsApp</span>
+            <strong>57260714 / 63355656</strong>
+          </a>
+          <a className="contact-card" href="https://github.com/Matsoso-Phomolo" target="_blank" rel="noreferrer">
+            <span>GitHub</span>
+            <strong>@Matsoso-Phomolo</strong>
+          </a>
+          <a className="contact-card" href="https://www.linkedin.com/" target="_blank" rel="noreferrer">
+            <span>LinkedIn</span>
+            <strong>PHOMOLO MATSOSO</strong>
+          </a>
+        </div>
+        <p className="footer-signature">© 2026 PHOMOLO MATSOSO • Backend Developer • Full-Stack Builder • SOC AI Systems</p>
+      </section>
+      {showAdminModal ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdminModal(false)}>
+          <section className="admin-profile-modal" role="dialog" aria-modal="true" aria-labelledby="admin-profile-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="modal-close" type="button" aria-label="Close admin profile" onClick={() => setShowAdminModal(false)}>Close</button>
+            <img src="/hero/admin/admin-photo.jpeg" alt="PHOMOLO MATSOSO, LineLink founder and system administrator" />
+            <p className="eyebrow">Founder & System Administrator</p>
+            <h2 id="admin-profile-title">PHOMOLO MATSOSO</h2>
+            <p>Backend Developer • Full-Stack Builder • SOC AI Systems Engineer</p>
+            <div className="admin-contact-list">
+              <a href="mailto:phomolomatsoso@gmail.com">phomolomatsoso@gmail.com</a>
+              <a href="https://wa.me/26657260714" target="_blank" rel="noreferrer">57260714</a>
+              <a href="https://wa.me/26663355656" target="_blank" rel="noreferrer">63355656</a>
+            </div>
+            <div className="review-actions">
+              <a className="secondary-button" href="https://github.com/Matsoso-Phomolo" target="_blank" rel="noreferrer">GitHub</a>
+              <a className="secondary-button" href="https://wa.me/26657260714" target="_blank" rel="noreferrer">WhatsApp</a>
+              <a className="primary-button" href="mailto:phomolomatsoso@gmail.com">Email</a>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

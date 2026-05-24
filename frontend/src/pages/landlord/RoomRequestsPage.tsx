@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
-import type { Listing, TenantApplication } from "../../types";
+import type { Listing, RequestResponseLog, TenantApplication } from "../../types";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -25,6 +25,8 @@ export function RoomRequestsPage() {
   const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState("");
   const [links, setLinks] = useState<Record<string, string>>({});
+  const [logs, setLogs] = useState<Record<string, RequestResponseLog[]>>({});
+  const [responseNotes, setResponseNotes] = useState<Record<string, string>>({});
 
   async function loadData() {
     setLoading(true);
@@ -36,6 +38,14 @@ export function RoomRequestsPage() {
       ]);
       setApplications(appItems);
       setListings(listingItems);
+      const logEntries = await Promise.all(appItems.map(async (application) => {
+        try {
+          return [application.id, await apiFetch(`/applications/${application.id}/response-logs`) as RequestResponseLog[]] as const;
+        } catch {
+          return [application.id, []] as const;
+        }
+      }));
+      setLogs(Object.fromEntries(logEntries));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load room requests");
     } finally {
@@ -48,7 +58,7 @@ export function RoomRequestsPage() {
   }, []);
 
   const listingMap = useMemo(() => Object.fromEntries(listings.map((listing) => [listing.id, listing])), [listings]);
-  const activeCount = applications.filter((application) => ["inquiry_pending", "form_sent", "submitted", "pending", "under_review", "info_requested"].includes(application.status)).length;
+  const activeCount = applications.filter((application) => ["inquiry_pending", "form_sent", "submitted", "accepted", "pending", "under_review", "info_requested", "contacted"].includes(application.status)).length;
 
   async function sendForm(application: TenantApplication) {
     setBusyId(application.id);
@@ -56,7 +66,7 @@ export function RoomRequestsPage() {
     try {
       const result = await apiFetch(`/applications/${application.id}/send-form-link`, { method: "POST" }) as { application_url: string };
       setLinks((current) => ({ ...current, [application.id]: result.application_url }));
-      setNotice("Application form link generated. Copy it and send it to the requester.");
+      setNotice("Application form link generated and response scaffold logged for the selected contact method.");
       await loadData();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not generate form link");
@@ -72,16 +82,18 @@ export function RoomRequestsPage() {
     setNotice("Form link copied.");
   }
 
-  async function decide(application: TenantApplication, action: "approve" | "reject" | "request-info") {
+  async function decide(application: TenantApplication, action: "accept" | "reject" | "mark-contacted" | "request-info") {
     setBusyId(application.id);
     setNotice("");
-    const note = action === "reject" ? "Request rejected after review." : action === "request-info" ? "Please provide more information." : "Application approved for assignment.";
+    const fallback = action === "reject" ? "Request rejected after review." : action === "request-info" ? "Please provide more information." : action === "mark-contacted" ? "Requester contacted." : "Application accepted for next steps.";
+    const note = responseNotes[application.id]?.trim() || fallback;
     try {
       await apiFetch(`/applications/${application.id}/${action}`, {
         method: action === "request-info" ? "POST" : "PUT",
         body: JSON.stringify({ landlord_note: note })
       });
       setNotice(`Request ${action.replace("-", " ")} completed.`);
+      setResponseNotes((current) => ({ ...current, [application.id]: "" }));
       await loadData();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not update request");
@@ -144,11 +156,13 @@ export function RoomRequestsPage() {
                 <div className="listing-review-main">
                   <div className="card-topline">
                     <StatusPill value={application.status} />
+                    {application.preferred_response_method ? <StatusPill value={application.preferred_response_method} /> : null}
                     <span>{listing?.property_name ?? listing?.location_area ?? "Listing"}</span>
                     <span>{listing?.room_number ?? application.room_id?.slice(0, 8)}</span>
                   </div>
                   <strong>{application.full_name}</strong>
                   <p>{application.phone}{application.alternative_phone ? ` / ${application.alternative_phone}` : ""}{application.email ? ` - ${application.email}` : ""}</p>
+                  <p>Preferred response: {(application.preferred_response_method ?? "not set").replace("_", " ")}{application.response_contact_value ? ` - ${application.response_contact_value}` : ""}</p>
                   <p>{application.message}</p>
                   <dl className="detail-grid compact">
                     <div><dt>Room</dt><dd>{listing?.title ?? application.listing_id.slice(0, 8)}</dd></div>
@@ -168,12 +182,23 @@ export function RoomRequestsPage() {
                       <button type="button" onClick={() => copyLink(application.id)}>Copy form link</button>
                     </div>
                   ) : null}
+                  <label>Response message/note<textarea value={responseNotes[application.id] ?? ""} onChange={(event) => setResponseNotes((current) => ({ ...current, [application.id]: event.target.value }))} placeholder="Optional response message for this requester" /></label>
+                  <div className="list-stack compact-list">
+                    {(logs[application.id] ?? []).length === 0 ? <small>No response logs yet.</small> : null}
+                    {(logs[application.id] ?? []).map((log) => (
+                      <div className="data-state compact-state" key={log.id}>
+                        <strong>{log.channel.replace("_", " ")} - {log.status}</strong>
+                        <p>{log.message}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="review-actions vertical">
                   <button type="button" disabled={busyId === application.id || application.status === "rejected"} onClick={() => sendForm(application)}>
                     Send application form
                   </button>
-                  <button type="button" disabled={busyId === application.id} onClick={() => decide(application, "approve")}>Approve</button>
+                  <button type="button" disabled={busyId === application.id} onClick={() => decide(application, "accept")}>Accept</button>
+                  <button type="button" disabled={busyId === application.id} onClick={() => decide(application, "mark-contacted")}>Mark contacted</button>
                   <button type="button" disabled={busyId === application.id} onClick={() => decide(application, "request-info")}>Request info</button>
                   <button type="button" disabled={busyId === application.id} onClick={() => decide(application, "reject")}>Reject</button>
                   <button type="button" disabled={busyId === application.id || !canAssign} onClick={() => assign(application)}>Assign room</button>

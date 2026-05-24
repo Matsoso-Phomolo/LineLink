@@ -46,12 +46,154 @@ button {
 
 .login-page {
   min-height: 100vh;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   place-items: center;
+  gap: 18px;
   padding: 32px;
   background:
     linear-gradient(rgba(23, 32, 38, 0.66), rgba(23, 32, 38, 0.72)),
     url("https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1800&q=80") center / cover;
+}
+
+.public-footer-card {
+  width: min(1080px, 100%);
+  padding: 22px;
+  border: 1px solid rgba(123, 214, 195, 0.22);
+  border-radius: 8px;
+  background: rgba(13, 32, 29, 0.92);
+  color: #f3fbf8;
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.22);
+}
+
+.footer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.footer-heading h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.contact-card-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.contact-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #f3fbf8;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.06);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.contact-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(123, 214, 195, 0.58);
+  background: rgba(123, 214, 195, 0.1);
+}
+
+.contact-card span,
+.footer-signature {
+  color: #a9c8c1;
+  font-size: 13px;
+}
+
+.contact-card strong {
+  overflow-wrap: anywhere;
+}
+
+.footer-signature {
+  margin: 16px 0 0;
+}
+
+.tiny-outline-button,
+.modal-close {
+  border: 1px solid rgba(123, 214, 195, 0.42);
+  border-radius: 999px;
+  padding: 7px 11px;
+  color: #e9fffb;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tiny-outline-button:hover,
+.modal-close:hover {
+  border-color: #7bd6c3;
+  background: rgba(123, 214, 195, 0.1);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 18, 16, 0.72);
+}
+
+.admin-profile-modal {
+  width: min(440px, 100%);
+  padding: 24px;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  border: 1px solid rgba(123, 214, 195, 0.26);
+  border-radius: 8px;
+  color: #f3fbf8;
+  text-align: center;
+  background: rgba(18, 45, 41, 0.96);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+}
+
+.admin-profile-modal img {
+  width: 132px;
+  height: 132px;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 3px solid rgba(123, 214, 195, 0.8);
+}
+
+.admin-profile-modal h2,
+.admin-profile-modal p {
+  margin: 0;
+}
+
+.admin-contact-list {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-contact-list a {
+  color: #b8fff0;
+}
+
+.privacy-note {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #24564f;
+  background: #e9f7f4;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.compact-state {
+  padding: 10px 12px;
 }
 
 .login-panel {
@@ -1119,6 +1261,12 @@ th {
   .login-card,
   .page-header {
     padding: 22px;
+  }
+
+  .footer-heading,
+  .contact-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .login-copy h1,

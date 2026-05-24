@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import ApplicationStatus, Landlord, ListingStatus, ListingVerificationStatus, Notification, Room, RoomListing, RoomStatus, TenantApplication, TenantType, ViewingRequest
+from app.models import ApplicationStatus, Landlord, ListingStatus, ListingVerificationStatus, Notification, PreferredResponseMethod, Room, RoomListing, RoomStatus, TenantApplication, TenantType, ViewingRequest
 from app.schemas import (
     ListingRead,
     PublicApplicationSubmit,
+    PublicRequestResponse,
     RoomInquiryCreate,
     TenantApplicationCreate,
     TenantApplicationRead,
@@ -115,9 +116,20 @@ def create_application(listing_id: uuid.UUID, payload: TenantApplicationCreate, 
     return application
 
 
-@router.post("/{listing_id}/requests", response_model=TenantApplicationRead)
+GENERIC_REQUEST_SUCCESS = "Your request has been submitted. The landlord/caretaker will respond using your selected contact method."
+
+
+def validate_response_method(payload: RoomInquiryCreate) -> None:
+    if payload.preferred_response_method == PreferredResponseMethod.email and not payload.email:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Email is required for email responses.")
+    if payload.preferred_response_method in {PreferredResponseMethod.phone_call, PreferredResponseMethod.whatsapp, PreferredResponseMethod.sms} and not payload.phone:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phone number is required for the selected response method.")
+
+
+@router.post("/{listing_id}/requests", response_model=PublicRequestResponse)
 def create_room_request(listing_id: uuid.UUID, payload: RoomInquiryCreate, db: Session = Depends(get_db)):
     listing = get_public_listing(db, listing_id)
+    validate_response_method(payload)
     application = TenantApplication(
         listing_id=listing.id,
         room_id=listing.room_id,
@@ -128,6 +140,8 @@ def create_room_request(listing_id: uuid.UUID, payload: RoomInquiryCreate, db: S
         email=payload.email,
         tenant_type=TenantType.non_student,
         message=payload.message,
+        preferred_response_method=payload.preferred_response_method,
+        response_contact_value=payload.email if payload.preferred_response_method == PreferredResponseMethod.email else payload.phone,
         status=ApplicationStatus.inquiry_pending,
     )
     db.add(application)
@@ -135,8 +149,7 @@ def create_room_request(listing_id: uuid.UUID, payload: RoomInquiryCreate, db: S
     if landlord:
         db.add(Notification(user_id=landlord.user_id, title="New room request", body=f"{payload.full_name} is interested in {listing.title}.", category="applications"))
     db.commit()
-    db.refresh(application)
-    return application
+    return PublicRequestResponse(message=GENERIC_REQUEST_SUCCESS)
 
 
 def get_application_by_token(db: Session, token: str) -> TenantApplication:

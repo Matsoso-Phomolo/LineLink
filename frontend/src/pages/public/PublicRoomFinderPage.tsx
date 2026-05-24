@@ -9,6 +9,7 @@ type ApplicationForm = {
   full_name: string;
   phone: string;
   email: string;
+  preferred_response_method: "phone_call" | "whatsapp" | "email" | "sms";
   message: string;
 };
 
@@ -24,6 +25,7 @@ const emptyApplication: ApplicationForm = {
   full_name: "",
   phone: "",
   email: "",
+  preferred_response_method: "whatsapp",
   message: ""
 };
 
@@ -35,6 +37,12 @@ const emptyViewing: ViewingForm = {
   message: ""
 };
 const lineLocations = ["Mafikeng", "Hatabutle", "Thoteng", "Mangopeng", "Ten House", "Liphehleng", "Liphakoeng", "Ha Ntja"];
+const responseHelp = {
+  phone_call: "The landlord/caretaker will call this number.",
+  whatsapp: "A WhatsApp response will be sent to this phone number.",
+  email: "A response will be sent to this email address.",
+  sms: "An SMS response will be sent to this phone number."
+};
 
 function money(value: number) {
   return `M${Number(value).toLocaleString()}`;
@@ -119,11 +127,12 @@ export function PublicRoomFinderPage() {
           full_name: application.full_name,
           phone: application.phone,
           email: toNullable(application.email),
+          preferred_response_method: application.preferred_response_method,
           message: toNullable(application.message)
         })
       });
       setApplication(emptyApplication);
-      setFormMessage("Application submitted. The landlord/caretaker will review and contact you.");
+      setFormMessage("Your request has been submitted. The landlord/caretaker will respond using your selected contact method.");
     } catch (err) {
       setFormMessage(err instanceof Error ? err.message : "Application could not be submitted");
     } finally {
@@ -326,10 +335,18 @@ export function PublicRoomFinderPage() {
               <p className="eyebrow">Apply under this listing</p>
               <h2>Request this room</h2>
               <p>Send basic details first. The landlord or caretaker can then send you a secure application form link.</p>
+              <p className="privacy-note">Your information is private and only visible to the landlord/caretaker of this listing.</p>
             </div>
             <label>Full name<input required value={application.full_name} onChange={(event) => updateApplication("full_name", event.target.value)} /></label>
             <label>Phone<input required value={application.phone} onChange={(event) => updateApplication("phone", event.target.value)} /></label>
-            <label>Email optional<input type="email" value={application.email} onChange={(event) => updateApplication("email", event.target.value)} /></label>
+            <label>Email {application.preferred_response_method === "email" ? "" : "optional"}<input required={application.preferred_response_method === "email"} type="email" value={application.email} onChange={(event) => updateApplication("email", event.target.value)} /></label>
+            <label>Preferred response method<select required value={application.preferred_response_method} onChange={(event) => updateApplication("preferred_response_method", event.target.value as ApplicationForm["preferred_response_method"])}>
+              <option value="phone_call">Phone call</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+            </select></label>
+            <div className="data-state compact-state">{responseHelp[application.preferred_response_method]}</div>
             <label>Message<textarea value={application.message} onChange={(event) => updateApplication("message", event.target.value)} /></label>
             <button className="primary-button" disabled={submitting === "application"} type="submit">
               {submitting === "application" ? "Submitting..." : "Interested / Request Room"}

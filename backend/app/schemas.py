@@ -21,6 +21,8 @@ from app.models import (
     PaymentMethod,
     PaymentSubmissionStatus,
     PaymentTransactionStatus,
+    PreferredResponseMethod,
+    RequestResponseStatus,
     RentDueStatus,
     RoomStatus,
     RoomType,
@@ -536,6 +538,7 @@ class RoomInquiryCreate(BaseModel):
     full_name: str
     phone: str
     email: EmailStr | None = None
+    preferred_response_method: PreferredResponseMethod
     message: str | None = None
 
 
@@ -552,6 +555,10 @@ class TenantApplicationRead(TenantApplicationCreate, ORMModel):
     applicant_user_id: uuid.UUID | None
     status: ApplicationStatus
     landlord_note: str | None
+    preferred_response_method: PreferredResponseMethod | None = None
+    response_contact_value: str | None = None
+    response_sent_at: datetime | None = None
+    response_status: RequestResponseStatus | None = None
     application_token: str | None = None
     token_expires_at: datetime | None = None
     form_sent_at: datetime | None = None
@@ -567,6 +574,23 @@ class ApplicationFormLink(BaseModel):
 
 class ApplicationDecision(BaseModel):
     landlord_note: str | None = None
+
+
+class PublicRequestResponse(BaseModel):
+    message: str
+
+
+class RequestResponseLogRead(ORMModel):
+    id: uuid.UUID
+    request_id: uuid.UUID
+    recipient_name: str
+    recipient_phone: str | None = None
+    recipient_email: str | None = None
+    channel: PreferredResponseMethod
+    message: str
+    status: RequestResponseStatus
+    sent_at: datetime | None = None
+    created_at: datetime
 
 
 class ApplicationAssignRoom(BaseModel):
