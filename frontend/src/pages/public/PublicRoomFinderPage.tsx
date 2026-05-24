@@ -34,6 +34,7 @@ const emptyViewing: ViewingForm = {
   preferred_date: "",
   message: ""
 };
+const lineLocations = ["Mafikeng", "Hatabutle", "Thoteng", "Mangopeng", "Ten House", "Liphehleng", "Liphakoeng", "Ha Ntja"];
 
 function money(value: number) {
   return `M${Number(value).toLocaleString()}`;
@@ -59,6 +60,7 @@ export function PublicRoomFinderPage() {
   const [minRent, setMinRent] = useState("");
   const [maxRent, setMaxRent] = useState("");
   const [distance, setDistance] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [mustHaveWater, setMustHaveWater] = useState(false);
   const [mustHaveElectricity, setMustHaveElectricity] = useState(false);
   const [mustBeFurnished, setMustBeFurnished] = useState(false);
@@ -87,12 +89,13 @@ export function PublicRoomFinderPage() {
       const matchesMinRent = !rentFloor || Number(listing.rent_price) >= rentFloor;
       const matchesRent = !rentLimit || Number(listing.rent_price) <= rentLimit;
       const matchesDistance = !distanceTerm || (listing.distance_from_nul ?? "").toLowerCase().includes(distanceTerm);
+      const matchesLocation = !locationFilter || `${listing.property_name ?? ""} ${listing.location_area}`.toLowerCase().includes(locationFilter.toLowerCase());
       const matchesWater = !mustHaveWater || listing.water_available;
       const matchesElectricity = !mustHaveElectricity || listing.electricity_available;
       const matchesFurnished = !mustBeFurnished || listing.furnished;
-      return matchesQuery && matchesType && matchesSize && matchesMinRent && matchesRent && matchesDistance && matchesWater && matchesElectricity && matchesFurnished;
+      return matchesQuery && matchesType && matchesSize && matchesMinRent && matchesRent && matchesDistance && matchesLocation && matchesWater && matchesElectricity && matchesFurnished;
     });
-  }, [distance, listings, maxRent, minRent, mustBeFurnished, mustHaveElectricity, mustHaveWater, query, size, type]);
+  }, [distance, listings, locationFilter, maxRent, minRent, mustBeFurnished, mustHaveElectricity, mustHaveWater, query, size, type]);
 
   const selectedListing = listings.find((listing) => listing.id === selectedListingId) ?? null;
 
@@ -164,7 +167,7 @@ export function PublicRoomFinderPage() {
           </div>
         </div>
         <div className="public-actions">
-          <a href="#/login" onClick={() => { if (user) logout(); }}>Leave</a>
+          {user?.role === "admin" ? <a href="#/admin">Return to Admin Dashboard</a> : <a href="#/login" onClick={() => { if (user) logout(); }}>Leave</a>}
         </div>
       </div>
 
@@ -190,6 +193,12 @@ export function PublicRoomFinderPage() {
       {!loading && !error && !selectedListing ? (
         <>
           <div className="finder-subnav">
+            <div className="amenities compact">
+              <button className="chip-button" type="button" onClick={() => setLocationFilter("")}>All locations</button>
+              {lineLocations.map((location) => (
+                <button className="chip-button" type="button" key={location} onClick={() => setLocationFilter(location)}>{location}</button>
+              ))}
+            </div>
             <div className="toolbar wide">
               <input placeholder="Search area, property, room, or description" value={query} onChange={(event) => setQuery(event.target.value)} />
               <select value={type} onChange={(event) => setType(event.target.value)}>
@@ -213,11 +222,18 @@ export function PublicRoomFinderPage() {
                   <div>
                     <div className="card-topline">
                       <StatusPill value="vacant" />
+                      <StatusPill value="available_now" />
                       {listing.verification_status === "verified" || listing.is_verified ? <StatusPill value="verified" /> : null}
                       <span>{listing.distance_from_nul ?? "Near NUL"}</span>
                     </div>
                     <h2>{roomLabel(listing)} - {listing.room_size} {listing.room_type}</h2>
                     <p>{listing.property_name ?? "Line-house"} - {listing.location_area}</p>
+                  </div>
+                  <div className="room-photo-strip">
+                    <div className="room-photo-frame">
+                      <span>{roomLabel(listing)}</span>
+                      <strong>{money(listing.rent_price)}</strong>
+                    </div>
                   </div>
                   <dl className="detail-grid">
                     <div>
@@ -245,7 +261,9 @@ export function PublicRoomFinderPage() {
                     {listing.parking_available ? <span>Parking</span> : null}
                   </div>
                   <footer>
-                    <strong>{listing.contact_phone}</strong>
+                    <strong>{listing.contact_phone ?? "Contact after request"}</strong>
+                    {listing.contact_phone ? <a className="text-button" href={`tel:${listing.contact_phone}`}>Call</a> : null}
+                    {listing.contact_phone ? <a className="text-button" href={`https://wa.me/${listing.contact_phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">WhatsApp</a> : null}
                     <button className="secondary-button" type="button" onClick={() => setSelectedListingId(listing.id)}>
                       Book / Apply
                     </button>
@@ -267,6 +285,7 @@ export function PublicRoomFinderPage() {
             </button>
             <div className="card-topline">
               <StatusPill value="vacant" />
+              <StatusPill value="available_now" />
               {selectedListing.verification_status === "verified" || selectedListing.is_verified ? <StatusPill value="verified" /> : null}
               <span>{selectedListing.property_name ?? "Line-house"} - {selectedListing.location_area}</span>
             </div>

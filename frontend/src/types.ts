@@ -162,6 +162,27 @@ export type Caretaker = {
   created_at: string;
 };
 
+export type Tenant = {
+  id: string;
+  user_id?: string | null;
+  landlord_id: string;
+  tenant_type: "student" | "non_student";
+  full_name: string;
+  gender?: string | null;
+  phone: string;
+  email?: string | null;
+  national_id?: string | null;
+  passport_number?: string | null;
+  occupation?: string | null;
+  next_of_kin_name?: string | null;
+  next_of_kin_phone?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  tenant_status?: "active" | "overdue" | "moved_out" | "disabled";
+  lease_start_date?: string | null;
+  lease_end_date?: string | null;
+};
+
 export type PaymentSubmission = {
   id: string;
   tenant_id: string;

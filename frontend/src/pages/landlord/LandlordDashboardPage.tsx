@@ -1,23 +1,71 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
-import type { DashboardSummary, NotificationItem } from "../../types";
+import type { DashboardSummary, NotificationItem, PropertyItem, Room } from "../../types";
 
 export function LandlordDashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+  const [pushNote, setPushNote] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([apiFetch("/dashboard/summary"), apiFetch("/notifications")])
-      .then(([dashboard, notes]) => {
+    Promise.all([apiFetch("/dashboard/summary"), apiFetch("/notifications"), apiFetch("/rooms"), apiFetch("/properties")])
+      .then(([dashboard, notes, roomItems, propertyItems]) => {
         setSummary(dashboard);
         setNotifications(notes);
+        setRooms(roomItems);
+        setProperties(propertyItems);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load dashboard"))
       .finally(() => setLoading(false));
   }, []);
+  const vacantRooms = rooms.filter((room) => room.status === "vacant");
+  const propertyById = Object.fromEntries(properties.map((property) => [property.id, property]));
+
+  async function pushVacantRooms(all: boolean) {
+    const roomsToPush = all ? vacantRooms : vacantRooms.filter((room) => selectedRooms.includes(room.id));
+    if (roomsToPush.length === 0) {
+      setNotice("Choose at least one vacant room.");
+      return;
+    }
+    try {
+      await Promise.all(roomsToPush.map((room) => {
+        const property = propertyById[room.property_id];
+        return apiFetch("/listings", {
+          method: "POST",
+          body: JSON.stringify({
+            property_id: room.property_id,
+            room_id: room.id,
+            title: `${room.room_number} ${room.room_size ?? ""} ${room.room_type} room in ${property?.location_area ?? "Roma"}`.replace(/\s+/g, " ").trim(),
+            description: pushNote || `Vacant ${room.room_type} room available at ${property?.name ?? "LineLink property"}.`,
+            rent_price: room.rent_price,
+            deposit_amount: room.deposit_amount,
+            room_type: room.room_type,
+            room_size: room.room_size,
+            location_area: property?.location_area ?? "Roma",
+            allowed_tenant_type: "both",
+            distance_from_nul: property?.distance_from_nul ?? null,
+            contact_phone: null,
+            water_available: true,
+            electricity_available: true,
+            status: "published",
+            is_public: true
+          })
+        });
+      }));
+      setNotice("Vacant rooms pushed to public verification queue.");
+      setSelectedRooms([]);
+      setPushNote("");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not push vacant rooms");
+    }
+  }
 
   return (
     <section className="page-stack">
@@ -30,6 +78,7 @@ export function LandlordDashboardPage() {
       </div>
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
+      {notice ? <div className="data-state">{notice}</div> : null}
       {summary ? (
         <>
           <div className="metric-grid">
@@ -46,6 +95,30 @@ export function LandlordDashboardPage() {
             <Metric label="Maintenance" value={summary.maintenance_tickets} />
             <Metric label="Tenants" value={summary.total_tenants} />
           </div>
+          <section className="panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Public marketplace</p>
+                <h2>Push vacant rooms to public</h2>
+              </div>
+              <button type="button" onClick={() => pushVacantRooms(true)}>Push all vacant</button>
+            </div>
+            <p>Only vacant rooms are selectable. New listings enter pending verification before public visibility.</p>
+            <label>Clarification note<textarea value={pushNote} onChange={(event) => setPushNote(event.target.value)} placeholder="Add details for admin verification or room seekers" /></label>
+            <div className="amenities compact">
+              <label className="inline-check">Room photos<input type="file" multiple accept="image/*" /></label>
+              <label className="inline-check">Line/property photos<input type="file" multiple accept="image/*" /></label>
+            </div>
+            <div className="list-stack compact-list">
+              {vacantRooms.map((room) => (
+                <label className="inline-check" key={room.id}>
+                  <input type="checkbox" checked={selectedRooms.includes(room.id)} onChange={(event) => setSelectedRooms((current) => event.target.checked ? [...current, room.id] : current.filter((id) => id !== room.id))} />
+                  {room.room_number} - {room.room_type} - M{Number(room.rent_price).toLocaleString()} - {propertyById[room.property_id]?.location_area ?? "Unknown"}
+                </label>
+              ))}
+            </div>
+            <button className="primary-button" type="button" onClick={() => pushVacantRooms(false)}>Push selected vacant rooms</button>
+          </section>
           <section className="panel">
             <h2>Recent notifications</h2>
             <div className="list-stack">

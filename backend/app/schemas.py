@@ -103,6 +103,15 @@ class LandlordRequestCreate(BaseModel):
     email: EmailStr
     phone: str | None = None
     address: str | None = None
+    national_id: str | None = None
+    selfie_path: str | None = None
+    ownership_proof_path: str | None = None
+    utility_bill_path: str | None = None
+    ownership_document_path: str | None = None
+    village_location: str | None = None
+    number_of_properties: int | None = None
+    number_of_rooms: int | None = None
+    emergency_contact: str | None = None
     message: str | None = None
 
 
@@ -235,6 +244,7 @@ class RoomRead(RoomBase, ORMModel):
 class TenantBase(BaseModel):
     tenant_type: TenantType
     full_name: str
+    gender: str | None = None
     phone: str
     email: EmailStr | None = None
     national_id: str | None = None
@@ -244,14 +254,25 @@ class TenantBase(BaseModel):
     occupation: str | None = None
     next_of_kin_name: str | None = None
     next_of_kin_phone: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
 
 
 class TenantCreate(TenantBase):
     user_id: uuid.UUID | None = None
 
 
+class TenantAccountCreate(TenantBase):
+    room_id: uuid.UUID | None = None
+    lease_start_date: date | None = None
+    lease_end_date: date | None = None
+    monthly_rent: float | None = None
+    deposit_amount: float | None = None
+
+
 class TenantUpdate(BaseModel):
     full_name: str | None = None
+    gender: str | None = None
     phone: str | None = None
     email: EmailStr | None = None
     verification_status: TenantVerificationStatus | None = None
@@ -265,6 +286,8 @@ class TenantUpdate(BaseModel):
     notices: str | None = None
     next_of_kin_name: str | None = None
     next_of_kin_phone: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
 
 
 class TenantRead(TenantBase, ORMModel):
@@ -282,6 +305,12 @@ class TenantRead(TenantBase, ORMModel):
     notices: str | None = None
     profile_photo_path: str | None
     created_at: datetime
+
+
+class TenantAccountResult(BaseModel):
+    tenant: TenantRead
+    username: str
+    temporary_password: str
 
 
 class OccupancyCreate(BaseModel):

@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { HeroPhotoCarousel } from "../components/HeroPhotoCarousel";
 
 export function LoginPage() {
   const { user, login } = useAuth();
@@ -51,6 +52,11 @@ export function LoginPage() {
               A focused platform for Roma and NUL landlords, caretakers, tenants, and room seekers to manage rentals, applications, occupancy, rent, and support without walking from house to house.
             </p>
           </div>
+          <div className="hero-photo-grid">
+            <HeroPhotoCarousel title="Roma Village" folder="villages" filenames={["roma-village.jpg", "village-2.jpg", "village-3.jpg"]} />
+            <HeroPhotoCarousel title="NUL Campus" folder="nul-campus" filenames={["nul-campus.jpg", "campus-2.jpg", "campus-3.jpg"]} />
+            <HeroPhotoCarousel title="Student accommodation" folder="lines" filenames={["roma-accommodation.jpg", "line-2.jpg", "line-3.jpg"]} />
+          </div>
         </div>
         <form className="login-card" onSubmit={handleSubmit}>
           <div>
@@ -74,8 +80,8 @@ export function LoginPage() {
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? "Signing in..." : "Sign in"}
           </button>
-          <a className="secondary-button" href="#/rooms">Find vacant rooms</a>
           <a className="text-button" href="#/forgot-password">Forgot password?</a>
+          <a className="secondary-button" href="#/rooms">Find vacant rooms</a>
         </form>
       </section>
     </main>

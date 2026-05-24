@@ -81,6 +81,37 @@ button {
   gap: 8px;
 }
 
+.hero-photo-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.hero-photo-slot {
+  min-height: 116px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 8px;
+  background: #193532 center / cover;
+  color: #ffffff;
+  text-align: left;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.hero-photo-slot:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
+}
+
+.hero-photo-slot span,
+.hero-photo-slot small {
+  font-weight: 900;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+}
+
 .login-copy h1 {
   max-width: 680px;
   margin: 0;
@@ -961,6 +992,34 @@ th {
   background: #ffffff;
   color: #27413d;
   font-weight: 800;
+}
+
+.room-photo-strip {
+  min-height: 150px;
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(19, 35, 34, 0.18), rgba(19, 35, 34, 0.72)),
+    url("/hero/lines/roma-accommodation.jpg") center / cover,
+    #24413d;
+}
+
+.room-photo-frame {
+  min-height: 150px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #ffffff;
+}
+
+.room-photo-frame span,
+.room-photo-frame strong {
+  align-self: flex-start;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(9, 25, 24, 0.76);
+  font-size: 12px;
 }
 
 .table-actions {

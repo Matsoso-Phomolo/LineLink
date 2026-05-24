@@ -258,10 +258,10 @@ export function RoomsPage() {
         <button className="primary-button" disabled={properties.length === 0} type="submit">Create room inventory</button>
       </form>
 
-      <form className="panel form-panel" onSubmit={saveRoom}>
+      {form.id ? <form className="panel form-panel" onSubmit={saveRoom}>
         <div>
-          <p className="eyebrow">{form.id ? "Edit room" : "New room"}</p>
-          <h2>{form.id ? form.room_number : "Add room"}</h2>
+          <p className="eyebrow">Edit room</p>
+          <h2>{form.room_number}</h2>
         </div>
         <div className="form-grid">
           <label>Property/location<select required value={form.property_id} onChange={(event) => update("property_id", event.target.value)}>
@@ -295,7 +295,7 @@ export function RoomsPage() {
           <button className="primary-button" disabled={properties.length === 0} type="submit">{form.id ? "Save room" : "Add room"}</button>
           {form.id ? <button type="button" onClick={() => setForm({ ...emptyRoom, property_id: properties[0]?.id ?? "" })}>Cancel edit</button> : null}
         </div>
-      </form>
+      </form> : null}
 
       <div className="table-panel">
         <table>

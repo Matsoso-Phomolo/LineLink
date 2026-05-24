@@ -10,6 +10,7 @@ import { LandlordDashboardPage } from "../pages/landlord/LandlordDashboardPage";
 import { PropertiesPage } from "../pages/landlord/PropertiesPage";
 import { RoomsPage } from "../pages/landlord/RoomsPage";
 import { CaretakersPage } from "../pages/landlord/CaretakersPage";
+import { TenantsPage } from "../pages/landlord/TenantsPage";
 import { ListingsPage } from "../pages/landlord/ListingsPage";
 import { LeasesPage } from "../pages/landlord/LeasesPage";
 import { RoomRequestsPage } from "../pages/landlord/RoomRequestsPage";
@@ -47,6 +48,7 @@ export function AppRoutes() {
             <Route path="/landlord/properties" element={<PropertiesPage />} />
             <Route path="/landlord/rooms" element={<RoomsPage />} />
             <Route path="/landlord/caretakers" element={<CaretakersPage />} />
+            <Route path="/landlord/tenants" element={<TenantsPage />} />
             <Route path="/landlord/listings" element={<ListingsPage />} />
             <Route path="/landlord/leases" element={<LeasesPage />} />
             <Route path="/landlord/requests" element={<RoomRequestsPage />} />

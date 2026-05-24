@@ -246,6 +246,7 @@ class Landlord(Base, TimestampMixin):
 
 class LandlordRequestStatus(str, enum.Enum):
     pending = "pending"
+    under_review = "under_review"
     approved = "approved"
     rejected = "rejected"
 
@@ -259,6 +260,15 @@ class LandlordRequest(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), index=True)
     phone: Mapped[str | None] = mapped_column(String(40))
     address: Mapped[str | None] = mapped_column(Text)
+    national_id: Mapped[str | None] = mapped_column(String(120))
+    selfie_path: Mapped[str | None] = mapped_column(String(500))
+    ownership_proof_path: Mapped[str | None] = mapped_column(String(500))
+    utility_bill_path: Mapped[str | None] = mapped_column(String(500))
+    ownership_document_path: Mapped[str | None] = mapped_column(String(500))
+    village_location: Mapped[str | None] = mapped_column(String(160))
+    number_of_properties: Mapped[int | None] = mapped_column(Integer)
+    number_of_rooms: Mapped[int | None] = mapped_column(Integer)
+    emergency_contact: Mapped[str | None] = mapped_column(String(255))
     message: Mapped[str | None] = mapped_column(Text)
     status: Mapped[LandlordRequestStatus] = mapped_column(Enum(LandlordRequestStatus, name="landlord_request_status"), default=LandlordRequestStatus.pending, index=True)
     admin_note: Mapped[str | None] = mapped_column(Text)
@@ -322,6 +332,7 @@ class Tenant(Base, TimestampMixin):
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
     tenant_type: Mapped[TenantType] = mapped_column(Enum(TenantType, name="tenant_type"))
     full_name: Mapped[str] = mapped_column(String(255))
+    gender: Mapped[str | None] = mapped_column(String(80))
     phone: Mapped[str] = mapped_column(String(40))
     email: Mapped[str | None] = mapped_column(String(255))
     national_id: Mapped[str | None] = mapped_column(String(120))
@@ -331,6 +342,8 @@ class Tenant(Base, TimestampMixin):
     occupation: Mapped[str | None] = mapped_column(String(255))
     next_of_kin_name: Mapped[str | None] = mapped_column(String(255))
     next_of_kin_phone: Mapped[str | None] = mapped_column(String(40))
+    emergency_contact_name: Mapped[str | None] = mapped_column(String(255))
+    emergency_contact_phone: Mapped[str | None] = mapped_column(String(40))
     verification_status: Mapped[TenantVerificationStatus] = mapped_column(
         Enum(TenantVerificationStatus, name="tenant_verification_status"),
         default=TenantVerificationStatus.pending_verification,

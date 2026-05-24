@@ -1,0 +1,221 @@
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../../api/client";
+import { ErrorState, LoadingState } from "../../components/DataState";
+import { StatusPill } from "../../components/StatusPill";
+import type { Room, Tenant } from "../../types";
+
+type TenantForm = {
+  id?: string;
+  full_name: string;
+  gender: string;
+  phone: string;
+  email: string;
+  national_id: string;
+  passport_number: string;
+  tenant_type: "student" | "non_student";
+  occupation: string;
+  next_of_kin_name: string;
+  next_of_kin_phone: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  lease_start_date: string;
+  lease_end_date: string;
+  room_id: string;
+};
+
+const emptyTenant: TenantForm = {
+  full_name: "",
+  gender: "",
+  phone: "",
+  email: "",
+  national_id: "",
+  passport_number: "",
+  tenant_type: "non_student",
+  occupation: "",
+  next_of_kin_name: "",
+  next_of_kin_phone: "",
+  emergency_contact_name: "",
+  emergency_contact_phone: "",
+  lease_start_date: new Date().toISOString().slice(0, 10),
+  lease_end_date: "",
+  room_id: ""
+};
+
+function nullable(value: string) {
+  return value.trim() ? value.trim() : null;
+}
+
+export function TenantsPage() {
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [form, setForm] = useState<TenantForm>(emptyTenant);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busyId, setBusyId] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+    try {
+      const [tenantItems, roomItems] = await Promise.all([
+        apiFetch("/tenants") as Promise<Tenant[]>,
+        apiFetch("/rooms") as Promise<Room[]>
+      ]);
+      setTenants(tenantItems);
+      setRooms(roomItems);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load tenants");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const vacantRooms = useMemo(() => rooms.filter((room) => room.status === "vacant"), [rooms]);
+
+  function update<K extends keyof TenantForm>(key: K, value: TenantForm[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function saveTenant(event: FormEvent) {
+    event.preventDefault();
+    setNotice("");
+    try {
+      if (form.id) {
+        await apiFetch(`/tenants/${form.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            full_name: form.full_name,
+            gender: nullable(form.gender),
+            phone: form.phone,
+            email: nullable(form.email),
+            national_id: nullable(form.national_id),
+            passport_number: nullable(form.passport_number),
+            occupation: nullable(form.occupation),
+            next_of_kin_name: nullable(form.next_of_kin_name),
+            next_of_kin_phone: nullable(form.next_of_kin_phone),
+            emergency_contact_name: nullable(form.emergency_contact_name),
+            emergency_contact_phone: nullable(form.emergency_contact_phone),
+            lease_start_date: nullable(form.lease_start_date),
+            lease_end_date: nullable(form.lease_end_date)
+          })
+        });
+        setNotice("Tenant updated.");
+      } else {
+        const result = await apiFetch("/tenants/accounts", {
+          method: "POST",
+          body: JSON.stringify({
+            full_name: form.full_name,
+            gender: nullable(form.gender),
+            phone: form.phone,
+            email: nullable(form.email),
+            national_id: nullable(form.national_id),
+            passport_number: nullable(form.passport_number),
+            tenant_type: form.tenant_type,
+            occupation: nullable(form.occupation),
+            next_of_kin_name: nullable(form.next_of_kin_name),
+            next_of_kin_phone: nullable(form.next_of_kin_phone),
+            emergency_contact_name: nullable(form.emergency_contact_name),
+            emergency_contact_phone: nullable(form.emergency_contact_phone),
+            lease_start_date: nullable(form.lease_start_date),
+            lease_end_date: nullable(form.lease_end_date),
+            room_id: nullable(form.room_id)
+          })
+        }) as { username: string; temporary_password: string };
+        setNotice(`Tenant account created. Username: ${result.username}. Temporary password: ${result.temporary_password}`);
+      }
+      setForm(emptyTenant);
+      await loadData();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not save tenant");
+    }
+  }
+
+  async function disableTenant(tenant: Tenant) {
+    setBusyId(tenant.id);
+    setNotice("");
+    try {
+      await apiFetch(`/tenants/${tenant.id}`, { method: "DELETE" });
+      setNotice("Tenant disabled.");
+      await loadData();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not disable tenant");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  return (
+    <section className="page-stack">
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">Tenant management</p>
+          <h1>Tenants</h1>
+          <p>Create tenant accounts, assign rooms, edit tenant profiles, and disable tenants when they leave.</p>
+        </div>
+        <div className="header-stat"><strong>{tenants.length}</strong><span>tenants</span></div>
+      </div>
+      {loading ? <LoadingState /> : null}
+      {error ? <ErrorState message={error} /> : null}
+      {notice ? <div className="data-state">{notice}</div> : null}
+
+      <form className="panel form-panel" onSubmit={saveTenant}>
+        <div><p className="eyebrow">{form.id ? "Edit tenant" : "Create tenant"}</p><h2>{form.id ? form.full_name : "Register tenant account"}</h2></div>
+        <div className="form-grid">
+          <label>Full names<input required value={form.full_name} onChange={(event) => update("full_name", event.target.value)} /></label>
+          <label>Gender<input value={form.gender} onChange={(event) => update("gender", event.target.value)} /></label>
+        </div>
+        <div className="form-grid">
+          <label>Phone<input required value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
+          <label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label>
+        </div>
+        <div className="form-grid">
+          <label>National ID<input value={form.national_id} onChange={(event) => update("national_id", event.target.value)} /></label>
+          <label>Passport<input value={form.passport_number} onChange={(event) => update("passport_number", event.target.value)} /></label>
+        </div>
+        <div className="form-grid">
+          <label>Tenant type<select value={form.tenant_type} onChange={(event) => update("tenant_type", event.target.value as TenantForm["tenant_type"])}><option value="student">Student</option><option value="non_student">Non-student</option></select></label>
+          <label>Occupation<input value={form.occupation} onChange={(event) => update("occupation", event.target.value)} /></label>
+        </div>
+        <div className="form-grid">
+          <label>Next of kin<input value={form.next_of_kin_name} onChange={(event) => update("next_of_kin_name", event.target.value)} /></label>
+          <label>Next of kin phone<input value={form.next_of_kin_phone} onChange={(event) => update("next_of_kin_phone", event.target.value)} /></label>
+        </div>
+        <div className="form-grid">
+          <label>Emergency contact<input value={form.emergency_contact_name} onChange={(event) => update("emergency_contact_name", event.target.value)} /></label>
+          <label>Emergency phone<input value={form.emergency_contact_phone} onChange={(event) => update("emergency_contact_phone", event.target.value)} /></label>
+        </div>
+        <div className="form-grid">
+          <label>Lease start<input type="date" value={form.lease_start_date} onChange={(event) => update("lease_start_date", event.target.value)} /></label>
+          <label>Lease end<input type="date" value={form.lease_end_date} onChange={(event) => update("lease_end_date", event.target.value)} /></label>
+        </div>
+        {!form.id ? <label>Assign vacant room<select value={form.room_id} onChange={(event) => update("room_id", event.target.value)}><option value="">Create without room</option>{vacantRooms.map((room) => <option key={room.id} value={room.id}>{room.room_number} - M{Number(room.rent_price).toLocaleString()}</option>)}</select></label> : null}
+        <div className="review-actions">
+          <button className="primary-button" type="submit">{form.id ? "Save tenant" : "Create tenant account"}</button>
+          {form.id ? <button type="button" onClick={() => setForm(emptyTenant)}>Cancel edit</button> : null}
+        </div>
+      </form>
+
+      <div className="list-stack">
+        {tenants.map((tenant) => (
+          <article className="row-item rich" key={tenant.id}>
+            <div>
+              <div className="card-topline"><StatusPill value={tenant.tenant_status ?? "active"} /><span>{tenant.tenant_type.replace("_", " ")}</span></div>
+              <strong>{tenant.full_name}</strong>
+              <p>{tenant.phone}{tenant.email ? ` - ${tenant.email}` : ""}</p>
+              <small>{tenant.national_id ?? tenant.passport_number ?? "No ID captured"}</small>
+            </div>
+            <div className="review-actions">
+              <button type="button" onClick={() => setForm({ ...emptyTenant, id: tenant.id, full_name: tenant.full_name, gender: tenant.gender ?? "", phone: tenant.phone, email: tenant.email ?? "", national_id: tenant.national_id ?? "", passport_number: tenant.passport_number ?? "", tenant_type: tenant.tenant_type, occupation: tenant.occupation ?? "", next_of_kin_name: tenant.next_of_kin_name ?? "", next_of_kin_phone: tenant.next_of_kin_phone ?? "", emergency_contact_name: tenant.emergency_contact_name ?? "", emergency_contact_phone: tenant.emergency_contact_phone ?? "", lease_start_date: tenant.lease_start_date ?? "", lease_end_date: tenant.lease_end_date ?? "" })}>Edit</button>
+              <button type="button" disabled={busyId === tenant.id} onClick={() => disableTenant(tenant)}>Disable</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
