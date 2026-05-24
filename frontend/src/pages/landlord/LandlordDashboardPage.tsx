@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import type { DashboardSummary, NotificationItem, PropertyItem, Room } from "../../types";
 
 export function LandlordDashboardPage() {
+  const { user } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -51,7 +53,7 @@ export function LandlordDashboardPage() {
             location_area: property?.location_area ?? "Roma",
             allowed_tenant_type: "both",
             distance_from_nul: property?.distance_from_nul ?? null,
-            contact_phone: null,
+            contact_phone: user?.phone ?? null,
             water_available: true,
             electricity_available: true,
             status: "published",

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
@@ -32,6 +32,7 @@ export function TenantPortalPage() {
   const [notice, setNotice] = useState("");
   const [payingDueId, setPayingDueId] = useState("");
   const [paymentForm, setPaymentForm] = useState({ amount: "", method: "mpesa", payer_phone: "" });
+  const paymentPanelRef = useRef<HTMLFormElement | null>(null);
 
   async function loadPortal() {
     setLoading(true);
@@ -61,6 +62,7 @@ export function TenantPortalPage() {
   }
 
   function startPayment(due: TenantPortal["rent_dues"][number]) {
+    setNotice("");
     setPayingDueId(due.id);
     setPaymentForm({
       amount: String(Math.max(0, Number(due.amount_due) - Number(due.amount_paid))),
@@ -68,6 +70,12 @@ export function TenantPortalPage() {
       payer_phone: portal?.tenant?.phone ?? ""
     });
   }
+
+  useEffect(() => {
+    if (payingDueId) {
+      window.setTimeout(() => paymentPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  }, [payingDueId]);
 
   async function initiatePayment(event: FormEvent) {
     event.preventDefault();
@@ -155,7 +163,7 @@ export function TenantPortalPage() {
           </section>
 
           {payingDueId ? (
-            <form className="panel form-panel" onSubmit={initiatePayment}>
+            <form className="panel form-panel payment-request-panel" ref={paymentPanelRef} onSubmit={initiatePayment}>
               <div>
                 <p className="eyebrow">Secure mobile money</p>
                 <h2>Submit payment request</h2>

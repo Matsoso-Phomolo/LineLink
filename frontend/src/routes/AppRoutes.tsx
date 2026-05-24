@@ -45,15 +45,17 @@ export function AppRoutes() {
           </Route>
           <Route element={<ProtectedRoute roles={["landlord", "caretaker", "admin"]} />}>
             <Route path="/landlord" element={<LandlordDashboardPage />} />
-            <Route path="/landlord/properties" element={<PropertiesPage />} />
             <Route path="/landlord/rooms" element={<RoomsPage />} />
-            <Route path="/landlord/caretakers" element={<CaretakersPage />} />
             <Route path="/landlord/tenants" element={<TenantsPage />} />
             <Route path="/landlord/listings" element={<ListingsPage />} />
             <Route path="/landlord/leases" element={<LeasesPage />} />
             <Route path="/landlord/requests" element={<RoomRequestsPage />} />
             <Route path="/landlord/payments" element={<PaymentSubmissionsPage />} />
             <Route path="/landlord/support" element={<SupportTicketsPage />} />
+          </Route>
+          <Route element={<ProtectedRoute roles={["landlord", "admin"]} />}>
+            <Route path="/landlord/properties" element={<PropertiesPage />} />
+            <Route path="/landlord/caretakers" element={<CaretakersPage />} />
           </Route>
           <Route element={<ProtectedRoute roles={["tenant"]} />}>
             <Route path="/tenant" element={<TenantPortalPage />} />

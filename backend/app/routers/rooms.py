@@ -13,7 +13,7 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 
 @router.post("", response_model=RoomRead)
-def create_room(payload: RoomCreate, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
+def create_room(payload: RoomCreate, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord))):
     prop = get_property_in_scope(db, user, payload.property_id)
     room = Room(**payload.model_dump(), landlord_id=prop.landlord_id)
     db.add(room)
@@ -30,7 +30,12 @@ def list_rooms(db: Session = Depends(get_db), user: User = Depends(get_current_u
 @router.put("/{room_id}", response_model=RoomRead)
 def update_room(room_id: uuid.UUID, payload: RoomUpdate, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
     room = get_room_in_scope(db, user, room_id)
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    values = payload.model_dump(exclude_unset=True)
+    if user.role == UserRole.caretaker:
+        disallowed = set(values) - {"status", "notes"}
+        if disallowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Caretakers can only update room status and operational notes.")
+    for key, value in values.items():
         setattr(room, key, value)
     if room.status == RoomStatus.occupied:
         db.query(RoomListing).filter(RoomListing.room_id == room.id, RoomListing.status == ListingStatus.published).update(
@@ -42,7 +47,7 @@ def update_room(room_id: uuid.UUID, payload: RoomUpdate, db: Session = Depends(g
 
 
 @router.delete("/{room_id}")
-def delete_room(room_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
+def delete_room(room_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord))):
     room = get_room_in_scope(db, user, room_id)
     active_occupancy = db.query(Occupancy).filter(Occupancy.room_id == room.id, Occupancy.status == OccupancyStatus.active).first()
     if active_occupancy:

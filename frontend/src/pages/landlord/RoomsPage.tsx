@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
 import type { PropertyItem, Room } from "../../types";
@@ -68,6 +69,7 @@ function formFromRoom(room: Room): RoomForm {
 }
 
 export function RoomsPage() {
+  const { user } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [form, setForm] = useState<RoomForm>(emptyRoom);
@@ -103,6 +105,7 @@ export function RoomsPage() {
 
   const visibleRooms = useMemo(() => rooms.filter((room) => status === "all" || room.status === status), [rooms, status]);
   const propertyById = useMemo(() => Object.fromEntries(properties.map((property) => [property.id, property])), [properties]);
+  const canManageInventory = user?.role === "landlord" || user?.role === "admin";
 
   function update<K extends keyof RoomForm>(key: K, value: RoomForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -224,7 +227,7 @@ export function RoomsPage() {
       {error ? <ErrorState message={error} /> : null}
       {notice ? <div className="data-state">{notice}</div> : null}
 
-      <form className="panel form-panel" onSubmit={createBulkRooms}>
+      {canManageInventory ? <form className="panel form-panel" onSubmit={createBulkRooms}>
         <div>
           <p className="eyebrow">Line setup</p>
           <h2>Add many rooms at once</h2>
@@ -256,7 +259,7 @@ export function RoomsPage() {
         </div>
         <label>Double room deposit<input inputMode="numeric" value={bulk.double_deposit} onChange={(event) => updateBulk("double_deposit", event.target.value)} placeholder="Defaults to double room price" /></label>
         <button className="primary-button" disabled={properties.length === 0} type="submit">Create room inventory</button>
-      </form>
+      </form> : null}
 
       {form.id ? <form className="panel form-panel" onSubmit={saveRoom}>
         <div>
@@ -323,11 +326,11 @@ export function RoomsPage() {
                 <td>M{Number(room.deposit_amount).toLocaleString()}</td>
                 <td>
                   <div className="table-actions">
-                    <button type="button" onClick={() => setForm(formFromRoom(room))}>Edit</button>
+                    {canManageInventory ? <button type="button" onClick={() => setForm(formFromRoom(room))}>Edit</button> : null}
                     <button type="button" disabled={busyId === room.id} onClick={() => quickStatus(room, "vacant")}>Vacant</button>
                     <button type="button" disabled={busyId === room.id} onClick={() => quickStatus(room, "maintenance")}>Maintenance</button>
                     <button type="button" disabled={busyId === room.id} onClick={() => quickStatus(room, "occupied")}>Occupied</button>
-                    <button type="button" disabled={busyId === room.id || room.status === "occupied"} onClick={() => removeRoom(room)}>Remove</button>
+                    {canManageInventory ? <button type="button" disabled={busyId === room.id || room.status === "occupied"} onClick={() => removeRoom(room)}>Remove</button> : null}
                   </div>
                 </td>
               </tr>

@@ -21,6 +21,7 @@ from app.models import (
     Notification,
     Occupancy,
     OnboardingChecklist,
+    Room,
     RoomListing,
     RoomStatus,
     Tenant,
@@ -59,14 +60,20 @@ def create_listing(payload: ListingCreate, db: Session = Depends(get_db), user: 
     room = get_room_in_scope(db, user, payload.room_id)
     if room.property_id != prop.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Room does not belong to the selected property")
-    listing = RoomListing(**payload.model_dump(), landlord_id=prop.landlord_id)
+    listing = db.query(RoomListing).filter(RoomListing.room_id == room.id, RoomListing.status != ListingStatus.rented).order_by(RoomListing.created_at.desc()).first()
+    if listing:
+        for key, value in payload.model_dump().items():
+            setattr(listing, key, value)
+        listing.landlord_id = prop.landlord_id
+    else:
+        listing = RoomListing(**payload.model_dump(), landlord_id=prop.landlord_id)
+        db.add(listing)
     if listing.is_public and listing.status == ListingStatus.published:
         listing.verification_status = ListingVerificationStatus.pending_verification
         listing.is_verified = False
     if room.status == RoomStatus.occupied:
         listing.status = ListingStatus.rented
         listing.is_public = False
-    db.add(listing)
     log_action(db, AuditAction.create_room_listing, user, prop.landlord_id, "RoomListing")
     db.commit()
     db.refresh(listing)
@@ -116,6 +123,10 @@ def verify_listing(listing_id: uuid.UUID, db: Session = Depends(get_db), user: U
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
     listing.is_verified = True
     listing.verification_status = ListingVerificationStatus.verified
+    room = db.get(Room, listing.room_id)
+    if room and room.status == RoomStatus.vacant:
+        listing.status = ListingStatus.published
+        listing.is_public = True
     log_action(db, AuditAction.update_room_listing, user, listing.landlord_id, "RoomListing", listing.id)
     db.commit()
     db.refresh(listing)
@@ -130,6 +141,7 @@ def reject_listing_verification(listing_id: uuid.UUID, payload: ApplicationDecis
     listing.is_verified = False
     listing.verification_status = ListingVerificationStatus.rejected
     listing.verification_note = payload.landlord_note
+    listing.is_public = False
     log_action(db, AuditAction.verify_listing, user, listing.landlord_id, "RoomListing", listing.id)
     db.commit()
     db.refresh(listing)

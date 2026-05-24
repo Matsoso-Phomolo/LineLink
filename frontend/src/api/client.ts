@@ -23,16 +23,28 @@ export async function loginRequest(identifier: string, password: string) {
   const body = new URLSearchParams();
   body.set("username", identifier);
   body.set("password", password);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 20000);
 
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      signal: controller.signal
+    });
 
-  if (!response.ok) {
-    throw new Error(await response.text());
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    return response.json() as Promise<{ access_token: string; token_type: string }>;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Login is taking too long. Please try again in a moment.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-
-  return response.json() as Promise<{ access_token: string; token_type: string }>;
 }

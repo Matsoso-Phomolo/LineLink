@@ -14,13 +14,23 @@ const landlordLinks = [
   { to: "/landlord/support", label: "Support" }
 ];
 
+const caretakerLinks = [
+  { to: "/landlord", label: "Dashboard" },
+  { to: "/landlord/rooms", label: "Rooms" },
+  { to: "/landlord/tenants", label: "Tenants" },
+  { to: "/landlord/listings", label: "Listings" },
+  { to: "/landlord/requests", label: "Room Requests" },
+  { to: "/landlord/payments", label: "Payments" },
+  { to: "/landlord/support", label: "Support" }
+];
+
 const tenantLinks = [{ to: "/tenant", label: "Tenant portal" }];
 const adminLinks = [{ to: "/admin", label: "Admin overview" }, { to: "/rooms", label: "Room finder" }];
 
 export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const links = user?.role === "tenant" ? tenantLinks : user?.role === "admin" ? adminLinks : landlordLinks;
+  const links = user?.role === "tenant" ? tenantLinks : user?.role === "admin" ? adminLinks : user?.role === "caretaker" ? caretakerLinks : landlordLinks;
 
   function handleLogout() {
     logout();
@@ -47,6 +57,7 @@ export function AppLayout() {
         <div className="sidebar-user">
           <small>{user?.role}</small>
           <strong>{user?.full_name}</strong>
+          <span>{user?.username}</span>
           <span>{user?.email}</span>
           <button type="button" onClick={handleLogout}>
             Log out
