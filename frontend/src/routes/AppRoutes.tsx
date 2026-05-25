@@ -9,6 +9,7 @@ const ForgotPasswordPage = lazy(() => import("../pages/ForgotPasswordPage").then
 const ChangePasswordPage = lazy(() => import("../pages/ChangePasswordPage").then((module) => ({ default: module.ChangePasswordPage })));
 const PublicRoomFinderPage = lazy(() => import("../pages/public/PublicRoomFinderPage").then((module) => ({ default: module.PublicRoomFinderPage })));
 const ApplicationFormPage = lazy(() => import("../pages/public/ApplicationFormPage").then((module) => ({ default: module.ApplicationFormPage })));
+const LandlordRequestPage = lazy(() => import("../pages/public/LandlordRequestPage").then((module) => ({ default: module.LandlordRequestPage })));
 const LandlordDashboardPage = lazy(() => import("../pages/landlord/LandlordDashboardPage").then((module) => ({ default: module.LandlordDashboardPage })));
 const PropertiesPage = lazy(() => import("../pages/landlord/PropertiesPage").then((module) => ({ default: module.PropertiesPage })));
 const RoomsPage = lazy(() => import("../pages/landlord/RoomsPage").then((module) => ({ default: module.RoomsPage })));
@@ -39,6 +40,7 @@ export function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/rooms" element={<PublicRoomFinderPage />} />
         <Route path="/apply/:token" element={<ApplicationFormPage />} />
+        <Route path="/landlord-request" element={<LandlordRequestPage />} />
         <Route path="/" element={<HomeRedirect />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />

@@ -127,6 +127,17 @@ button {
   margin: 0;
 }
 
+.footer-signature a {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer-signature a:hover {
+  color: #e9fffb;
+}
+
 .tiny-outline-button,
 .modal-close {
   border: 1px solid rgba(123, 214, 195, 0.42);
@@ -188,6 +199,12 @@ button {
 
 .admin-contact-list a {
   color: #b8fff0;
+}
+
+.dark-action {
+  border-color: rgba(123, 214, 195, 0.55);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e9fffb;
 }
 
 .privacy-note {
@@ -528,6 +545,26 @@ textarea:focus {
   color: #963d36;
   border-radius: 8px;
   padding: 12px 14px;
+}
+
+.form-success {
+  border: 1px solid #88cbbd;
+  background: #eefbf7;
+  color: #24564f;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-weight: 700;
+}
+
+.public-request-page {
+  padding: 28px;
+  background:
+    linear-gradient(rgba(23, 32, 38, 0.72), rgba(23, 32, 38, 0.72)),
+    url("https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1800&q=80") center / cover;
+}
+
+.public-request-shell {
+  max-height: calc(100vh - 56px);
 }
 
 .app-frame {

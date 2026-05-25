@@ -94,11 +94,14 @@ export function LoginPage() {
           </button>
           <a className="text-button" href="#/forgot-password">Forgot password?</a>
           <a className="secondary-button" href="#/rooms">Find vacant rooms</a>
+          <a className="secondary-button" href="#/landlord-request">Landlord request</a>
         </form>
       </section>
       <section className="public-footer-card" aria-label="LineLink public contacts">
         <div className="footer-compact-row">
-          <p className="footer-signature">© 2026 P Matsoso • phomolomatsoso@gmail.com • 57260714/63355656</p>
+          <p className="footer-signature">
+            © 2026 P Matsoso • <a href="mailto:phomolomatsoso@gmail.com">phomolomatsoso@gmail.com</a> • 57260714/63355656
+          </p>
           <button className="tiny-outline-button" type="button" onClick={() => setShowAdminModal(true)}>About Admin</button>
         </div>
       </section>
@@ -112,6 +115,7 @@ export function LoginPage() {
             <p>• Full-Stack Developer • SOC AI Systems Builder</p>
             <div className="review-actions">
               <a className="primary-button" href="https://matsoso-portfolio.vercel.app" target="_blank" rel="noreferrer">Portfolio</a>
+              <a className="secondary-button dark-action" href="https://wa.me/26657260714" target="_blank" rel="noreferrer">WhatsApp</a>
             </div>
           </section>
         </div>
