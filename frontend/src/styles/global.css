@@ -60,12 +60,19 @@ button {
 
 .public-footer-card {
   width: min(1080px, 100%);
-  padding: 22px;
+  padding: 14px 18px;
   border: 1px solid rgba(123, 214, 195, 0.22);
   border-radius: 8px;
   background: rgba(13, 32, 29, 0.92);
   color: #f3fbf8;
   box-shadow: 0 22px 52px rgba(0, 0, 0, 0.22);
+}
+
+.footer-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .footer-heading {
@@ -117,7 +124,7 @@ button {
 }
 
 .footer-signature {
-  margin: 16px 0 0;
+  margin: 0;
 }
 
 .tiny-outline-button,
@@ -1274,6 +1281,7 @@ th {
   }
 
   .footer-heading,
+  .footer-compact-row,
   .contact-card-grid {
     display: grid;
     grid-template-columns: 1fr;

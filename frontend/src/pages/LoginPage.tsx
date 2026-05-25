@@ -97,32 +97,10 @@ export function LoginPage() {
         </form>
       </section>
       <section className="public-footer-card" aria-label="LineLink public contacts">
-        <div className="footer-heading">
-          <div>
-            <p className="eyebrow">Contact</p>
-            <h2>Built and operated by PHOMOLO MATSOSO</h2>
-          </div>
+        <div className="footer-compact-row">
+          <p className="footer-signature">© 2026 P Matsoso • phomolomatsoso@gmail.com • 57260714/63355656</p>
           <button className="tiny-outline-button" type="button" onClick={() => setShowAdminModal(true)}>About Admin</button>
         </div>
-        <div className="contact-card-grid">
-          <a className="contact-card" href="mailto:phomolomatsoso@gmail.com">
-            <span>Email</span>
-            <strong>phomolomatsoso@gmail.com</strong>
-          </a>
-          <a className="contact-card" href="https://wa.me/26657260714" target="_blank" rel="noreferrer">
-            <span>WhatsApp</span>
-            <strong>57260714 / 63355656</strong>
-          </a>
-          <a className="contact-card" href="https://github.com/Matsoso-Phomolo" target="_blank" rel="noreferrer">
-            <span>GitHub</span>
-            <strong>@Matsoso-Phomolo</strong>
-          </a>
-          <a className="contact-card" href="https://www.linkedin.com/" target="_blank" rel="noreferrer">
-            <span>LinkedIn</span>
-            <strong>PHOMOLO MATSOSO</strong>
-          </a>
-        </div>
-        <p className="footer-signature">© 2026 PHOMOLO MATSOSO • Backend Developer • Full-Stack Builder • SOC AI Systems</p>
       </section>
       {showAdminModal ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdminModal(false)}>
@@ -131,16 +109,9 @@ export function LoginPage() {
             <img src="/hero/admin/admin-photo.jpeg" alt="PHOMOLO MATSOSO, LineLink founder and system administrator" />
             <p className="eyebrow">Founder & System Administrator</p>
             <h2 id="admin-profile-title">PHOMOLO MATSOSO</h2>
-            <p>Backend Developer • Full-Stack Builder • SOC AI Systems Engineer</p>
-            <div className="admin-contact-list">
-              <a href="mailto:phomolomatsoso@gmail.com">phomolomatsoso@gmail.com</a>
-              <a href="https://wa.me/26657260714" target="_blank" rel="noreferrer">57260714</a>
-              <a href="https://wa.me/26663355656" target="_blank" rel="noreferrer">63355656</a>
-            </div>
+            <p>• Full-Stack Developer • SOC AI Systems Builder</p>
             <div className="review-actions">
-              <a className="secondary-button" href="https://github.com/Matsoso-Phomolo" target="_blank" rel="noreferrer">GitHub</a>
-              <a className="secondary-button" href="https://wa.me/26657260714" target="_blank" rel="noreferrer">WhatsApp</a>
-              <a className="primary-button" href="mailto:phomolomatsoso@gmail.com">Email</a>
+              <a className="primary-button" href="https://matsoso-portfolio.vercel.app" target="_blank" rel="noreferrer">Portfolio</a>
             </div>
           </section>
         </div>
