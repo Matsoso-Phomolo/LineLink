@@ -4,12 +4,14 @@ import { useAuth } from "../auth/AuthContext";
 import { HeroPhotoCarousel } from "../components/HeroPhotoCarousel";
 
 export function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<{ id: string; channel?: string | null; demoOtp?: string | null } | null>(null);
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,6 +25,10 @@ export function LoginPage() {
     setError("");
     try {
       const currentUser = await login(identifier, password);
+      if ("requires_2fa" in currentUser) {
+        setTwoFactorChallenge({ id: currentUser.challenge_id, channel: currentUser.channel, demoOtp: currentUser.demo_otp });
+        return;
+      }
       if (currentUser.must_change_password) {
         navigate("/change-password");
       } else {
@@ -30,6 +36,25 @@ export function LoginPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleTwoFactorSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!twoFactorChallenge) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const currentUser = await verifyTwoFactor(twoFactorChallenge.id, otp);
+      if (currentUser.must_change_password) {
+        navigate("/change-password");
+      } else {
+        navigate(currentUser.role === "tenant" ? "/tenant" : currentUser.role === "admin" ? "/admin" : "/landlord");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to verify security code");
     } finally {
       setSubmitting(false);
     }
@@ -68,31 +93,51 @@ export function LoginPage() {
             <HeroPhotoCarousel />
           </div>
         </div>
-        <form className="login-card" onSubmit={handleSubmit}>
+        <form className="login-card" onSubmit={twoFactorChallenge ? handleTwoFactorSubmit : handleSubmit}>
           <div>
             <p className="eyebrow">Secure access</p>
-            <h2>Sign in</h2>
+            <h2>{twoFactorChallenge ? "Verify code" : "Sign in"}</h2>
           </div>
-          <label>
-            Username / ID number
-            <input id="login-identifier" required value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="LL-LND-000001" />
-          </label>
-          <div className="field-group">
-            <label htmlFor="login-password">Password</label>
-            <div className="password-field">
-              <input id="login-password" required value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" />
-              <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </div>
+          {twoFactorChallenge ? (
+            <>
+              <p className="privacy-note">Enter the security code sent by {twoFactorChallenge.channel ?? "email"}. {twoFactorChallenge.demoOtp ? `Demo code: ${twoFactorChallenge.demoOtp}` : ""}</p>
+              <label>
+                Security code
+                <input required inputMode="numeric" value={otp} onChange={(event) => setOtp(event.target.value)} placeholder="000000" />
+              </label>
+            </>
+          ) : (
+            <>
+              <label>
+                Username / ID number
+                <input id="login-identifier" required value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="LL-LND-000001" />
+              </label>
+              <div className="field-group">
+                <label htmlFor="login-password">Password</label>
+                <div className="password-field">
+                  <input id="login-password" required value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" />
+                  <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
           {error ? <div className="form-error">{error}</div> : null}
           <button type="submit" className="primary-button" disabled={submitting}>
-            {submitting ? "Signing in..." : "Sign in"}
+            {submitting ? (twoFactorChallenge ? "Verifying..." : "Signing in...") : twoFactorChallenge ? "Verify and continue" : "Sign in"}
           </button>
-          <a className="text-button" href="#/forgot-password">Forgot password?</a>
-          <a className="secondary-button" href="#/rooms">Find vacant rooms</a>
-          <a className="secondary-button" href="#/landlord-request">Landlord request</a>
+          {twoFactorChallenge ? (
+            <button className="text-button" type="button" onClick={() => { setTwoFactorChallenge(null); setOtp(""); }}>
+              Back to sign in
+            </button>
+          ) : (
+            <>
+              <a className="text-button" href="#/forgot-password">Forgot password?</a>
+              <a className="secondary-button" href="#/rooms">Find vacant rooms</a>
+              <a className="secondary-button" href="#/landlord-request">Landlord request</a>
+            </>
+          )}
         </form>
       </section>
       <section className="public-footer-card" aria-label="LineLink public contacts">

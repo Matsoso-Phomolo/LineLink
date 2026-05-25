@@ -34,6 +34,15 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   return response.json();
 }
 
+export type LoginResponse = {
+  access_token?: string | null;
+  token_type?: string;
+  requires_2fa?: boolean;
+  challenge_id?: string | null;
+  channel?: string | null;
+  demo_otp?: string | null;
+};
+
 export async function loginRequest(identifier: string, password: string) {
   const body = new URLSearchParams();
   body.set("username", identifier);
@@ -53,7 +62,7 @@ export async function loginRequest(identifier: string, password: string) {
       throw await responseError(response);
     }
 
-    return response.json() as Promise<{ access_token: string; token_type: string }>;
+    return response.json() as Promise<LoginResponse>;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Login is taking too long. Please try again in a moment.");

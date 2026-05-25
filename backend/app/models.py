@@ -74,6 +74,9 @@ class PaymentMethod(str, enum.Enum):
     mpesa = "mpesa"
     ecocash = "ecocash"
     orange_money = "orange_money"
+    mopay_mpesa = "mopay_mpesa"
+    mopay_ecocash = "mopay_ecocash"
+    mopay_card = "mopay_card"
     bank_transfer = "bank_transfer"
     bank = "bank"
     cash = "cash"
@@ -251,6 +254,9 @@ class User(Base, TimestampMixin):
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    two_factor_enabled: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    preferred_2fa_channel: Mapped[str] = mapped_column(String(40), default="email")
+    two_factor_required: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     landlord_profile: Mapped["Landlord | None"] = relationship(back_populates="user")
     caretaker_profile: Mapped["Caretaker | None"] = relationship(back_populates="user")
@@ -450,9 +456,11 @@ class PaymentReceipt(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
     room_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rooms.id"), nullable=True, index=True)
-    payment_submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("payment_submissions.id"), unique=True, index=True)
+    payment_submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("payment_submissions.id"), unique=True, nullable=True, index=True)
+    subscription_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("landlord_subscriptions.id"), nullable=True, index=True)
+    receipt_type: Mapped[str] = mapped_column(String(40), default="rent", index=True)
     receipt_number: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
     method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod, name="payment_method"))
@@ -467,9 +475,11 @@ class PaymentTransaction(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
     rent_due_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rent_dues.id"), nullable=True, index=True)
+    subscription_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("landlord_subscriptions.id"), nullable=True, index=True)
     payment_submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("payment_submissions.id"), nullable=True, index=True)
+    payment_type: Mapped[str] = mapped_column(String(60), default="rent", index=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
     method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod, name="payment_method"), index=True)
     payer_phone: Mapped[str | None] = mapped_column(String(40))
@@ -479,8 +489,26 @@ class PaymentTransaction(Base, TimestampMixin):
     provider_reference: Mapped[str | None] = mapped_column(String(160), unique=True, nullable=True, index=True)
     provider_message: Mapped[str | None] = mapped_column(Text)
     provider_error: Mapped[str | None] = mapped_column(Text)
+    webhook_event_id: Mapped[str | None] = mapped_column(String(160), unique=True, nullable=True, index=True)
+    provider_status: Mapped[str | None] = mapped_column(String(80), index=True)
+    verified_signature: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_reason: Mapped[str | None] = mapped_column(Text)
     raw_callback_json: Mapped[str | None] = mapped_column(Text)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TwoFactorChallenge(Base, TimestampMixin):
+    __tablename__ = "two_factor_challenges"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(40), default="email", index=True)
+    otp_hash: Mapped[str] = mapped_column(String(255))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(40), default="pending", index=True)
 
 
 class RoomListing(Base, TimestampMixin):

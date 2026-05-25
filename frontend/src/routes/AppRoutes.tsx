@@ -7,6 +7,7 @@ import { useAuth } from "../auth/AuthContext";
 
 const ForgotPasswordPage = lazy(() => import("../pages/ForgotPasswordPage").then((module) => ({ default: module.ForgotPasswordPage })));
 const ChangePasswordPage = lazy(() => import("../pages/ChangePasswordPage").then((module) => ({ default: module.ChangePasswordPage })));
+const SecurityPage = lazy(() => import("../pages/SecurityPage").then((module) => ({ default: module.SecurityPage })));
 const PublicRoomFinderPage = lazy(() => import("../pages/public/PublicRoomFinderPage").then((module) => ({ default: module.PublicRoomFinderPage })));
 const ApplicationFormPage = lazy(() => import("../pages/public/ApplicationFormPage").then((module) => ({ default: module.ApplicationFormPage })));
 const LandlordRequestPage = lazy(() => import("../pages/public/LandlordRequestPage").then((module) => ({ default: module.LandlordRequestPage })));
@@ -19,6 +20,7 @@ const ListingsPage = lazy(() => import("../pages/landlord/ListingsPage").then((m
 const LeasesPage = lazy(() => import("../pages/landlord/LeasesPage").then((module) => ({ default: module.LeasesPage })));
 const RoomRequestsPage = lazy(() => import("../pages/landlord/RoomRequestsPage").then((module) => ({ default: module.RoomRequestsPage })));
 const PaymentSubmissionsPage = lazy(() => import("../pages/landlord/PaymentSubmissionsPage").then((module) => ({ default: module.PaymentSubmissionsPage })));
+const BillingPage = lazy(() => import("../pages/landlord/BillingPage").then((module) => ({ default: module.BillingPage })));
 const SupportTicketsPage = lazy(() => import("../pages/landlord/SupportTicketsPage").then((module) => ({ default: module.SupportTicketsPage })));
 const TenantPortalPage = lazy(() => import("../pages/tenant/TenantPortalPage").then((module) => ({ default: module.TenantPortalPage })));
 const AdminDashboardPage = lazy(() => import("../pages/admin/AdminDashboardPage").then((module) => ({ default: module.AdminDashboardPage })));
@@ -45,6 +47,7 @@ export function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route element={<AppLayout />}>
+            <Route path="/security" element={<SecurityPage />} />
             <Route element={<ProtectedRoute roles={["admin"]} />}>
               <Route path="/admin" element={<AdminDashboardPage />} />
             </Route>
@@ -61,6 +64,7 @@ export function AppRoutes() {
             <Route element={<ProtectedRoute roles={["landlord", "admin"]} />}>
               <Route path="/landlord/properties" element={<PropertiesPage />} />
               <Route path="/landlord/caretakers" element={<CaretakersPage />} />
+              <Route path="/landlord/billing" element={<BillingPage />} />
             </Route>
             <Route element={<ProtectedRoute roles={["tenant"]} />}>
               <Route path="/tenant" element={<TenantPortalPage />} />

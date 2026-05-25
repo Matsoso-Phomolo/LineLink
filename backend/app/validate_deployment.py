@@ -53,6 +53,19 @@ def check_required_env(failures: list[str]) -> None:
         fail("SECRET_KEY is still the placeholder value", failures)
     if settings.app_env.strip().lower() == "production" and settings.seed_demo_data:
         warn("SEED_DEMO_DATA=true in production; use only for intentional staging-style deployments")
+    mopay_required = {
+        "MOPAY_BASE_URL": settings.mopay_base_url,
+        "MOPAY_API_KEY": settings.mopay_api_key,
+        "MOPAY_MERCHANT_ID": settings.mopay_merchant_id,
+        "MOPAY_WEBHOOK_SECRET": settings.mopay_webhook_secret,
+        "MOPAY_CALLBACK_URL": settings.mopay_callback_url,
+        "MOPAY_RETURN_URL": settings.mopay_return_url,
+    }
+    missing_mopay = [key for key, value in mopay_required.items() if not value]
+    if missing_mopay:
+        warn("MoPay is not fully configured yet: " + ", ".join(missing_mopay))
+    else:
+        ok("MoPay payment environment variables are configured")
 
 
 def check_app_import(failures: list[str]) -> None:

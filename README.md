@@ -124,6 +124,21 @@ Use Vite defaults:
 - Rotate `SECRET_KEY` before production.
 - Keep demo seed data only for local or staging deployments.
 - Keep `SEED_DEMO_DATA=false` for production.
+- LineLink never collects or stores M-Pesa, EcoCash, wallet PINs, or card secrets.
+- MoPay credentials must live only in Render environment variables.
+- Admin accounts require two-factor authentication; landlord/caretaker 2FA is scaffolded and can be enabled.
+
+## MoPay Payment Readiness
+
+LineLink includes a MoPay payment gateway scaffold for M-Pesa, EcoCash, card payments, bank references, tenant rent, deposits, and landlord subscription payments.
+
+Expected production URLs:
+
+- Frontend: `https://linelink-three.vercel.app`
+- Backend: `https://linelink.onrender.com`
+- Webhook: `https://linelink.onrender.com/payments/callback/mopay`
+
+See `docs/mopay-onboarding.md` for the onboarding checklist.
 
 ## Deployment Troubleshooting
 

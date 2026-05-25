@@ -11,7 +11,9 @@ const landlordLinks = [
   { to: "/landlord/leases", label: "Leases" },
   { to: "/landlord/requests", label: "Room Requests" },
   { to: "/landlord/payments", label: "Payments" },
-  { to: "/landlord/support", label: "Support" }
+  { to: "/landlord/billing", label: "Billing" },
+  { to: "/landlord/support", label: "Support" },
+  { to: "/security", label: "Security" }
 ];
 
 const caretakerLinks = [
@@ -21,11 +23,12 @@ const caretakerLinks = [
   { to: "/landlord/listings", label: "Listings" },
   { to: "/landlord/requests", label: "Room Requests" },
   { to: "/landlord/payments", label: "Payments" },
-  { to: "/landlord/support", label: "Support" }
+  { to: "/landlord/support", label: "Support" },
+  { to: "/security", label: "Security" }
 ];
 
-const tenantLinks = [{ to: "/tenant", label: "Tenant portal" }];
-const adminLinks = [{ to: "/admin", label: "Admin overview" }, { to: "/rooms", label: "Room finder" }];
+const tenantLinks = [{ to: "/tenant", label: "Tenant portal" }, { to: "/security", label: "Security" }];
+const adminLinks = [{ to: "/admin", label: "Admin overview" }, { to: "/rooms", label: "Room finder" }, { to: "/security", label: "Security" }];
 
 export function AppLayout() {
   const { user, logout } = useAuth();

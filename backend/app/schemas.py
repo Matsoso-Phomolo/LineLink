@@ -40,8 +40,12 @@ class ORMModel(BaseModel):
 
 
 class Token(BaseModel):
-    access_token: str
+    access_token: str | None = None
     token_type: str = "bearer"
+    requires_2fa: bool = False
+    challenge_id: uuid.UUID | None = None
+    channel: str | None = None
+    demo_otp: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -61,6 +65,9 @@ class UserRead(ORMModel):
     role: UserRole
     is_active: bool
     must_change_password: bool = False
+    two_factor_enabled: bool = False
+    preferred_2fa_channel: str | None = None
+    two_factor_required: bool = False
     created_at: datetime
 
 
@@ -379,9 +386,11 @@ class PaymentSubmissionRead(PaymentSubmissionCreate, ORMModel):
 class PaymentReceiptRead(ORMModel):
     id: uuid.UUID
     landlord_id: uuid.UUID
-    tenant_id: uuid.UUID
+    tenant_id: uuid.UUID | None = None
     room_id: uuid.UUID | None = None
-    payment_submission_id: uuid.UUID
+    payment_submission_id: uuid.UUID | None = None
+    subscription_id: uuid.UUID | None = None
+    receipt_type: str = "rent"
     receipt_number: str
     amount: float
     method: PaymentMethod
@@ -392,10 +401,10 @@ class PaymentReceiptRead(ORMModel):
 
 
 class PaymentInitiateRequest(BaseModel):
-    rent_due_id: uuid.UUID
+    rent_due_id: uuid.UUID | None = None
     amount: float
     method: PaymentMethod
-    payer_phone: str
+    payer_phone: str | None = None
     tenant_id: uuid.UUID | None = None
     idempotency_key: str | None = None
 
@@ -403,7 +412,9 @@ class PaymentInitiateRequest(BaseModel):
 class PaymentInitiateResponse(ORMModel):
     id: uuid.UUID
     rent_due_id: uuid.UUID | None = None
-    tenant_id: uuid.UUID
+    tenant_id: uuid.UUID | None = None
+    subscription_id: uuid.UUID | None = None
+    payment_type: str = "rent"
     amount: float
     method: PaymentMethod
     payer_phone: str | None = None
@@ -411,6 +422,11 @@ class PaymentInitiateResponse(ORMModel):
     idempotency_key: str
     checkout_request_id: str | None = None
     provider_reference: str | None = None
+    provider_status: str | None = None
+    webhook_event_id: str | None = None
+    verified_signature: bool = False
+    processed_at: datetime | None = None
+    failure_reason: str | None = None
     provider_message: str | None = None
     provider_error: str | None = None
     created_at: datetime
@@ -425,6 +441,29 @@ class PaymentCallbackPayload(BaseModel):
     transaction_reference: str | None = None
     message: str | None = None
     error_message: str | None = None
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    challenge_id: uuid.UUID
+    otp: str
+
+
+class TwoFactorResendRequest(BaseModel):
+    challenge_id: uuid.UUID
+
+
+class TwoFactorSetupRequest(BaseModel):
+    channel: str = "email"
+    enabled: bool = True
+
+
+class SubscriptionPayRequest(BaseModel):
+    subscription_id: uuid.UUID | None = None
+    plan_id: uuid.UUID | None = None
+    amount: float
+    method: PaymentMethod
+    payer_phone: str | None = None
+    idempotency_key: str | None = None
 
 
 class ListingBase(BaseModel):

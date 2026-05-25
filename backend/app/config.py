@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     ecocash_client_secret: str | None = None
     ecocash_merchant_code: str | None = None
     ecocash_callback_url: str | None = None
+    mopay_base_url: str | None = None
+    mopay_api_key: str | None = None
+    mopay_merchant_id: str | None = None
+    mopay_webhook_secret: str | None = None
+    mopay_callback_url: str | None = None
+    mopay_return_url: str | None = None
+    mopay_environment: str = "sandbox"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

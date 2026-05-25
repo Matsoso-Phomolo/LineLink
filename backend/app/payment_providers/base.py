@@ -8,8 +8,11 @@ from app.models import PaymentMethod
 class PaymentProviderRequest:
     transaction_id: UUID
     amount: float
-    payer_phone: str
+    payer_phone: str | None
     idempotency_key: str
+    currency: str = "LSL"
+    description: str | None = None
+    method_variant: str | None = None
 
 
 @dataclass

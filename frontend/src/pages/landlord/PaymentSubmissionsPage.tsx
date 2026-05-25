@@ -11,6 +11,7 @@ export function PaymentSubmissionsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   async function loadData() {
     setLoading(true);
@@ -54,14 +55,27 @@ export function PaymentSubmissionsPage() {
       {error ? <ErrorState message={error} /> : null}
       {notice ? <div className="data-state">{notice}</div> : null}
       <section className="panel">
-        <h2>Mobile money and bank transactions</h2>
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Provider activity</p>
+            <h2>Mobile money, MoPay, and bank transactions</h2>
+          </div>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter transactions">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="successful">Successful</option>
+            <option value="failed">Failed</option>
+            <option value="pending_verification">Manual verification</option>
+          </select>
+        </div>
         <div className="list-stack">
           {transactions.length === 0 ? <div className="data-state">No provider transactions yet.</div> : null}
-          {transactions.slice(0, 10).map((transaction) => (
+          {transactions.filter((transaction) => statusFilter === "all" || transaction.status === statusFilter).slice(0, 10).map((transaction) => (
             <article className="row-item" key={transaction.id}>
               <div>
-                <strong>{transaction.method.replace("_", " ")} - M{Number(transaction.amount).toLocaleString()}</strong>
+                <strong>{transaction.method.replaceAll("_", " ")} - M{Number(transaction.amount).toLocaleString()}</strong>
                 <p>{transaction.provider_reference ?? transaction.checkout_request_id ?? transaction.idempotency_key}</p>
+                <small>{transaction.payment_type === "landlord_subscription" ? "Landlord subscription" : "Tenant rent"}</small>
                 {transaction.provider_error ? <small>{transaction.provider_error}</small> : null}
               </div>
               <StatusPill value={transaction.status} />

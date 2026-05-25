@@ -32,7 +32,7 @@ export function TenantPortalPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [payingDueId, setPayingDueId] = useState("");
-  const [paymentForm, setPaymentForm] = useState({ amount: "", method: "mpesa", payer_phone: "" });
+  const [paymentForm, setPaymentForm] = useState({ amount: "", method: "mopay_mpesa", payer_phone: "" });
   const [reminders, setReminders] = useState<TenantPortal["reminder_logs"]>([]);
   const paymentPanelRef = useRef<HTMLFormElement | null>(null);
 
@@ -73,7 +73,7 @@ export function TenantPortalPage() {
     setPayingDueId(due.id);
     setPaymentForm({
       amount: String(Math.max(0, Number(due.amount_due) - Number(due.amount_paid))),
-      method: "mpesa",
+      method: "mopay_mpesa",
       payer_phone: portal?.tenant?.phone ?? ""
     });
   }
@@ -195,8 +195,11 @@ export function TenantPortalPage() {
               <div className="form-grid">
                 <label>Amount<input required inputMode="numeric" value={paymentForm.amount} onChange={(event) => setPaymentForm((current) => ({ ...current, amount: event.target.value }))} /></label>
                 <label>Method<select value={paymentForm.method} onChange={(event) => setPaymentForm((current) => ({ ...current, method: event.target.value }))}>
-                  <option value="mpesa">MPESA</option>
-                  <option value="ecocash">EcoCash</option>
+                  <option value="mopay_mpesa">MoPay M-Pesa</option>
+                  <option value="mopay_ecocash">MoPay EcoCash</option>
+                  <option value="mopay_card">MoPay Card</option>
+                  <option value="mpesa">Legacy MPESA scaffold</option>
+                  <option value="ecocash">Legacy EcoCash scaffold</option>
                   <option value="bank_transfer">Bank Transfer</option>
                 </select></label>
               </div>

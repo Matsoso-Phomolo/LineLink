@@ -214,14 +214,21 @@ export type PaymentSubmission = {
 export type PaymentTransaction = {
   id: string;
   rent_due_id?: string | null;
-  tenant_id: string;
+  tenant_id?: string | null;
+  subscription_id?: string | null;
+  payment_type?: string;
   amount: number;
-  method: "mpesa" | "ecocash" | "orange_money" | "bank_transfer" | "bank" | "cash";
+  method: "mpesa" | "ecocash" | "orange_money" | "mopay_mpesa" | "mopay_ecocash" | "mopay_card" | "bank_transfer" | "bank" | "cash";
   payer_phone?: string | null;
   status: "pending" | "successful" | "failed" | "timeout" | "pending_verification";
   idempotency_key: string;
   checkout_request_id?: string | null;
   provider_reference?: string | null;
+  provider_status?: string | null;
+  webhook_event_id?: string | null;
+  verified_signature?: boolean;
+  processed_at?: string | null;
+  failure_reason?: string | null;
   provider_message?: string | null;
   provider_error?: string | null;
   created_at: string;
@@ -272,9 +279,11 @@ export type LeaseAgreement = {
 export type PaymentReceipt = {
   id: string;
   receipt_number: string;
-  tenant_id: string;
+  tenant_id?: string | null;
   room_id?: string | null;
-  payment_submission_id: string;
+  payment_submission_id?: string | null;
+  subscription_id?: string | null;
+  receipt_type?: string;
   amount: number;
   method: string;
   transaction_reference?: string | null;

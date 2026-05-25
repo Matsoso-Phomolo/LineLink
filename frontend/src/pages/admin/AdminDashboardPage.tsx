@@ -41,6 +41,7 @@ export function AdminDashboardPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [riskCenter, setRiskCenter] = useState<any>(null);
   const [reminderLogs, setReminderLogs] = useState<any[]>([]);
+  const [paymentHealth, setPaymentHealth] = useState<any>(null);
   const [manual, setManual] = useState<ManualLandlordForm>(emptyManual);
   const [planForm, setPlanForm] = useState(emptyPlan);
   const [loading, setLoading] = useState(true);
@@ -64,12 +65,14 @@ export function AdminDashboardPage() {
       ]);
       setListings(listingItems);
       setPlans(planItems);
-      const [riskItems, reminderItems] = await Promise.all([
+      const [riskItems, reminderItems, healthItems] = await Promise.all([
         apiFetch("/admin/ai-risk-center"),
-        apiFetch("/reminders/mine") as Promise<any[]>
+        apiFetch("/reminders/mine") as Promise<any[]>,
+        apiFetch("/payments/gateway-health")
       ]);
       setRiskCenter(riskItems);
       setReminderLogs(reminderItems);
+      setPaymentHealth(healthItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load admin data");
     } finally {
@@ -305,6 +308,33 @@ export function AdminDashboardPage() {
               </div>
             </div>
 
+            <div className="panel">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">MoPay readiness</p>
+                  <h2>Payment gateway health</h2>
+                </div>
+                <StatusPill value={paymentHealth?.mopay_environment ?? "sandbox"} />
+              </div>
+              <div className="detail-grid compact">
+                <div><span>Webhook URL</span><strong>{paymentHealth?.webhook_url ?? "Not set"}</strong></div>
+                <div><span>Callback URL</span><strong>{paymentHealth?.callback_url ?? "Not set"}</strong></div>
+                <div><span>Last webhook</span><strong>{paymentHealth?.last_webhook_received ? new Date(paymentHealth.last_webhook_received).toLocaleString() : "None yet"}</strong></div>
+                <div><span>Successful payments</span><strong>{paymentHealth?.successful_payment_count ?? 0}</strong></div>
+                <div><span>Failed webhooks</span><strong>{paymentHealth?.failed_webhook_count ?? 0}</strong></div>
+              </div>
+              <div className="list-stack compact-list">
+                {Object.entries(paymentHealth?.configured ?? {}).map(([key, value]) => (
+                  <article className="row-item" key={key}>
+                    <strong>{key}</strong>
+                    <StatusPill value={value ? "configured" : "missing"} />
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="admin-grid">
             <div className="panel">
               <div className="section-heading">
                 <div>
