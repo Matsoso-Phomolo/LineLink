@@ -7,12 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.audit import log_action
 from app.auth import authenticate_user, create_access_token, get_password_hash, verify_password
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, require_roles
 from app.identity import next_identifier
 from app.models import AuditAction, PasswordResetToken, User, UserRole
 from app.notification_channels import send_password_reset
-from app.schemas import PasswordChange, PasswordResetConfirm, PasswordResetRequest, Token, UserCreate, UserRead
+from app.schemas import AdminPasswordReset, PasswordChange, PasswordResetConfirm, PasswordResetRequest, Token, UserCreate, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -69,7 +70,10 @@ def forgot_password(payload: PasswordResetRequest, db: Session = Depends(get_db)
     db.add(reset)
     send_password_reset(user, token, payload.channel)
     db.commit()
-    return {"detail": "If the account exists, a reset link or code will be sent.", "reset_token_demo": token}
+    response = {"detail": "If the account exists, a reset link or code will be sent."}
+    if settings.app_env.strip().lower() in {"local", "development", "dev", "staging"}:
+        response["reset_token_demo"] = token
+    return response
 
 
 @router.post("/reset-password")
@@ -99,3 +103,21 @@ def change_password(payload: PasswordChange, db: Session = Depends(get_db), user
     user.must_change_password = False
     db.commit()
     return {"detail": "Password changed"}
+
+
+@router.post("/admin/reset-user-password", response_model=UserRead)
+def admin_reset_user_password(
+    payload: AdminPasswordReset,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(UserRole.admin)),
+):
+    identifier = payload.identifier.strip()
+    user = db.query(User).filter((User.username == identifier) | (User.email == identifier)).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User account was not found")
+    user.hashed_password = get_password_hash(payload.new_password)
+    user.must_change_password = payload.must_change_password
+    log_action(db, AuditAction.update_tenant, actor=admin, entity_type="User", entity_id=user.id, metadata={"identifier": identifier, "action": "admin_password_reset"})
+    db.commit()
+    db.refresh(user)
+    return user

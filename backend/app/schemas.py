@@ -79,6 +79,12 @@ class PasswordChange(BaseModel):
     new_password: str = Field(min_length=8)
 
 
+class AdminPasswordReset(BaseModel):
+    identifier: str
+    new_password: str = Field(min_length=8)
+    must_change_password: bool = False
+
+
 class LandlordCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
