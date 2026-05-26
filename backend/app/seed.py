@@ -125,8 +125,12 @@ def seed_admin(db: Session, *, email: str | None = None, password: str | None = 
         user.two_factor_required = False
         user.preferred_2fa_channel = "email"
 
-        if not is_production():
-            user.hashed_password = get_password_hash(admin_password)
+        
+        user.hashed_password = get_password_hash(admin_password)
+
+        user.two_factor_enabled = False
+        user.two_factor_required = False
+        user.preferred_2fa_channel = "email"
 
     return user
 
