@@ -91,21 +91,43 @@ def seed_admin(db: Session, *, email: str | None = None, password: str | None = 
     admin_email = email or settings.admin_email or (ADMIN_EMAIL if not is_production() else None)
     admin_password = password or settings.admin_password or (DEMO_ADMIN_PASSWORD if not is_production() else None)
     admin_full_name = full_name or settings.admin_full_name or "Phomolo Matsoso"
+
     if not admin_email or not admin_password:
         raise RuntimeError("ADMIN_EMAIL and ADMIN_PASSWORD are required when seeding the first admin")
-    user = db.query(User).filter(User.email == admin_email).first()
+
+    user = (
+        db.query(User)
+        .filter(
+            (User.email == admin_email) |
+            (User.username == "LL-ADM-000001")
+        )
+        .first()
+    )
+
     if not user:
-        user = User(username="LL-ADM-000001", email=admin_email, full_name=admin_full_name, role=UserRole.admin, hashed_password=get_password_hash(admin_password))
+        user = User(
+            username="LL-ADM-000001",
+            email=admin_email,
+            full_name=admin_full_name,
+            role=UserRole.admin,
+            hashed_password=get_password_hash(admin_password),
+        )
         db.add(user)
         db.flush()
     else:
+        user.email = admin_email
         user.full_name = admin_full_name
-        user.username = user.username or "LL-ADM-000001"
+        user.username = "LL-ADM-000001"
         user.role = UserRole.admin
         user.is_active = True
         user.must_change_password = False
+        user.two_factor_enabled = False
+        user.two_factor_required = False
+        user.preferred_2fa_channel = "email"
+
         if not is_production():
             user.hashed_password = get_password_hash(admin_password)
+
     return user
 
 
