@@ -86,7 +86,7 @@ export function LoginPage() {
             <p className="eyebrow">LineLink</p>
             <h1>Manage line-houses remotely. Find vacant rooms faster.</h1>
             <p>
-              A focused platform for Roma and NUL landlords, caretakers, tenants, and room seekers to manage rentals, applications, occupancy, rent, and support without walking from house to house.
+              A focused platform for Roma landlords, caretakers/Landlord-Assistants, tenants, and room seekers to manage rentals, applications, occupancy, rent, and support without walking from house to house.
             </p>
           </div>
           <div className="hero-photo-grid">
@@ -152,9 +152,9 @@ export function LoginPage() {
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAdminModal(false)}>
           <section className="admin-profile-modal" role="dialog" aria-modal="true" aria-labelledby="admin-profile-title" onMouseDown={(event) => event.stopPropagation()}>
             <button className="modal-close" type="button" aria-label="Close admin profile" onClick={() => setShowAdminModal(false)}>Close</button>
-            <img src="/hero/admin/admin-photo.jpeg" alt="PHOMOLO MATSOSO, LineLink founder and system administrator" />
+            <img src="/hero/admin/admin-photo.jpeg" alt="Phomolo Matsoso, LineLink founder and system administrator" />
             <p className="eyebrow">Founder & System Administrator</p>
-            <h2 id="admin-profile-title">PHOMOLO MATSOSO</h2>
+            <h2 id="admin-profile-title">Phomolo Matsoso</h2>
             <p>• Full-Stack Developer • SOC AI Systems Builder</p>
             <div className="review-actions">
               <a className="primary-button" href="https://matsoso-portfolio.vercel.app" target="_blank" rel="noreferrer">Portfolio</a>

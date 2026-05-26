@@ -7,7 +7,7 @@ import type { Listing } from "../../types";
 
 type ApplicationForm = {
   full_name: string;
-  phone: string;
+  phone: int;
   email: string;
   preferred_response_method: "phone_call" | "whatsapp" | "email" | "sms";
   message: string;
