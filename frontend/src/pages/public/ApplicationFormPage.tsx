@@ -8,7 +8,7 @@ import type { TenantApplication } from "../../types";
 type FullApplicationForm = {
   full_name: string;
   gender: string;
-  phone: int;
+  phone: number;
   alternative_phone: string;
   email: string;
   national_id: long long int;

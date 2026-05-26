@@ -5,12 +5,12 @@ type LandlordRequestForm = {
   business_name: string;
   full_name: string;
   email: string;
-  phone: int;
+  phone: number;
   address: string;
   village_location: string;
   national_id: string;
   number_of_properties: string;
-  number_of_rooms: int;
+  number_of_rooms: number;
   emergency_contact: string;
   message: string;
 };
