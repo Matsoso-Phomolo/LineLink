@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import (
     AllowedTenantType,
+    District,
     Landlord,
     ListingVerificationStatus,
     ListingStatus,
@@ -40,10 +41,27 @@ TENANT_EMAIL = "tenant1@linelink.com"
 DEMO_ADMIN_PASSWORD = "ChangeMe123!"
 DEMO_USER_PASSWORD = "Password123!"
 
+LESOTHO_DISTRICTS = [
+    ("Quthing", "quthing"),
+    ("Mohale's Hoek", "mohales-hoek"),
+    ("Mafeteng", "mafeteng"),
+    ("Maseru", "maseru"),
+    ("Berea", "berea"),
+    ("Leribe", "leribe"),
+    ("Botha-Bothe", "botha-bothe"),
+    ("Thaba-Tseka", "thaba-tseka"),
+    ("Mokhotlong", "mokhotlong"),
+    ("Qacha's Nek", "qachas-nek"),
+]
+
 
 def current_month() -> date:
     today = date.today()
     return date(today.year, today.month, 1)
+
+
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def get_or_create_user(db: Session, email: str, password: str, full_name: str, role: UserRole, phone: str | None = None) -> User:
@@ -87,6 +105,37 @@ def should_seed_demo_data() -> bool:
     return bool_env(settings.seed_demo_data)
 
 
+def seed_districts(db: Session) -> list[District]:
+    districts: list[District] = []
+
+    for name, slug in LESOTHO_DISTRICTS:
+        district = db.query(District).filter(District.slug == slug).first()
+
+        if not district:
+            district = District(name=name, slug=slug)
+            db.add(district)
+            db.flush()
+
+        district.name = name
+        district.slug = slug
+
+        if slug == "maseru":
+            district.is_active = True
+            district.rollout_stage = "roma_active"
+            district.description = "Roma village active now"
+            if not district.activated_at:
+                district.activated_at = now_utc()
+        else:
+            district.is_active = False
+            district.rollout_stage = "locked"
+            district.description = "Future rollout"
+            district.activated_at = None
+
+        districts.append(district)
+
+    return districts
+
+
 def seed_admin(db: Session, *, email: str | None = None, password: str | None = None, full_name: str | None = None) -> User:
     admin_email = email or settings.admin_email or (ADMIN_EMAIL if not is_production() else None)
     admin_password = password or settings.admin_password or (DEMO_ADMIN_PASSWORD if not is_production() else None)
@@ -124,13 +173,7 @@ def seed_admin(db: Session, *, email: str | None = None, password: str | None = 
         user.two_factor_enabled = False
         user.two_factor_required = False
         user.preferred_2fa_channel = "email"
-
-        
         user.hashed_password = get_password_hash(admin_password)
-
-        user.two_factor_enabled = False
-        user.two_factor_required = False
-        user.preferred_2fa_channel = "email"
 
     return user
 
@@ -403,6 +446,8 @@ def seed_subscription_plans(db: Session) -> None:
 def seed_demo_data(db: Session) -> dict[str, object]:
     if is_production() and not should_seed_demo_data():
         raise RuntimeError("Refusing to seed demo data in production when SEED_DEMO_DATA=false")
+
+    seed_districts(db)
     seed_admin(db, email=ADMIN_EMAIL, password=DEMO_ADMIN_PASSWORD, full_name="Phomolo Matsoso")
     landlord_user = get_or_create_user(db, LANDLORD_EMAIL, DEMO_USER_PASSWORD, "Matsoso Holdings", UserRole.landlord, "+26658000000")
     tenant_user = get_or_create_user(db, TENANT_EMAIL, DEMO_USER_PASSWORD, "Test Tenant", UserRole.tenant, "+26659000000")
@@ -433,6 +478,8 @@ def seed_demo_data(db: Session) -> dict[str, object]:
 def seed() -> None:
     db = SessionLocal()
     try:
+        seed_districts(db)
+
         demo_enabled = should_seed_demo_data() or not is_production()
         if demo_enabled:
             result = seed_demo_data(db)
