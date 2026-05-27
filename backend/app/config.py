@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440
     upload_dir: str = "uploads"
     public_base_url: str = "http://localhost:8000"
+
+    resend_api_key: str | None = None
+    email_from: str = "LineLink Security <onboarding@resend.dev>"
+
+    
     allowed_origins: str = Field(default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000")
     mpesa_base_url: str | None = None
     mpesa_client_id: str | None = None
