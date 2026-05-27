@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "add_districts_table"
-down_revision = "PUT_PREVIOUS_REVISION_ID_HERE"
+revision = "20260527_add_districts_table"
+down_revision = "20260525_0011"
 branch_labels = None
 depends_on = None
 
