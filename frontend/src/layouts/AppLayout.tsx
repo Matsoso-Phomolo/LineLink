@@ -27,25 +27,36 @@ const caretakerLinks = [
   { to: "/security", label: "Security" }
 ];
 
-const tenantLinks = [{ to: "/tenant", label: "Tenant portal" }, { to: "/security", label: "Security" }];
+const tenantLinks = [
+  { to: "/tenant", label: "Tenant portal" },
+  { to: "/security", label: "Security" }
+];
 
-
-const adminLinks = [{ to: "/admin", label: "Admin overview" },
-                    { to: "/rooms", label: "Room finder" },
-                    { to: "/onboarding", label: "Onboarding" },
-                    { to: "/requests", label: "Request" },
-                    { to: "/ai risk", label: "AI Risk" },
-                    { to: "/payment gateway", label: "Payment Gateway" },
-                    { to: "/remainders", label: "Remainders" },
-                    { to: "/landlords", label: "Landlords" },
-                    { to: "/verification", label: "Verification" },
-                    { to: "/plans", label: "Plans" },
-                    { to: "/security", label: "Security" }];
+const adminLinks = [
+  { to: "/admin", label: "Landlord onboarding" },
+  { to: "/admin/requests", label: "Landlord requests" },
+  { to: "/admin/risk", label: "AI Risk Center" },
+  { to: "/admin/gateway", label: "Payment gateway" },
+  { to: "/admin/reminders", label: "Payment reminders" },
+  { to: "/admin/verification", label: "Listing verification" },
+  { to: "/admin/plans", label: "Subscription plans" },
+  { to: "/admin/landlords", label: "Landlords" },
+  { to: "/rooms", label: "Room finder" },
+  { to: "/security", label: "Security" }
+];
 
 export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const links = user?.role === "tenant" ? tenantLinks : user?.role === "admin" ? adminLinks : user?.role === "caretaker" ? caretakerLinks : landlordLinks;
+
+  const links =
+    user?.role === "tenant"
+      ? tenantLinks
+      : user?.role === "admin"
+        ? adminLinks
+        : user?.role === "caretaker"
+          ? caretakerLinks
+          : landlordLinks;
 
   function handleLogout() {
     logout();
@@ -62,13 +73,25 @@ export function AppLayout() {
             <small>Roma rental ops</small>
           </div>
         </div>
+
         <nav className="nav-list">
           {links.map((link) => (
-            <NavLink key={link.to} to={link.to} end={link.to === "/landlord" || link.to === "/tenant" || link.to === "/admin"}>
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={
+                link.to === "/landlord" ||
+                link.to === "/tenant" ||
+                link.to === "/admin" ||
+                link.to === "/rooms" ||
+                link.to === "/security"
+              }
+            >
               {link.label}
             </NavLink>
           ))}
         </nav>
+
         <div className="sidebar-user">
           <small>{user?.role}</small>
           <strong>{user?.full_name}</strong>
@@ -79,6 +102,7 @@ export function AppLayout() {
           </button>
         </div>
       </aside>
+
       <main className="content-area">
         <Outlet />
       </main>
