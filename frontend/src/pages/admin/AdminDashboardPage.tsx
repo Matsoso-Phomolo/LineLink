@@ -13,6 +13,14 @@ type ManualLandlordForm = {
   password: string;
 };
 
+type DistrictStatus = "active" | "locked";
+
+type District = {
+  name: string;
+  status: DistrictStatus;
+  phase: string;
+};
+
 export type AdminSection =
   | "onboarding"
   | "requests"
@@ -24,8 +32,7 @@ export type AdminSection =
   | "landlords"
   | "districts";
 
-const districts = [
-  
+const initialDistricts: District[] = [
   { name: "Quthing", status: "locked", phase: "Future rollout" },
   { name: "Mohale's Hoek", status: "locked", phase: "Future rollout" },
   { name: "Mafeteng", status: "locked", phase: "Future rollout" },
@@ -37,7 +44,6 @@ const districts = [
   { name: "Mokhotlong", status: "locked", phase: "Future rollout" },
   { name: "Qacha's Nek", status: "locked", phase: "Future rollout" }
 ];
-  
 
 const emptyManual: ManualLandlordForm = {
   business_name: "",
@@ -68,6 +74,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const [riskCenter, setRiskCenter] = useState<any>(null);
   const [reminderLogs, setReminderLogs] = useState<any[]>([]);
   const [paymentHealth, setPaymentHealth] = useState<any>(null);
+  const [districts, setDistricts] = useState<District[]>(initialDistricts);
 
   const [manual, setManual] = useState<ManualLandlordForm>(emptyManual);
   const [planForm, setPlanForm] = useState(emptyPlan);
@@ -120,6 +127,20 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
   function updateManual<K extends keyof ManualLandlordForm>(key: K, value: ManualLandlordForm[K]) {
     setManual((current) => ({ ...current, [key]: value }));
+  }
+
+  function toggleDistrict(name: string) {
+    setDistricts((current) =>
+      current.map((district) =>
+        district.name === name
+          ? {
+              ...district,
+              status: district.status === "active" ? "locked" : "active",
+              phase: district.status === "active" ? "Future rollout" : "Activated by admin"
+            }
+          : district
+      )
+    );
   }
 
   async function submitManual(event: FormEvent) {
@@ -274,6 +295,9 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
       setBusyId("");
     }
   }
+
+  const activeDistricts = districts.filter((district) => district.status === "active").length;
+  const lockedDistricts = districts.filter((district) => district.status === "locked").length;
 
   return (
     <section className="page-stack">
@@ -598,40 +622,46 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   <p className="eyebrow">National rollout</p>
                   <h2>District access control</h2>
                 </div>
-               </div>
-
-               <p>
-                 RentaLink is currently available in Roma village under Maseru district.
-                 Admin will later activate full Maseru district access, then selected
-                 districts, and finally all 10 districts of Lesotho.
-                </p>
-
-                <div className="metric-grid compact-metrics">
-                   <Metric label="Current area" value={1} />
-                   <Metric label="Active districts" value={1} />
-                   <Metric label="Locked districts" value={9} />
-                   <Metric label="Total districts" value={10} />
-                 </div>
-
-                 <div className="list-stack compact-list">
-                   {districts.map((district) => (
-                     <article className="row-item" key={district.name}>
-                       <div>
-                         <strong>{district.name}</strong>
-                         <p>{district.phase}</p>
-                       </div>
-
-                       <StatusPill value={district.status} />
-                     </article>
-                   ))}
-                </div>
-
-                <div className="data-state">
-                  District activation is currently display-only. Backend-controlled activation
-                  will be added later so Room Finder can show rooms by active district.
-                </div>
               </div>
-           ) : null}
+
+              <p>
+                RentaLink is currently available in Roma village under Maseru district.
+                Admin will later activate full Maseru district access, then selected
+                districts, and finally all 10 districts of Lesotho.
+              </p>
+
+              <div className="metric-grid compact-metrics">
+                <Metric label="Current area" value={activeDistricts} />
+                <Metric label="Active districts" value={activeDistricts} />
+                <Metric label="Locked districts" value={lockedDistricts} />
+                <Metric label="Total districts" value={districts.length} />
+              </div>
+
+              <div className="list-stack compact-list">
+                {districts.map((district) => (
+                  <article className="row-item" key={district.name}>
+                    <div>
+                      <strong>{district.name}</strong>
+                      <p>{district.phase}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`status-toggle ${district.status}`}
+                      onClick={() => toggleDistrict(district.name)}
+                    >
+                      {district.status === "active" ? "Active" : "Locked"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+
+              <div className="data-state">
+                District activation is currently frontend-controlled. Backend persistence
+                and Room Finder district filtering will be connected later.
+              </div>
+            </div>
+          ) : null}
 
           {section === "landlords" ? (
             <div className="list-stack">
