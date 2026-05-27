@@ -13,7 +13,7 @@ type ManualLandlordForm = {
   password: string;
 };
 
-type AdminSection =
+export type AdminSection =
   | "onboarding"
   | "requests"
   | "risk"
@@ -21,7 +21,21 @@ type AdminSection =
   | "reminders"
   | "verification"
   | "plans"
-  | "landlords";
+  | "landlords"
+  | "districts";
+
+const districts = [
+  "Quthing",
+  "Mohale's Hoek",
+  "Mafeteng",
+  "Maseru",
+  "Berea",
+  "Leribe",
+  "Botha-Bothe",
+  "Thaba-Tseka",
+  "Mokhotlong",
+  "Qacha's Nek"
+];
 
 const emptyManual: ManualLandlordForm = {
   business_name: "",
@@ -44,9 +58,7 @@ function nullable(value: string) {
   return value.trim() ? value.trim() : null;
 }
 
-export function AdminDashboardPage() {
-  const [activeSection, setActiveSection] = useState<AdminSection>("onboarding");
-
+export function AdminDashboardPage({ section = "onboarding" }: { section?: AdminSection }) {
   const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [requests, setRequests] = useState<LandlordRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
@@ -104,10 +116,7 @@ export function AdminDashboardPage() {
     loadData();
   }, []);
 
-  function updateManual<K extends keyof ManualLandlordForm>(
-    key: K,
-    value: ManualLandlordForm[K]
-  ) {
+  function updateManual<K extends keyof ManualLandlordForm>(key: K, value: ManualLandlordForm[K]) {
     setManual((current) => ({ ...current, [key]: value }));
   }
 
@@ -141,12 +150,12 @@ export function AdminDashboardPage() {
     setNotice("");
 
     try {
-      const result = await apiFetch(`/landlords/requests/${request.id}/${action}`, {
+      const result = (await apiFetch(`/landlords/requests/${request.id}/${action}`, {
         method: "POST",
         body: JSON.stringify({
           admin_note: action === "approve" ? "Approved by admin." : "Rejected by admin."
         })
-      }) as { temporary_password?: string | null };
+      })) as { temporary_password?: string | null };
 
       setNotice(
         action === "approve" && result.temporary_password
@@ -246,7 +255,7 @@ export function AdminDashboardPage() {
     setNotice("");
 
     try {
-      const result = await apiFetch("/admin/run-reminders", { method: "POST" }) as {
+      const result = (await apiFetch("/admin/run-reminders", { method: "POST" })) as {
         tenant_rent_reminders_generated: number;
         subscription_reminders_generated: number;
         skipped_duplicates: number;
@@ -269,8 +278,8 @@ export function AdminDashboardPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Admin</p>
-          <h1>{adminSectionTitle(activeSection)}</h1>
-          <p>{adminSectionDescription(activeSection)}</p>
+          <h1>{adminSectionTitle(section)}</h1>
+          <p>{adminSectionDescription(section)}</p>
         </div>
 
         <div className="header-stat">
@@ -279,79 +288,13 @@ export function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="admin-section-tabs">
-        <button
-          type="button"
-          className={activeSection === "onboarding" ? "active" : ""}
-          onClick={() => setActiveSection("onboarding")}
-        >
-          Onboarding
-        </button>
-
-        <button
-          type="button"
-          className={activeSection === "requests" ? "active" : ""}
-          onClick={() => setActiveSection("requests")}
-        >
-          Requests
-        </button>
-
-        <button
-          type="button"
-          className={activeSection === "risk" ? "active" : ""}
-          onClick={() => setActiveSection("risk")}
-        >
-          AI Risk
-        </button>
-
-        <button
-          type="button"
-          className={activeSection === "gateway" ? "active" : ""}
-          onClick={() => setActiveSection("gateway")}
-        >
-          Payment Gateway
-        </button>
-
-        <button
-          type="button"
-          className={activeSection === "reminders" ? "active" : ""}
-          onClick={() => setActiveSection("reminders")}
-        >
-          Reminders
-        </button>
-
-        <button
-          type="button"
-          className={activeSection === "verification" ? "active" : ""}
-          onClick={() => setActiveSection("verification")}
-        >
-          Verification
-        </button>
-
-        <button
-          type="button"
-          className={activeSection === "plans" ? "active" : ""}
-          onClick={() => setActiveSection("plans")}
-        >
-          Plans
-        </button>
-
-        <button
-          type="button"
-          className={activeSection === "landlords" ? "active" : ""}
-          onClick={() => setActiveSection("landlords")}
-        >
-          Landlords
-        </button>
-      </div>
-
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
       {notice ? <div className="data-state">{notice}</div> : null}
 
       {!loading && !error ? (
         <>
-          {activeSection === "onboarding" ? (
+          {section === "onboarding" ? (
             <div className="admin-grid single-admin-grid">
               <form className="panel form-panel" onSubmit={submitManual}>
                 <div>
@@ -361,59 +304,34 @@ export function AdminDashboardPage() {
 
                 <label>
                   Business name
-                  <input
-                    required
-                    value={manual.business_name}
-                    onChange={(event) => updateManual("business_name", event.target.value)}
-                  />
+                  <input required value={manual.business_name} onChange={(event) => updateManual("business_name", event.target.value)} />
                 </label>
 
                 <label>
                   Owner full name
-                  <input
-                    required
-                    value={manual.full_name}
-                    onChange={(event) => updateManual("full_name", event.target.value)}
-                  />
+                  <input required value={manual.full_name} onChange={(event) => updateManual("full_name", event.target.value)} />
                 </label>
 
                 <div className="form-grid">
                   <label>
                     Email
-                    <input
-                      required
-                      type="email"
-                      value={manual.email}
-                      onChange={(event) => updateManual("email", event.target.value)}
-                    />
+                    <input required type="email" value={manual.email} onChange={(event) => updateManual("email", event.target.value)} />
                   </label>
 
                   <label>
                     Phone
-                    <input
-                      value={manual.phone}
-                      onChange={(event) => updateManual("phone", event.target.value)}
-                    />
+                    <input value={manual.phone} onChange={(event) => updateManual("phone", event.target.value)} />
                   </label>
                 </div>
 
                 <label>
                   Address
-                  <input
-                    value={manual.address}
-                    onChange={(event) => updateManual("address", event.target.value)}
-                  />
+                  <input value={manual.address} onChange={(event) => updateManual("address", event.target.value)} />
                 </label>
 
                 <label>
                   Temporary password
-                  <input
-                    required
-                    minLength={8}
-                    type="password"
-                    value={manual.password}
-                    onChange={(event) => updateManual("password", event.target.value)}
-                  />
+                  <input required minLength={8} type="password" value={manual.password} onChange={(event) => updateManual("password", event.target.value)} />
                 </label>
 
                 <button className="primary-button" type="submit">
@@ -423,7 +341,7 @@ export function AdminDashboardPage() {
             </div>
           ) : null}
 
-          {activeSection === "requests" ? (
+          {section === "requests" ? (
             <div className="panel">
               <div className="section-heading">
                 <div>
@@ -433,9 +351,7 @@ export function AdminDashboardPage() {
               </div>
 
               <div className="list-stack compact-list">
-                {requests.length === 0 ? (
-                  <div className="data-state">No landlord requests yet.</div>
-                ) : null}
+                {requests.length === 0 ? <div className="data-state">No landlord requests yet.</div> : null}
 
                 {requests.map((request) => (
                   <article className="application-card" key={request.id}>
@@ -451,19 +367,11 @@ export function AdminDashboardPage() {
                     </div>
 
                     <div className="review-actions">
-                      <button
-                        type="button"
-                        disabled={busyId === request.id || request.status !== "pending"}
-                        onClick={() => decideRequest(request, "approve")}
-                      >
+                      <button type="button" disabled={busyId === request.id || request.status !== "pending"} onClick={() => decideRequest(request, "approve")}>
                         Approve
                       </button>
 
-                      <button
-                        type="button"
-                        disabled={busyId === request.id || request.status !== "pending"}
-                        onClick={() => decideRequest(request, "reject")}
-                      >
+                      <button type="button" disabled={busyId === request.id || request.status !== "pending"} onClick={() => decideRequest(request, "reject")}>
                         Reject
                       </button>
                     </div>
@@ -473,7 +381,7 @@ export function AdminDashboardPage() {
             </div>
           ) : null}
 
-          {activeSection === "risk" ? (
+          {section === "risk" ? (
             <div className="panel">
               <div className="section-heading">
                 <div>
@@ -483,22 +391,10 @@ export function AdminDashboardPage() {
               </div>
 
               <div className="metric-grid compact-metrics">
-                <Metric
-                  label="Pending requests"
-                  value={riskCenter?.daily_admin_summary?.new_landlord_requests ?? 0}
-                />
-                <Metric
-                  label="Listing checks"
-                  value={riskCenter?.daily_admin_summary?.pending_listing_verification ?? 0}
-                />
-                <Metric
-                  label="Complaints"
-                  value={riskCenter?.daily_admin_summary?.unresolved_complaints ?? 0}
-                />
-                <Metric
-                  label="Payment alerts"
-                  value={riskCenter?.suspicious_payment_alerts?.length ?? 0}
-                />
+                <Metric label="Pending requests" value={riskCenter?.daily_admin_summary?.new_landlord_requests ?? 0} />
+                <Metric label="Listing checks" value={riskCenter?.daily_admin_summary?.pending_listing_verification ?? 0} />
+                <Metric label="Complaints" value={riskCenter?.daily_admin_summary?.unresolved_complaints ?? 0} />
+                <Metric label="Payment alerts" value={riskCenter?.suspicious_payment_alerts?.length ?? 0} />
               </div>
 
               <div className="list-stack compact-list">
@@ -516,7 +412,7 @@ export function AdminDashboardPage() {
             </div>
           ) : null}
 
-          {activeSection === "gateway" ? (
+          {section === "gateway" ? (
             <div className="panel">
               <div className="section-heading">
                 <div>
@@ -569,7 +465,7 @@ export function AdminDashboardPage() {
             </div>
           ) : null}
 
-          {activeSection === "reminders" ? (
+          {section === "reminders" ? (
             <div className="panel">
               <div className="section-heading">
                 <div>
@@ -577,19 +473,13 @@ export function AdminDashboardPage() {
                   <h2>Payment reminders</h2>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={busyId === "run-reminders"}
-                  onClick={runReminders}
-                >
+                <button type="button" disabled={busyId === "run-reminders"} onClick={runReminders}>
                   Run reminders
                 </button>
               </div>
 
               <div className="list-stack compact-list">
-                {reminderLogs.length === 0 ? (
-                  <div className="data-state">No reminder logs yet.</div>
-                ) : null}
+                {reminderLogs.length === 0 ? <div className="data-state">No reminder logs yet.</div> : null}
 
                 {reminderLogs.slice(0, 20).map((log) => (
                   <article className="row-item" key={log.id}>
@@ -605,7 +495,7 @@ export function AdminDashboardPage() {
             </div>
           ) : null}
 
-          {activeSection === "verification" ? (
+          {section === "verification" ? (
             <div className="panel">
               <div className="section-heading">
                 <div>
@@ -615,17 +505,13 @@ export function AdminDashboardPage() {
               </div>
 
               <div className="list-stack compact-list">
-                {listings.length === 0 ? (
-                  <div className="data-state">No listings have been submitted for verification yet.</div>
-                ) : null}
+                {listings.length === 0 ? <div className="data-state">No listings have been submitted for verification yet.</div> : null}
 
                 {listings.slice(0, 20).map((listing) => (
                   <article className="application-card" key={listing.id}>
                     <div>
                       <div className="card-topline">
-                        <StatusPill
-                          value={listing.verification_status ?? (listing.is_verified ? "verified" : "unverified")}
-                        />
+                        <StatusPill value={listing.verification_status ?? (listing.is_verified ? "verified" : "unverified")} />
                         <span>{listing.status}</span>
                       </div>
 
@@ -634,19 +520,11 @@ export function AdminDashboardPage() {
                     </div>
 
                     <div className="review-actions">
-                      <button
-                        type="button"
-                        disabled={busyId === listing.id}
-                        onClick={() => decideListing(listing, "verify")}
-                      >
+                      <button type="button" disabled={busyId === listing.id} onClick={() => decideListing(listing, "verify")}>
                         Verify
                       </button>
 
-                      <button
-                        type="button"
-                        disabled={busyId === listing.id}
-                        onClick={() => decideListing(listing, "reject-verification")}
-                      >
+                      <button type="button" disabled={busyId === listing.id} onClick={() => decideListing(listing, "reject-verification")}>
                         Reject
                       </button>
                     </div>
@@ -656,7 +534,7 @@ export function AdminDashboardPage() {
             </div>
           ) : null}
 
-          {activeSection === "plans" ? (
+          {section === "plans" ? (
             <form className="panel form-panel" onSubmit={savePlan}>
               <div>
                 <p className="eyebrow">SaaS monetization</p>
@@ -665,61 +543,29 @@ export function AdminDashboardPage() {
 
               <label>
                 Plan name
-                <input
-                  required
-                  value={planForm.name}
-                  onChange={(event) =>
-                    setPlanForm((current) => ({ ...current, name: event.target.value }))
-                  }
-                />
+                <input required value={planForm.name} onChange={(event) => setPlanForm((current) => ({ ...current, name: event.target.value }))} />
               </label>
 
               <div className="form-grid">
                 <label>
                   Monthly price
-                  <input
-                    required
-                    inputMode="numeric"
-                    value={planForm.monthly_price}
-                    onChange={(event) =>
-                      setPlanForm((current) => ({ ...current, monthly_price: event.target.value }))
-                    }
-                  />
+                  <input required inputMode="numeric" value={planForm.monthly_price} onChange={(event) => setPlanForm((current) => ({ ...current, monthly_price: event.target.value }))} />
                 </label>
 
                 <label>
                   Max properties
-                  <input
-                    required
-                    inputMode="numeric"
-                    value={planForm.max_properties}
-                    onChange={(event) =>
-                      setPlanForm((current) => ({ ...current, max_properties: event.target.value }))
-                    }
-                  />
+                  <input required inputMode="numeric" value={planForm.max_properties} onChange={(event) => setPlanForm((current) => ({ ...current, max_properties: event.target.value }))} />
                 </label>
               </div>
 
               <label>
                 Max rooms
-                <input
-                  required
-                  inputMode="numeric"
-                  value={planForm.max_rooms}
-                  onChange={(event) =>
-                    setPlanForm((current) => ({ ...current, max_rooms: event.target.value }))
-                  }
-                />
+                <input required inputMode="numeric" value={planForm.max_rooms} onChange={(event) => setPlanForm((current) => ({ ...current, max_rooms: event.target.value }))} />
               </label>
 
               <label>
                 Features
-                <textarea
-                  value={planForm.features}
-                  onChange={(event) =>
-                    setPlanForm((current) => ({ ...current, features: event.target.value }))
-                  }
-                />
+                <textarea value={planForm.features} onChange={(event) => setPlanForm((current) => ({ ...current, features: event.target.value }))} />
               </label>
 
               <button className="primary-button" type="submit">
@@ -734,11 +580,7 @@ export function AdminDashboardPage() {
                       <p>M{Number(plan.monthly_price).toLocaleString()} monthly - {plan.max_rooms} rooms</p>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={busyId === plan.id || !plan.is_active}
-                      onClick={() => disablePlan(plan)}
-                    >
+                    <button type="button" disabled={busyId === plan.id || !plan.is_active} onClick={() => disablePlan(plan)}>
                       {plan.is_active ? "Disable" : "Disabled"}
                     </button>
                   </article>
@@ -747,11 +589,34 @@ export function AdminDashboardPage() {
             </form>
           ) : null}
 
-          {activeSection === "landlords" ? (
+          {section === "districts" ? (
+            <div className="panel">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">National rollout</p>
+                  <h2>District access control</h2>
+                </div>
+              </div>
+
+              <p>
+                RentLink is currently active for Roma village only. Next, it will expand to the full Maseru district,
+                then selected districts, and finally all 10 districts of Lesotho.
+              </p>
+
+              <div className="metric-grid compact-metrics">
+                {districts.map((district) => (
+                  <article className="metric-card" key={district}>
+                    <span>{district}</span>
+                    <strong>{district === "Maseru" ? "Roma active" : "Locked"}</strong>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {section === "landlords" ? (
             <div className="list-stack">
-              {landlords.length === 0 ? (
-                <div className="data-state">No landlords yet.</div>
-              ) : null}
+              {landlords.length === 0 ? <div className="data-state">No landlords yet.</div> : null}
 
               {landlords.map((landlord) => (
                 <article className="row-item rich" key={landlord.id}>
@@ -767,11 +632,7 @@ export function AdminDashboardPage() {
 
                   <div className="review-actions">
                     <span>{landlord.contact_phone}</span>
-                    <button
-                      type="button"
-                      disabled={busyId === landlord.id || !landlord.is_active}
-                      onClick={() => disableLandlord(landlord)}
-                    >
+                    <button type="button" disabled={busyId === landlord.id || !landlord.is_active} onClick={() => disableLandlord(landlord)}>
                       Disable
                     </button>
                   </div>
@@ -803,7 +664,8 @@ function adminSectionTitle(section: AdminSection) {
     reminders: "Payment reminders",
     verification: "Listing verification",
     plans: "Subscription plans",
-    landlords: "Landlords"
+    landlords: "Landlords",
+    districts: "Districts"
   };
 
   return titles[section];
@@ -818,7 +680,8 @@ function adminSectionDescription(section: AdminSection) {
     reminders: "Generate and review automated rent and subscription reminder logs.",
     verification: "Verify or reject listings before they become trusted public room records.",
     plans: "Create and manage SaaS subscription plans for landlords.",
-    landlords: "View active landlords and disable accounts when necessary."
+    landlords: "View active landlords and disable accounts when necessary.",
+    districts: "Control rollout from Roma village, to Maseru district, then all 10 districts of Lesotho."
   };
 
   return descriptions[section];
