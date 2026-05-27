@@ -242,6 +242,18 @@ class TimestampMixin:
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class District(Base, TimestampMixin):
+    __tablename__ = "districts"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    rollout_stage: Mapped[str] = mapped_column(String(80), default="locked", index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
