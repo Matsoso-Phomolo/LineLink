@@ -55,7 +55,7 @@ export function LandlordRequestPage() {
         })
       });
       setForm(initialForm);
-      setStatus("Request submitted. The LineLink admin will review your details and contact you.");
+      setStatus("Request submitted. The RentaLink admin will review your details and contact you.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit landlord request");
     } finally {
@@ -70,7 +70,7 @@ export function LandlordRequestPage() {
           <div className="brand-mark light">
             <span>LL</span>
             <div>
-              <strong>LineLink</strong>
+              <strong>RentaLink</strong>
               <small>Landlord onboarding</small>
             </div>
           </div>
@@ -78,7 +78,7 @@ export function LandlordRequestPage() {
             <p className="eyebrow">Verified landlords only</p>
             <h1>Request access to manage your line-house professionally.</h1>
             <p>
-              LineLink reviews landlord identity, line-house ownership, location, and operating details before accounts can publish rooms publicly.
+              RentaLink reviews landlord identity, rent-house ownership, location, and operating details before accounts can publish rooms publicly.
             </p>
           </div>
           <div className="privacy-note">
@@ -90,7 +90,7 @@ export function LandlordRequestPage() {
         <form className="auth-card application-form-card" onSubmit={submit}>
           <div>
             <p className="eyebrow">Landlord request</p>
-            <h2>Join LineLink</h2>
+            <h2>Join RentaLink</h2>
           </div>
           <label>
             Business / line name
