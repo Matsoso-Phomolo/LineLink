@@ -4,34 +4,18 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_active_user
 from app.database import get_db
-from app.models import District, User
+from app.models import District
 from app.schemas import DistrictResponse, DistrictUpdate
 
 router = APIRouter(prefix="/districts", tags=["districts"])
 
 
-def require_admin_user(current_user: User) -> None:
-    if str(current_user.role).lower() != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
-
-
 @router.get("", response_model=list[DistrictResponse])
 def list_districts(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
 ) -> list[District]:
-    require_admin_user(current_user)
-
-    return (
-        db.query(District)
-        .order_by(District.name.asc())
-        .all()
-    )
+    return db.query(District).order_by(District.name.asc()).all()
 
 
 @router.get("/active", response_model=list[DistrictResponse])
@@ -51,15 +35,8 @@ def update_district(
     district_id: uuid.UUID,
     payload: DistrictUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
 ) -> District:
-    require_admin_user(current_user)
-
-    district = (
-        db.query(District)
-        .filter(District.id == district_id)
-        .first()
-    )
+    district = db.query(District).filter(District.id == district_id).first()
 
     if not district:
         raise HTTPException(
@@ -69,7 +46,7 @@ def update_district(
 
     update_data = payload.model_dump(exclude_unset=True)
 
-    if "name" in update_data:
+    if "name" in update_data and update_data["name"]:
         district.name = update_data["name"]
 
     if "description" in update_data:
