@@ -205,10 +205,14 @@ class PropertyBase(BaseModel):
 class PropertyCreate(PropertyBase):
     landlord_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
+    district_id: uuid.UUID
+    area_id: uuid.UUID
 
 
 class PropertyUpdate(BaseModel):
     category_id: uuid.UUID | None = None
+    district_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
     name: str | None = None
     description: str | None = None
     location_area: str | None = None
@@ -221,6 +225,8 @@ class PropertyRead(PropertyBase, ORMModel):
     id: uuid.UUID
     landlord_id: uuid.UUID
     category_id: uuid.UUID | None = None
+    district_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
     created_at: datetime
 
 
@@ -497,12 +503,15 @@ class ListingBase(BaseModel):
 
 
 class ListingCreate(ListingBase):
-    pass
+    district_id: uuid.UUID
+    area_id: uuid.UUID
 
 
 class ListingUpdate(BaseModel):
     property_id: uuid.UUID | None = None
     room_id: uuid.UUID | None = None
+    district_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
     title: str | None = None
     description: str | None = None
     rent_price: float | None = None
@@ -532,6 +541,8 @@ class ListingUpdate(BaseModel):
 class ListingRead(ListingBase, ORMModel):
     id: uuid.UUID
     landlord_id: uuid.UUID
+    district_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
     room_number: str | None = None
     property_name: str | None = None
     created_at: datetime
