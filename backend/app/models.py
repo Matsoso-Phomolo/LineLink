@@ -377,6 +377,8 @@ class Property(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = uuid_pk()
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
     category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("property_categories.id"), nullable=True, index=True)
+    district_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("districts.id"), nullable=True, index=True)
+    area_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("district_areas.id"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     location_area: Mapped[str] = mapped_column(String(120), index=True)
@@ -385,6 +387,8 @@ class Property(Base, TimestampMixin):
     distance_from_nul: Mapped[str | None] = mapped_column(String(80))
 
     landlord: Mapped[Landlord] = relationship(back_populates="properties")
+    district: Mapped["District | None"] = relationship()
+    area: Mapped["DistrictArea | None"] = relationship()
     rooms: Mapped[list["Room"]] = relationship(back_populates="property")
 
 
@@ -564,6 +568,8 @@ class RoomListing(Base, TimestampMixin):
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
     property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id"), index=True)
     room_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rooms.id"), index=True)
+    district_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("districts.id"), nullable=True, index=True)
+    area_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("district_areas.id"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     rent_price: Mapped[float] = mapped_column(Numeric(12, 2))
@@ -592,6 +598,8 @@ class RoomListing(Base, TimestampMixin):
 
     room: Mapped[Room] = relationship(viewonly=True)
     listing_property: Mapped[Property] = relationship("Property", viewonly=True)
+    district: Mapped["District | None"] = relationship()
+    area: Mapped["DistrictArea | None"] = relationship()
 
     @property
     def room_number(self) -> str | None:
