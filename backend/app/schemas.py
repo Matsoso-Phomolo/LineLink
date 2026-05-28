@@ -113,6 +113,23 @@ class LandlordRead(ORMModel):
     is_active: bool = True
 
 
+class LandlordRequestPropertyCreate(BaseModel):
+    property_name: str
+    district_id: uuid.UUID
+    area_id: uuid.UUID
+    village_location: str
+    address: str | None = None
+    description: str | None = None
+    total_rooms: int = Field(gt=0)
+    estimated_monthly_rent: float | None = None
+
+
+class LandlordRequestPropertyRead(LandlordRequestPropertyCreate, ORMModel):
+    id: uuid.UUID
+    landlord_request_id: uuid.UUID
+    created_at: datetime
+
+
 class LandlordRequestCreate(BaseModel):
     business_name: str
     full_name: str
@@ -120,15 +137,11 @@ class LandlordRequestCreate(BaseModel):
     phone: str | None = None
     address: str | None = None
     national_id: str | None = None
-    selfie_path: str | None = None
-    ownership_proof_path: str | None = None
-    utility_bill_path: str | None = None
-    ownership_document_path: str | None = None
-    village_location: str | None = None
-    number_of_properties: int | None = None
-    number_of_rooms: int | None = None
     emergency_contact: str | None = None
     message: str | None = None
+    preferred_response_method: PreferredResponseMethod
+    response_contact_value: str
+    properties: list[LandlordRequestPropertyCreate] = Field(default_factory=list)
 
 
 class LandlordManualCreate(BaseModel):
@@ -145,6 +158,40 @@ class LandlordRequestDecision(BaseModel):
     password: str | None = Field(default=None, min_length=8)
 
 
+class LandlordVerificationCreate(BaseModel):
+    preferred_response_method: PreferredResponseMethod
+    response_contact_value: str
+    national_id: str
+    selfie_path: str | None = None
+    utility_bill_path: str | None = None
+    ownership_document_path: str | None = None
+    business_registration_path: str | None = None
+    additional_notes: str | None = None
+
+
+class LandlordVerificationReview(BaseModel):
+    admin_note: str | None = None
+
+
+class LandlordVerificationAIResult(BaseModel):
+    recommendation: str
+    confidence_score: float
+    risk_flags: list[str] = []
+    summary: str | None = None
+
+
+class DistrictSubscriptionPermissionUpdate(BaseModel):
+    district_admin_user_id: uuid.UUID
+    can_manage_subscriptions: bool
+
+
+class PropertySubscriptionCalculation(BaseModel):
+    property_id: uuid.UUID
+    total_rooms: int
+    monthly_subscription_amount: float
+    pricing_tier: str
+
+
 class LandlordRequestRead(LandlordRequestCreate, ORMModel):
     id: uuid.UUID
     status: LandlordRequestStatus
@@ -153,6 +200,7 @@ class LandlordRequestRead(LandlordRequestCreate, ORMModel):
     approved_by_user_id: uuid.UUID | None
     approved_at: datetime | None
     created_at: datetime
+    properties: list[LandlordRequestPropertyRead] = []
 
 
 class LandlordOnboardingResult(BaseModel):
@@ -719,10 +767,6 @@ class DashboardSummary(BaseModel):
     total_tenants: int = 0
 
 
-# =========================================================
-# DISTRICT MANAGEMENT SCHEMAS
-# =========================================================
-
 class DistrictBase(BaseModel):
     name: str
     slug: str
@@ -757,10 +801,6 @@ class DistrictSeedResponse(BaseModel):
     active_districts: int
     locked_districts: int
 
-
-# =========================================================
-# DISTRICT AREA MANAGEMENT SCHEMAS
-# =========================================================
 
 class DistrictAreaBase(BaseModel):
     district_id: uuid.UUID
