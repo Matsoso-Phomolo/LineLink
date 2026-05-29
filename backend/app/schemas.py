@@ -218,7 +218,7 @@ class LandlordRequestRead(LandlordRequestCreate, ORMModel):
     approved_by_user_id: uuid.UUID | None
     approved_at: datetime | None
     created_at: datetime
-    properties: list[LandlordRequestPropertyRead] = []
+    properties: list[LandlordRequestPropertyRead] = Field(default_factory=list)
 
 
 class LandlordOnboardingResult(BaseModel):
