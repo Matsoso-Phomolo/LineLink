@@ -398,8 +398,9 @@ class LandlordRequestProperty(Base, TimestampMixin):
     address: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     total_rooms: Mapped[int] = mapped_column(Integer)
-    estimated_monthly_rent: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    single_room_rent: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
 
+    double_room_rent: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     landlord_request: Mapped[LandlordRequest] = relationship(back_populates="properties")
     district: Mapped["District"] = relationship()
     area: Mapped["DistrictArea"] = relationship()
