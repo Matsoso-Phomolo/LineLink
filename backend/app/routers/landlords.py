@@ -1,6 +1,10 @@
 import secrets
 import uuid
 from datetime import datetime, timezone
+from datetime import timedelta, date
+
+from app.services.room_generation_service import generate_room_numbers
+from app.subscription_rules import calculate_property_subscription_amount
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,11 +23,17 @@ from app.models import (
     AuditAction,
     Landlord,
     LandlordRequest,
+    LandlordRequestProperty,
     LandlordRequestStatus,
+    LandlordVerification,
     Property,
+    PropertySubscription,
+    Room,
+    SubscriptionStatus,
     User,
     UserRole,
 )
+
 from app.schemas import (
     LandlordCreate,
     LandlordManualCreate,
@@ -32,6 +42,8 @@ from app.schemas import (
     LandlordRequestCreate,
     LandlordRequestDecision,
     LandlordRequestRead,
+    LandlordVerificationCreate,
+    LandlordVerificationReview,
 )
 
 router = APIRouter(prefix="/landlords", tags=["landlords"])
@@ -258,6 +270,148 @@ def reject_landlord_request(
     db.refresh(request)
 
     return request
+
+
+
+@router.post("/requests/{request_id}/request-verification", response_model=LandlordRequestRead)
+def request_landlord_verification(
+    request_id: uuid.UUID,
+    payload: LandlordRequestDecision,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.admin)),
+):
+    request = db.get(LandlordRequest, request_id)
+
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Landlord request not found",
+        )
+
+    if request.status == LandlordRequestStatus.rejected:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Rejected request cannot be moved to verification",
+        )
+
+    request.status = LandlordRequestStatus.verification_requested
+    request.admin_note = payload.admin_note
+    request.verification_token = secrets.token_urlsafe(48)
+    request.verification_token_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    db.commit()
+    db.refresh(request)
+
+    return request
+
+
+@router.post("/requests/{request_id}/submit-verification", response_model=LandlordRequestRead)
+def submit_landlord_verification(
+    request_id: uuid.UUID,
+    payload: LandlordVerificationCreate,
+    db: Session = Depends(get_db),
+):
+    request = db.get(LandlordRequest, request_id)
+
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Landlord request not found",
+        )
+
+    if request.status != LandlordRequestStatus.verification_requested:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Verification was not requested for this landlord",
+        )
+
+    existing_verification = (
+        db.query(LandlordVerification)
+        .filter(LandlordVerification.landlord_request_id == request.id)
+        .first()
+    )
+
+    if existing_verification:
+        db.delete(existing_verification)
+        db.flush()
+
+    verification = LandlordVerification(
+        landlord_request_id=request.id,
+        national_id=payload.national_id,
+        selfie_path=payload.selfie_path,
+        utility_bill_path=payload.utility_bill_path,
+        ownership_document_path=payload.ownership_document_path,
+        business_registration_path=payload.business_registration_path,
+        additional_notes=payload.additional_notes,
+    )
+
+    db.add(verification)
+    db.flush()
+
+    db.query(LandlordRequestProperty).filter(
+        LandlordRequestProperty.landlord_request_id == request.id
+    ).delete()
+
+    for property_payload in payload.properties:
+        property_record = LandlordRequestProperty(
+            landlord_request_id=request.id,
+            property_name=property_payload.property_name,
+            district_id=property_payload.district_id,
+            area_id=property_payload.area_id,
+            village_location=property_payload.village_location,
+            address=property_payload.address,
+            description=property_payload.description,
+            total_rooms=property_payload.total_rooms,
+            single_rooms=property_payload.single_rooms,
+            double_rooms=property_payload.double_rooms,
+            single_room_prefix=property_payload.single_room_prefix,
+            double_room_prefix=property_payload.double_room_prefix,
+            starting_room_number=property_payload.starting_room_number,
+            estimated_monthly_rent=property_payload.estimated_monthly_rent,
+        )
+
+        db.add(property_record)
+
+    request.status = LandlordRequestStatus.verification_submitted
+
+    db.commit()
+    db.refresh(request)
+
+    return request
+
+
+@router.post("/requests/{request_id}/reject-verification", response_model=LandlordRequestRead)
+def reject_landlord_verification(
+    request_id: uuid.UUID,
+    payload: LandlordVerificationReview,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.admin)),
+):
+    request = db.get(LandlordRequest, request_id)
+
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Landlord request not found",
+        )
+
+    if request.status not in [
+        LandlordRequestStatus.verification_submitted,
+        LandlordRequestStatus.ai_reviewed,
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Verification has not been submitted yet",
+        )
+
+    request.status = LandlordRequestStatus.verification_requested
+    request.admin_note = payload.admin_note
+
+    db.commit()
+    db.refresh(request)
+
+    return request
+
 
 
 @router.post("/manual", response_model=LandlordOnboardingResult)
