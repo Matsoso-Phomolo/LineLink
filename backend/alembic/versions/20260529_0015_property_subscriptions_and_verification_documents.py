@@ -1,4 +1,4 @@
-```python
+
 """add property subscriptions and verification documents
 
 Revision ID: 20260529_0015
@@ -258,4 +258,4 @@ def downgrade() -> None:
     )
 
     op.drop_table("landlord_verification_documents")
-```
+
