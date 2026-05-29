@@ -1,32 +1,31 @@
 import { FormEvent, useState } from "react";
 import { apiFetch } from "../../api/client";
 
+type PreferredResponseMethod =
+  | "email"
+  | "sms"
+  | "whatsapp";
+
 type LandlordRequestForm = {
-  business_name: string;
   full_name: string;
   email: string;
-  phone: number;
+  phone: string;
   address: string;
-  village_location: string;
-  national_id: string;
-  number_of_properties: string;
-  number_of_rooms: number;
+  preferred_response_method: PreferredResponseMethod;
+  response_contact_value: string;
   emergency_contact: string;
   message: string;
 };
 
 const initialForm: LandlordRequestForm = {
-  business_name: "",
   full_name: "",
   email: "",
   phone: "",
   address: "",
-  village_location: "",
-  national_id: "",
-  number_of_properties: "",
-  number_of_rooms: "",
+  preferred_response_method: "email",
+  response_contact_value: "",
   emergency_contact: "",
-  message: ""
+  message: "",
 };
 
 export function LandlordRequestPage() {
@@ -35,12 +34,19 @@ export function LandlordRequestPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  function updateField<K extends keyof LandlordRequestForm>(key: K, value: LandlordRequestForm[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
+  function updateField<K extends keyof LandlordRequestForm>(
+    key: K,
+    value: LandlordRequestForm[K]
+  ) {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+
     setError("");
     setStatus("");
     setSubmitting(true);
@@ -48,16 +54,20 @@ export function LandlordRequestPage() {
     try {
       await apiFetch("/landlords/requests", {
         method: "POST",
-        body: JSON.stringify({
-          ...form,
-          number_of_properties: form.number_of_properties ? Number(form.number_of_properties) : null,
-          number_of_rooms: form.number_of_rooms ? Number(form.number_of_rooms) : null
-        })
+        body: JSON.stringify(form),
       });
+
       setForm(initialForm);
-      setStatus("Request submitted. The RentaLink admin will review your details and contact you.");
+
+      setStatus(
+        "Landlord request submitted successfully. RentaLink administrators will review your request and may send a verification form using your selected response method."
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit landlord request");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to submit landlord request"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -69,83 +79,228 @@ export function LandlordRequestPage() {
         <div className="auth-copy">
           <div className="brand-mark light">
             <span>LL</span>
+
             <div>
               <strong>RentaLink</strong>
               <small>Landlord onboarding</small>
             </div>
           </div>
+
           <div>
-            <p className="eyebrow">Verified landlords only</p>
-            <h1>Request access to manage your rental house professionally.</h1>
+            <p className="eyebrow">
+              Verified landlords only
+            </p>
+
+            <h1>
+              Request access to manage your rental properties professionally.
+            </h1>
+
             <p>
-              RentaLink reviews landlord identity, rental-house ownership, location, and operating details before accounts can publish rooms publicly.
+              RentaLink verifies landlord identity,
+              ownership legitimacy, district location,
+              and operational information before
+              granting landlord platform access.
             </p>
           </div>
+
           <div className="privacy-note">
-            After submission, the admin may request selfie, ownership proof, utility bill, and lease or ownership documents before approval.
+            After submitting this request,
+            administrators may send a secure
+            verification form requesting:
+            <br />
+            • Selfie verification
+            <br />
+            • National ID
+            <br />
+            • Utility bill
+            <br />
+            • Ownership documents
+            <br />
+            • Property details
           </div>
-          <a className="secondary-button" href="#/login">Back to sign in</a>
+
+          <a
+            className="secondary-button"
+            href="#/login"
+          >
+            Back to sign in
+          </a>
         </div>
 
-        <form className="auth-card application-form-card" onSubmit={submit}>
+        <form
+          className="auth-card application-form-card"
+          onSubmit={submit}
+        >
           <div>
-            <p className="eyebrow">Landlord request</p>
+            <p className="eyebrow">
+              Landlord request
+            </p>
+
             <h2>Join RentaLink</h2>
           </div>
-          <label>
-            Business / line name
-            <input required value={form.business_name} onChange={(event) => updateField("business_name", event.target.value)} placeholder="Matsoso Holdings" />
-          </label>
+
           <label>
             Full names
-            <input required value={form.full_name} onChange={(event) => updateField("full_name", event.target.value)} placeholder="PHOMOLO MATSOSO" />
+
+            <input
+              required
+              value={form.full_name}
+              onChange={(event) =>
+                updateField(
+                  "full_name",
+                  event.target.value
+                )
+              }
+              placeholder="PHOMOLO MATSOSO"
+            />
           </label>
+
           <div className="form-grid">
             <label>
               Email
-              <input required type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} placeholder="you@example.com" />
+
+              <input
+                required
+                type="email"
+                value={form.email}
+                onChange={(event) =>
+                  updateField(
+                    "email",
+                    event.target.value
+                  )
+                }
+                placeholder="you@example.com"
+              />
             </label>
+
             <label>
               Phone
-              <input required value={form.phone} onChange={(event) => updateField("phone", event.target.value)} placeholder="+266..." />
+
+              <input
+                required
+                value={form.phone}
+                onChange={(event) =>
+                  updateField(
+                    "phone",
+                    event.target.value
+                  )
+                }
+                placeholder="+266..."
+              />
             </label>
           </div>
+
           <label>
-            Physical address
-            <input required value={form.address} onChange={(event) => updateField("address", event.target.value)} placeholder="Roma, Lesotho" />
+            Personal physical address
+
+            <input
+              required
+              value={form.address}
+              onChange={(event) =>
+                updateField(
+                  "address",
+                  event.target.value
+                )
+              }
+              placeholder="Roma, Maseru, Lesotho"
+            />
           </label>
+
           <div className="form-grid">
             <label>
-              Village / location
-              <input required value={form.village_location} onChange={(event) => updateField("village_location", event.target.value)} placeholder="Mafikeng" />
+              Preferred response method
+
+              <select
+                value={form.preferred_response_method}
+                onChange={(event) =>
+                  updateField(
+                    "preferred_response_method",
+                    event.target
+                      .value as PreferredResponseMethod
+                  )
+                }
+              >
+                <option value="email">
+                  Email
+                </option>
+
+                <option value="sms">
+                  SMS
+                </option>
+
+                <option value="whatsapp">
+                  WhatsApp
+                </option>
+              </select>
             </label>
+
             <label>
-              National ID
-              <input required value={form.national_id} onChange={(event) => updateField("national_id", event.target.value)} />
+              Response contact value
+
+              <input
+                required
+                value={form.response_contact_value}
+                onChange={(event) =>
+                  updateField(
+                    "response_contact_value",
+                    event.target.value
+                  )
+                }
+                placeholder="Email or phone number"
+              />
             </label>
           </div>
-          <div className="form-grid">
-            <label>
-              Number of properties
-              <input min="1" type="number" value={form.number_of_properties} onChange={(event) => updateField("number_of_properties", event.target.value)} />
-            </label>
-            <label>
-              Number of rooms
-              <input min="1" type="number" value={form.number_of_rooms} onChange={(event) => updateField("number_of_rooms", event.target.value)} />
-            </label>
-          </div>
+
           <label>
             Emergency contact
-            <input value={form.emergency_contact} onChange={(event) => updateField("emergency_contact", event.target.value)} placeholder="Name and phone number" />
+
+            <input
+              value={form.emergency_contact}
+              onChange={(event) =>
+                updateField(
+                  "emergency_contact",
+                  event.target.value
+                )
+              }
+              placeholder="Name and phone number"
+            />
           </label>
+
           <label>
             Message
-            <textarea value={form.message} onChange={(event) => updateField("message", event.target.value)} placeholder="Tell us about your line-house, location, and verification documents available." />
+
+            <textarea
+              value={form.message}
+              onChange={(event) =>
+                updateField(
+                  "message",
+                  event.target.value
+                )
+              }
+              placeholder="Tell us about your rental operations and why you want to join RentaLink."
+            />
           </label>
-          {error ? <div className="form-error">{error}</div> : null}
-          {status ? <div className="form-success">{status}</div> : null}
-          <button className="primary-button" type="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit landlord request"}
+
+          {error ? (
+            <div className="form-error">
+              {error}
+            </div>
+          ) : null}
+
+          {status ? (
+            <div className="form-success">
+              {status}
+            </div>
+          ) : null}
+
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={submitting}
+          >
+            {submitting
+              ? "Submitting..."
+              : "Submit landlord request"}
           </button>
         </form>
       </section>
