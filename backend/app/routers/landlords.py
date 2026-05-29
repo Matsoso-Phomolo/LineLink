@@ -189,8 +189,8 @@ def list_landlord_requests(
     )
 
 
-@router.post("/requests/{request_id}/approve", response_model=LandlordOnboardingResult)
-def approve_landlord_request(
+@router.post("/requests/{request_id}/approve-verification", response_model=LandlordOnboardingResult)
+def approve_landlord_verification(
     request_id: uuid.UUID,
     payload: LandlordRequestDecision,
     db: Session = Depends(get_db),
