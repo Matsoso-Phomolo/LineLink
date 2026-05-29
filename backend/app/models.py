@@ -1078,6 +1078,48 @@ class SubscriptionPlan(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
 
+class SubscriptionPricingRule(Base, TimestampMixin):
+    __tablename__ = "subscription_pricing_rules"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+
+    district_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("districts.id"),
+        nullable=True,
+        index=True,
+    )
+
+    tier_name: Mapped[str] = mapped_column(String(80), index=True)
+
+    min_rooms: Mapped[int] = mapped_column(Integer)
+
+    max_rooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    monthly_amount: Mapped[float] = mapped_column(Numeric(12, 2))
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+
+    updated_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+
+    district: Mapped["District | None"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "district_id",
+            "tier_name",
+            name="uq_subscription_pricing_rule_district_tier",
+        ),
+    )
+
+
 class LandlordSubscription(Base, TimestampMixin):
     __tablename__ = "landlord_subscriptions"
 
