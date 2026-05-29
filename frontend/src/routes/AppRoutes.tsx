@@ -156,6 +156,10 @@ function HomeRedirect() {
     return <Navigate to="/admin" replace />;
   }
 
+  if (user.role === "district_admin") {
+    return <Navigate to="/district" replace />;
+  }
+
   return <Navigate to="/landlord" replace />;
 }
 
@@ -163,6 +167,7 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<main className="center-page">Loading LineLink...</main>}>
       <Routes>
+
         {/* =========================
             PUBLIC ROUTES
         ========================= */}
@@ -195,7 +200,7 @@ export function AppRoutes() {
             <Route path="/security" element={<SecurityPage />} />
 
             {/* =========================
-                ADMIN ROUTES
+                NATIONAL ADMIN
             ========================= */}
 
             <Route element={<ProtectedRoute roles={["admin"]} />}>
@@ -256,12 +261,50 @@ export function AppRoutes() {
             </Route>
 
             {/* =========================
-                LANDLORD / CARETAKER
+                DISTRICT ADMIN
             ========================= */}
 
             <Route
               element={
-                <ProtectedRoute roles={["landlord", "caretaker", "admin"]} />
+                <ProtectedRoute roles={["district_admin"]} />
+              }
+            >
+              <Route
+                path="/district"
+                element={<AdminDashboardPage section="districts" />}
+              />
+
+              <Route
+                path="/district/landlords"
+                element={<AdminDashboardPage section="landlords" />}
+              />
+
+              <Route
+                path="/district/requests"
+                element={<AdminDashboardPage section="requests" />}
+              />
+
+              <Route
+                path="/district/risk"
+                element={<AdminDashboardPage section="risk" />}
+              />
+            </Route>
+
+            {/* =========================
+                LANDLORD / CARETAKER /
+                DISTRICT ADMIN
+            ========================= */}
+
+            <Route
+              element={
+                <ProtectedRoute
+                  roles={[
+                    "landlord",
+                    "caretaker",
+                    "district_admin",
+                    "admin",
+                  ]}
+                />
               }
             >
               <Route path="/landlord" element={<LandlordDashboardPage />} />
@@ -294,7 +337,17 @@ export function AppRoutes() {
                 LANDLORD + ADMIN
             ========================= */}
 
-            <Route element={<ProtectedRoute roles={["landlord", "admin"]} />}>
+            <Route
+              element={
+                <ProtectedRoute
+                  roles={[
+                    "landlord",
+                    "district_admin",
+                    "admin",
+                  ]}
+                />
+              }
+            >
               <Route
                 path="/landlord/properties"
                 element={<PropertiesPage />}
