@@ -49,19 +49,19 @@ const districtAdminLinks = [
   { to: "/security", label: "Security" },
 ];
 
-const adminLinks = [
-  { to: "/admin", label: "Landlord onboarding" },
+const nationalAdminLinks = [
+  { to: "/admin", label: "National Admin Dashboard" },
   { to: "/admin/landlord-requests", label: "Landlord Requests" },
   { to: "/admin/landlord-verifications", label: "Verification Reviews" },
   { to: "/admin/requests", label: "Room Requests" },
   { to: "/admin/risk", label: "AI Risk Center" },
-  { to: "/admin/gateway", label: "Payment gateway" },
-  { to: "/admin/reminders", label: "Payment reminders" },
-  { to: "/admin/verification", label: "Listing verification" },
-  { to: "/admin/plans", label: "Subscription plans" },
+  { to: "/admin/gateway", label: "Payment Gateway" },
+  { to: "/admin/reminders", label: "Payment Reminders" },
+  { to: "/admin/verification", label: "Listing Verification" },
+  { to: "/admin/plans", label: "Subscription Plans" },
   { to: "/admin/districts", label: "Districts" },
   { to: "/admin/landlords", label: "Landlords" },
-  { to: "/rooms", label: "Room finder" },
+  { to: "/rooms", label: "Room Finder" },
   { to: "/security", label: "Security" },
 ];
 
@@ -72,8 +72,8 @@ export function AppLayout() {
   const links =
     user?.role === "tenant"
       ? tenantLinks
-      : user?.role === "admin"
-      ? adminLinks
+      : user?.role === "national_admin"
+      ? nationalAdminLinks
       : user?.role === "district_admin"
       ? districtAdminLinks
       : user?.role === "caretaker"
@@ -118,11 +118,8 @@ export function AppLayout() {
 
         <div className="sidebar-user">
           <small>{user?.role}</small>
-
           <strong>{user?.full_name}</strong>
-
           <span>{user?.username}</span>
-
           <span>{user?.email}</span>
 
           <button type="button" onClick={handleLogout}>
