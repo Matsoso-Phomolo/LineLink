@@ -11,8 +11,14 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 
 @router.post("", response_model=UploadRead)
-def upload_file(purpose: str, file: UploadFile, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def upload_file(
+    purpose: str,
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     path = save_upload_file(file, purpose)
+
     upload = Upload(
         landlord_id=get_actor_landlord_id(db, user),
         owner_user_id=user.id,
@@ -21,7 +27,9 @@ def upload_file(purpose: str, file: UploadFile, db: Session = Depends(get_db), u
         content_type=file.content_type or "application/octet-stream",
         purpose=purpose,
     )
+
     db.add(upload)
     db.commit()
     db.refresh(upload)
+
     return upload
