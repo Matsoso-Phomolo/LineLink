@@ -38,3 +38,16 @@ try {
     </main>
   `;
 }
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then(() => {
+        console.log("Rentalink service worker registered");
+      })
+      .catch((error) => {
+        console.error("Service worker registration failed:", error);
+      });
+  });
+}
