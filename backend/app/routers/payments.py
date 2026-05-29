@@ -421,7 +421,7 @@ def list_transactions(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.landlord,
             UserRole.caretaker,
         )
@@ -440,7 +440,7 @@ def get_transaction(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.landlord,
             UserRole.caretaker,
             UserRole.tenant,
@@ -482,7 +482,7 @@ def list_receipts(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.landlord,
             UserRole.caretaker,
             UserRole.tenant,
@@ -499,7 +499,7 @@ def list_receipts(
 
         query = query.filter(PaymentReceipt.tenant_id == tenant.id)
 
-    elif user.role != UserRole.admin:
+    elif user.role != UserRole.national_admin:
         query = scoped_query(db, user, PaymentReceipt)
 
     return query.order_by(PaymentReceipt.issued_at.desc()).limit(100).all()
@@ -508,7 +508,7 @@ def list_receipts(
 @router.get("/gateway-health")
 def gateway_health(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     last = (
         db.query(PaymentTransaction)
