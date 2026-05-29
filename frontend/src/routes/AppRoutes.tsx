@@ -152,7 +152,7 @@ function HomeRedirect() {
     return <Navigate to="/tenant" replace />;
   }
 
-  if (user.role === "admin") {
+  if (user.role === "national_admin") {
     return <Navigate to="/admin" replace />;
   }
 
@@ -167,31 +167,13 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<main className="center-page">Loading LineLink...</main>}>
       <Routes>
-
-        {/* =========================
-            PUBLIC ROUTES
-        ========================= */}
-
         <Route path="/login" element={<LoginPage />} />
-
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-
         <Route path="/rooms" element={<PublicRoomFinderPage />} />
-
         <Route path="/apply/:token" element={<ApplicationFormPage />} />
-
         <Route path="/landlord-request" element={<LandlordRequestPage />} />
-
-        <Route
-          path="/landlord-verification"
-          element={<LandlordVerificationPage />}
-        />
-
+        <Route path="/landlord-verification" element={<LandlordVerificationPage />} />
         <Route path="/" element={<HomeRedirect />} />
-
-        {/* =========================
-            AUTHENTICATED
-        ========================= */}
 
         <Route element={<ProtectedRoute />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />
@@ -199,101 +181,26 @@ export function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route path="/security" element={<SecurityPage />} />
 
-            {/* =========================
-                NATIONAL ADMIN
-            ========================= */}
-
-            <Route element={<ProtectedRoute roles={["admin"]} />}>
-              <Route
-                path="/admin"
-                element={<AdminDashboardPage section="onboarding" />}
-              />
-
-              <Route
-                path="/admin/requests"
-                element={<AdminDashboardPage section="requests" />}
-              />
-
-              <Route
-                path="/admin/risk"
-                element={<AdminDashboardPage section="risk" />}
-              />
-
-              <Route
-                path="/admin/gateway"
-                element={<AdminDashboardPage section="gateway" />}
-              />
-
-              <Route
-                path="/admin/reminders"
-                element={<AdminDashboardPage section="reminders" />}
-              />
-
-              <Route
-                path="/admin/verification"
-                element={<AdminDashboardPage section="verification" />}
-              />
-
-              <Route
-                path="/admin/plans"
-                element={<AdminDashboardPage section="plans" />}
-              />
-
-              <Route
-                path="/admin/districts"
-                element={<AdminDashboardPage section="districts" />}
-              />
-
-              <Route
-                path="/admin/landlords"
-                element={<AdminDashboardPage section="landlords" />}
-              />
-
-              <Route
-                path="/admin/landlord-requests"
-                element={<LandlordRequestsPage />}
-              />
-
-              <Route
-                path="/admin/landlord-verifications"
-                element={<LandlordVerificationReviewPage />}
-              />
+            <Route element={<ProtectedRoute roles={["national_admin"]} />}>
+              <Route path="/admin" element={<AdminDashboardPage section="onboarding" />} />
+              <Route path="/admin/requests" element={<AdminDashboardPage section="requests" />} />
+              <Route path="/admin/risk" element={<AdminDashboardPage section="risk" />} />
+              <Route path="/admin/gateway" element={<AdminDashboardPage section="gateway" />} />
+              <Route path="/admin/reminders" element={<AdminDashboardPage section="reminders" />} />
+              <Route path="/admin/verification" element={<AdminDashboardPage section="verification" />} />
+              <Route path="/admin/plans" element={<AdminDashboardPage section="plans" />} />
+              <Route path="/admin/districts" element={<AdminDashboardPage section="districts" />} />
+              <Route path="/admin/landlords" element={<AdminDashboardPage section="landlords" />} />
+              <Route path="/admin/landlord-requests" element={<LandlordRequestsPage />} />
+              <Route path="/admin/landlord-verifications" element={<LandlordVerificationReviewPage />} />
             </Route>
 
-            {/* =========================
-                DISTRICT ADMIN
-            ========================= */}
-
-            <Route
-              element={
-                <ProtectedRoute roles={["district_admin"]} />
-              }
-            >
-              <Route
-                path="/district"
-                element={<AdminDashboardPage section="districts" />}
-              />
-
-              <Route
-                path="/district/landlords"
-                element={<AdminDashboardPage section="landlords" />}
-              />
-
-              <Route
-                path="/district/requests"
-                element={<AdminDashboardPage section="requests" />}
-              />
-
-              <Route
-                path="/district/risk"
-                element={<AdminDashboardPage section="risk" />}
-              />
+            <Route element={<ProtectedRoute roles={["district_admin"]} />}>
+              <Route path="/district" element={<AdminDashboardPage section="districts" />} />
+              <Route path="/district/landlords" element={<AdminDashboardPage section="landlords" />} />
+              <Route path="/district/requests" element={<AdminDashboardPage section="requests" />} />
+              <Route path="/district/risk" element={<AdminDashboardPage section="risk" />} />
             </Route>
-
-            {/* =========================
-                LANDLORD / CARETAKER /
-                DISTRICT ADMIN
-            ========================= */}
 
             <Route
               element={
@@ -302,71 +209,32 @@ export function AppRoutes() {
                     "landlord",
                     "caretaker",
                     "district_admin",
-                    "admin",
+                    "national_admin",
                   ]}
                 />
               }
             >
               <Route path="/landlord" element={<LandlordDashboardPage />} />
-
               <Route path="/landlord/rooms" element={<RoomsPage />} />
-
               <Route path="/landlord/tenants" element={<TenantsPage />} />
-
               <Route path="/landlord/listings" element={<ListingsPage />} />
-
               <Route path="/landlord/leases" element={<LeasesPage />} />
-
-              <Route
-                path="/landlord/requests"
-                element={<RoomRequestsPage />}
-              />
-
-              <Route
-                path="/landlord/payments"
-                element={<PaymentSubmissionsPage />}
-              />
-
-              <Route
-                path="/landlord/support"
-                element={<SupportTicketsPage />}
-              />
+              <Route path="/landlord/requests" element={<RoomRequestsPage />} />
+              <Route path="/landlord/payments" element={<PaymentSubmissionsPage />} />
+              <Route path="/landlord/support" element={<SupportTicketsPage />} />
             </Route>
-
-            {/* =========================
-                LANDLORD + ADMIN
-            ========================= */}
 
             <Route
               element={
                 <ProtectedRoute
-                  roles={[
-                    "landlord",
-                    "district_admin",
-                    "admin",
-                  ]}
+                  roles={["landlord", "district_admin", "national_admin"]}
                 />
               }
             >
-              <Route
-                path="/landlord/properties"
-                element={<PropertiesPage />}
-              />
-
-              <Route
-                path="/landlord/caretakers"
-                element={<CaretakersPage />}
-              />
-
-              <Route
-                path="/landlord/billing"
-                element={<BillingPage />}
-              />
+              <Route path="/landlord/properties" element={<PropertiesPage />} />
+              <Route path="/landlord/caretakers" element={<CaretakersPage />} />
+              <Route path="/landlord/billing" element={<BillingPage />} />
             </Route>
-
-            {/* =========================
-                TENANT
-            ========================= */}
 
             <Route element={<ProtectedRoute roles={["tenant"]} />}>
               <Route path="/tenant" element={<TenantPortalPage />} />
