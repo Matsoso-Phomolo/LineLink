@@ -195,7 +195,7 @@ def create_landlord_request(
 )
 def list_landlord_requests(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     return (
         db.query(LandlordRequest)
@@ -212,7 +212,7 @@ def reject_landlord_request(
     request_id: uuid.UUID,
     payload: LandlordRequestDecision,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     request = db.get(LandlordRequest, request_id)
 
@@ -239,7 +239,7 @@ def request_landlord_verification(
     request_id: uuid.UUID,
     payload: LandlordRequestDecision,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     request = db.get(LandlordRequest, request_id)
 
@@ -359,7 +359,7 @@ def reject_landlord_verification(
     request_id: uuid.UUID,
     payload: LandlordVerificationReview,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     request = db.get(LandlordRequest, request_id)
 
@@ -398,7 +398,7 @@ def approve_landlord_verification(
     request_id: uuid.UUID,
     payload: LandlordRequestDecision,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_roles(UserRole.admin)),
+    admin: User = Depends(require_roles(UserRole.national_admin)),
 ):
     request = db.get(LandlordRequest, request_id)
 
@@ -543,7 +543,7 @@ def approve_landlord_verification(
 def manually_create_landlord(
     payload: LandlordManualCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     landlord = create_landlord_account(
         db,
@@ -571,7 +571,7 @@ def manually_create_landlord(
 def create_landlord(
     payload: LandlordCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     landlord = Landlord(
         **payload.model_dump(),
@@ -595,7 +595,7 @@ def list_landlords(
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
         )
@@ -651,7 +651,7 @@ def list_landlords(
 def disable_landlord(
     landlord_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     landlord = db.get(Landlord, landlord_id)
 
@@ -679,7 +679,7 @@ def disable_landlord(
 def delete_landlord(
     landlord_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.admin)),
+    _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     landlord = db.get(Landlord, landlord_id)
 
