@@ -7,7 +7,6 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.routers import (
-    admin,
     applications,
     audit_logs,
     caretakers,
@@ -22,6 +21,7 @@ from app.routers import (
     line_rules,
     listings,
     messaging,
+    national_admin,
     notifications,
     occupancies,
     payment_submissions,
@@ -71,7 +71,7 @@ def health_check() -> dict[str, str]:
 # =========================================================
 
 app.include_router(users.router)
-app.include_router(admin.router)
+app.include_router(national_admin.router)
 app.include_router(landlords.router)
 app.include_router(caretakers.router)
 app.include_router(categories.router)
