@@ -220,6 +220,74 @@ def approve_landlord_verification(
         password=password,
     )
 
+
+    request_properties = (
+    db.query(LandlordRequestProperty)
+    .filter(LandlordRequestProperty.landlord_request_id == request.id)
+    .all()
+)
+
+if not request_properties:
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="No verified properties found for this landlord request",
+    )
+
+for request_property in request_properties:
+    property_record = Property(
+        landlord_id=landlord.id,
+        district_id=request_property.district_id,
+        area_id=request_property.area_id,
+        name=request_property.property_name,
+        description=request_property.description,
+        location_area=request_property.village_location,
+        address=request_property.address,
+    )
+
+    db.add(property_record)
+    db.flush()
+
+    generated_rooms = generate_room_numbers(
+        total_rooms=request_property.total_rooms,
+        single_rooms=request_property.single_rooms,
+        double_rooms=request_property.double_rooms,
+        single_room_prefix=request_property.single_room_prefix,
+        double_room_prefix=request_property.double_room_prefix,
+        starting_room_number=request_property.starting_room_number,
+    )
+
+    for generated_room in generated_rooms:
+        room = Room(
+            landlord_id=landlord.id,
+            property_id=property_record.id,
+            room_number=generated_room.room_number,
+            room_type=generated_room.room_type,
+            status="vacant",
+            rent_price=request_property.estimated_monthly_rent or 0,
+            deposit_amount=request_property.estimated_monthly_rent or 0,
+        )
+        db.add(room)
+
+    amount, tier = calculate_property_subscription_amount(
+        db,
+        district_id=request_property.district_id,
+        total_rooms=request_property.total_rooms,
+    )
+
+    subscription = PropertySubscription(
+        landlord_id=landlord.id,
+        property_id=property_record.id,
+        total_rooms=request_property.total_rooms,
+        monthly_amount=amount,
+        pricing_tier=tier,
+        status=SubscriptionStatus.active,
+        start_date=date.today(),
+        renewal_date=date.today() + timedelta(days=30),
+    )
+
+    db.add(subscription)
+    
+
     request.status = LandlordRequestStatus.approved
     request.admin_note = payload.admin_note
     request.landlord_id = landlord.id
@@ -286,11 +354,11 @@ def request_landlord_verification(
             detail="Landlord request not found",
         )
 
-    if request.status == LandlordRequestStatus.rejected:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Rejected request cannot be moved to verification",
-        )
+    if request.status != LandlordRequestStatus.verification_submitted:
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="Verification must be submitted before approval",
+    )
 
     request.status = LandlordRequestStatus.verification_requested
     request.admin_note = payload.admin_note
