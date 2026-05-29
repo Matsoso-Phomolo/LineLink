@@ -44,8 +44,25 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
-      .then(() => {
+      .then((registration) => {
         console.log("Rentalink service worker registered");
+
+        registration.onupdatefound = () => {
+          const installingWorker = registration.installing;
+
+          if (!installingWorker) return;
+
+          installingWorker.onstatechange = () => {
+            if (
+              installingWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              alert(
+                "A new version of Rentalink is available. Refresh the app to update."
+              );
+            }
+          };
+        };
       })
       .catch((error) => {
         console.error("Service worker registration failed:", error);
