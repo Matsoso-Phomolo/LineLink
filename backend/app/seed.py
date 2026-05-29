@@ -128,11 +128,38 @@ def should_seed_demo_data() -> bool:
 
 
 def migrate_legacy_admin_roles(db: Session) -> None:
+    enum_exists = db.execute(
+        text(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_enum
+                WHERE enumlabel = 'national_admin'
+                AND enumtypid = (
+                    SELECT oid
+                    FROM pg_type
+                    WHERE typname = 'user_role'
+                )
+            );
+            """
+        )
+    ).scalar()
+
+    if not enum_exists:
+        db.execute(
+            text(
+                "ALTER TYPE user_role ADD VALUE 'national_admin'"
+            )
+        )
+
+        db.commit()
+
     db.execute(
         text(
             "UPDATE users SET role='national_admin' WHERE role='admin'"
         )
     )
+
     db.commit()
 
 
