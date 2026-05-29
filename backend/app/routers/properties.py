@@ -53,7 +53,7 @@ def validate_district_area(
 def create_property(
     payload: PropertyCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
 ):
     landlord_id = payload.landlord_id or get_actor_landlord_id(db, user)
 
@@ -109,7 +109,7 @@ def update_property(
     property_id: uuid.UUID,
     payload: PropertyUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
 ):
     prop = get_property_in_scope(db, user, property_id)
 
@@ -137,7 +137,7 @@ def update_property(
 def delete_property(
     property_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
 ):
     prop = get_property_in_scope(db, user, property_id)
 
