@@ -12,7 +12,7 @@ from app.identity import next_identifier
 from app.models import District, DistrictAdminAssignment, User, UserRole
 from app.reminders import run_reminders
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["national admin"])
 
 
 class DistrictAdminCreate(BaseModel):
