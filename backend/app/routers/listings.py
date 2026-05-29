@@ -33,7 +33,7 @@ from app.models import (
     ViewingRequest,
 )
 from app.notification_channels import send_login_credentials
-from app.ownership import get_property_in_scope, get_room_in_scope, landlord_scope_filter
+from app.ownership import get_property_in_scope, get_room_in_scope, scoped_query
 from app.rent_logic import generate_initial_rent_due
 from app.schemas import (
     ApplicationAssignRoom,
@@ -64,12 +64,20 @@ def validate_district_area(
         )
 
     district = db.get(District, district_id)
+
     if not district:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="District not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="District not found.",
+        )
 
     area = db.get(DistrictArea, area_id)
+
     if not area:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Area not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Area not found.",
+        )
 
     if area.district_id != district.id:
         raise HTTPException(
@@ -78,11 +86,22 @@ def validate_district_area(
         )
 
 
-def listing_in_scope(db: Session, user: User, listing_id: uuid.UUID) -> RoomListing:
-    listing = landlord_scope_filter(db, user, RoomListing).filter(RoomListing.id == listing_id).first()
+def listing_in_scope(
+    db: Session,
+    user: User,
+    listing_id: uuid.UUID,
+) -> RoomListing:
+    listing = (
+        scoped_query(db, user, RoomListing)
+        .filter(RoomListing.id == listing_id)
+        .first()
+    )
 
     if not listing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Listing not found",
+        )
 
     return listing
 
@@ -91,7 +110,9 @@ def listing_in_scope(db: Session, user: User, listing_id: uuid.UUID) -> RoomList
 def create_listing(
     payload: ListingCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     prop = get_property_in_scope(db, user, payload.property_id)
     room = get_room_in_scope(db, user, payload.room_id)
@@ -118,7 +139,10 @@ def create_listing(
 
     listing = (
         db.query(RoomListing)
-        .filter(RoomListing.room_id == room.id, RoomListing.status != ListingStatus.rented)
+        .filter(
+            RoomListing.room_id == room.id,
+            RoomListing.status != ListingStatus.rented,
+        )
         .order_by(RoomListing.created_at.desc())
         .first()
     )
@@ -126,9 +150,13 @@ def create_listing(
     if listing:
         for key, value in payload.model_dump().items():
             setattr(listing, key, value)
+
         listing.landlord_id = prop.landlord_id
     else:
-        listing = RoomListing(**payload.model_dump(), landlord_id=prop.landlord_id)
+        listing = RoomListing(
+            **payload.model_dump(),
+            landlord_id=prop.landlord_id,
+        )
         db.add(listing)
 
     if not listing.district_id:
@@ -145,7 +173,13 @@ def create_listing(
         listing.status = ListingStatus.rented
         listing.is_public = False
 
-    log_action(db, AuditAction.create_room_listing, user, prop.landlord_id, "RoomListing")
+    log_action(
+        db,
+        AuditAction.create_room_listing,
+        user,
+        prop.landlord_id,
+        "RoomListing",
+    )
 
     db.commit()
     db.refresh(listing)
@@ -156,9 +190,15 @@ def create_listing(
 @router.get("/mine", response_model=list[ListingRead])
 def my_listings(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
-    return landlord_scope_filter(db, user, RoomListing).order_by(RoomListing.created_at.desc()).all()
+    return (
+        scoped_query(db, user, RoomListing)
+        .order_by(RoomListing.created_at.desc())
+        .all()
+    )
 
 
 @router.put("/{listing_id}", response_model=ListingRead)
@@ -166,9 +206,12 @@ def update_listing(
     listing_id: uuid.UUID,
     payload: ListingUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     listing = listing_in_scope(db, user, listing_id)
+
     values = payload.model_dump(exclude_unset=True)
 
     property_id = values.get("property_id", listing.property_id)
@@ -217,7 +260,14 @@ def update_listing(
         listing.verification_status = ListingVerificationStatus.pending_verification
         listing.is_verified = False
 
-    log_action(db, AuditAction.verify_listing, user, listing.landlord_id, "RoomListing", listing.id)
+    log_action(
+        db,
+        AuditAction.verify_listing,
+        user,
+        listing.landlord_id,
+        "RoomListing",
+        listing.id,
+    )
 
     db.commit()
     db.refresh(listing)
@@ -229,9 +279,12 @@ def update_listing(
 def archive_listing(
     listing_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     listing = listing_in_scope(db, user, listing_id)
+
     listing.status = ListingStatus.archived
     listing.is_public = False
 
@@ -247,10 +300,7 @@ def verify_listing(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(UserRole.admin)),
 ):
-    listing = db.get(RoomListing, listing_id)
-
-    if not listing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+    listing = listing_in_scope(db, user, listing_id)
 
     listing.is_verified = True
     listing.verification_status = ListingVerificationStatus.verified
@@ -261,7 +311,14 @@ def verify_listing(
         listing.status = ListingStatus.published
         listing.is_public = True
 
-    log_action(db, AuditAction.update_room_listing, user, listing.landlord_id, "RoomListing", listing.id)
+    log_action(
+        db,
+        AuditAction.update_room_listing,
+        user,
+        listing.landlord_id,
+        "RoomListing",
+        listing.id,
+    )
 
     db.commit()
     db.refresh(listing)
@@ -276,17 +333,21 @@ def reject_listing_verification(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(UserRole.admin)),
 ):
-    listing = db.get(RoomListing, listing_id)
-
-    if not listing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+    listing = listing_in_scope(db, user, listing_id)
 
     listing.is_verified = False
     listing.verification_status = ListingVerificationStatus.rejected
     listing.verification_note = payload.landlord_note
     listing.is_public = False
 
-    log_action(db, AuditAction.verify_listing, user, listing.landlord_id, "RoomListing", listing.id)
+    log_action(
+        db,
+        AuditAction.verify_listing,
+        user,
+        listing.landlord_id,
+        "RoomListing",
+        listing.id,
+    )
 
     db.commit()
     db.refresh(listing)
@@ -299,7 +360,9 @@ def add_listing_photo(
     listing_id: uuid.UUID,
     file: UploadFile,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     listing = listing_in_scope(db, user, listing_id)
     path = save_upload_file(file, "listing_photos")
@@ -317,7 +380,9 @@ def add_listing_photo(
 def listing_viewing_requests(
     listing_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     listing = listing_in_scope(db, user, listing_id)
 
@@ -333,7 +398,9 @@ def listing_viewing_requests(
 def listing_applications(
     listing_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     listing = listing_in_scope(db, user, listing_id)
 
@@ -350,12 +417,17 @@ def approve_application(
     application_id: uuid.UUID,
     payload: ApplicationDecision,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     application = db.get(TenantApplication, application_id)
 
     if not application:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     listing_in_scope(db, user, application.listing_id)
 
@@ -373,12 +445,17 @@ def reject_application(
     application_id: uuid.UUID,
     payload: ApplicationDecision,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     application = db.get(TenantApplication, application_id)
 
     if not application:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     listing_in_scope(db, user, application.listing_id)
 
@@ -396,12 +473,17 @@ def request_application_info(
     application_id: uuid.UUID,
     payload: ApplicationDecision,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     application = db.get(TenantApplication, application_id)
 
     if not application:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     listing_in_scope(db, user, application.listing_id)
 
@@ -419,12 +501,17 @@ def assign_application_room(
     application_id: uuid.UUID,
     payload: ApplicationAssignRoom,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)),
+    user: User = Depends(
+        require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    ),
 ):
     application = db.get(TenantApplication, application_id)
 
     if not application:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     listing = listing_in_scope(db, user, application.listing_id)
     room = get_room_in_scope(db, user, listing.room_id)
@@ -435,13 +522,24 @@ def assign_application_room(
             detail="Listing, property, and room linkage is inconsistent",
         )
 
-    if room.status != RoomStatus.vacant or listing.status != ListingStatus.published or not listing.is_public:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room is no longer available.")
+    if (
+        room.status != RoomStatus.vacant
+        or listing.status != ListingStatus.published
+        or not listing.is_public
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Room is no longer available.",
+        )
 
     tenant = None
 
     if application.applicant_user_id:
-        tenant = db.query(Tenant).filter(Tenant.user_id == application.applicant_user_id).first()
+        tenant = (
+            db.query(Tenant)
+            .filter(Tenant.user_id == application.applicant_user_id)
+            .first()
+        )
 
         if tenant and tenant.landlord_id != listing.landlord_id:
             raise HTTPException(
@@ -483,7 +581,8 @@ def assign_application_room(
             student_number=application.student_number,
             institution=application.institution,
             occupation=application.occupation,
-            next_of_kin_name=application.emergency_contact_name or application.emergency_contact,
+            next_of_kin_name=application.emergency_contact_name
+            or application.emergency_contact,
             next_of_kin_phone=application.emergency_contact_phone,
             lease_start_date=payload.move_in_date,
             monthly_rent=payload.monthly_rent,
@@ -501,7 +600,11 @@ def assign_application_room(
     tenant.monthly_rent = payload.monthly_rent
     tenant.deposit_amount = payload.deposit_amount
 
-    checklist = db.query(OnboardingChecklist).filter(OnboardingChecklist.tenant_id == tenant.id).first()
+    checklist = (
+        db.query(OnboardingChecklist)
+        .filter(OnboardingChecklist.tenant_id == tenant.id)
+        .first()
+    )
 
     if not checklist:
         checklist = OnboardingChecklist(tenant_id=tenant.id)
@@ -562,7 +665,14 @@ def assign_application_room(
             )
         )
 
-    log_action(db, AuditAction.create_occupancy, user, listing.landlord_id, "TenantApplication", application.id)
+    log_action(
+        db,
+        AuditAction.create_occupancy,
+        user,
+        listing.landlord_id,
+        "TenantApplication",
+        application.id,
+    )
 
     db.commit()
 
