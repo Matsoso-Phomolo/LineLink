@@ -37,7 +37,7 @@ def create_caretaker(
     payload: CaretakerAccountCreate,
     db: Session = Depends(get_db),
     user: User = Depends(
-        require_roles(UserRole.admin, UserRole.landlord)
+        require_roles(UserRole.national_admin, UserRole.landlord)
     ),
 ):
     landlord_id = get_actor_landlord_id(db, user)
@@ -87,7 +87,7 @@ def list_caretakers(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -110,7 +110,7 @@ def update_caretaker(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
         )
@@ -163,7 +163,7 @@ def delete_caretaker(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
         )
