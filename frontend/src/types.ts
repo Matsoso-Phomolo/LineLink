@@ -1,4 +1,9 @@
-export type Role = "admin" | "landlord" | "caretaker" | "tenant";
+export type Role =
+  | "national_admin"
+  | "district_admin"
+  | "landlord"
+  | "caretaker"
+  | "tenant";
 
 export type User = {
   id: string;
@@ -86,7 +91,11 @@ export type Listing = {
   status: "draft" | "published" | "rented" | "archived";
   is_public: boolean;
   is_verified: boolean;
-  verification_status?: "unverified" | "pending_verification" | "verified" | "rejected";
+  verification_status?:
+    | "unverified"
+    | "pending_verification"
+    | "verified"
+    | "rejected";
   verification_note?: string | null;
 };
 
@@ -114,12 +123,34 @@ export type TenantApplication = {
   emergency_contact?: string | null;
   document_path?: string | null;
   message?: string | null;
-  status: "inquiry_pending" | "form_sent" | "submitted" | "accepted" | "pending" | "under_review" | "approved" | "rejected" | "withdrawn" | "info_requested" | "contacted" | "expired";
+  status:
+    | "inquiry_pending"
+    | "form_sent"
+    | "submitted"
+    | "accepted"
+    | "pending"
+    | "under_review"
+    | "approved"
+    | "rejected"
+    | "withdrawn"
+    | "info_requested"
+    | "contacted"
+    | "expired";
   landlord_note?: string | null;
-  preferred_response_method?: "phone_call" | "whatsapp" | "email" | "sms" | null;
+  preferred_response_method?:
+    | "phone_call"
+    | "whatsapp"
+    | "email"
+    | "sms"
+    | null;
   response_contact_value?: string | null;
   response_sent_at?: string | null;
-  response_status?: "queued" | "sent" | "failed" | "scaffolded" | null;
+  response_status?:
+    | "queued"
+    | "sent"
+    | "failed"
+    | "scaffolded"
+    | null;
   application_token?: string | null;
   token_expires_at?: string | null;
   form_sent_at?: string | null;
@@ -205,7 +236,13 @@ export type PaymentSubmission = {
   tenant_id: string;
   rent_due_id?: string | null;
   amount: number;
-  method: "mpesa" | "ecocash" | "orange_money" | "bank_transfer" | "bank" | "cash";
+  method:
+    | "mpesa"
+    | "ecocash"
+    | "orange_money"
+    | "bank_transfer"
+    | "bank"
+    | "cash";
   transaction_reference: string;
   status: "pending" | "approved" | "rejected";
   created_at: string;
@@ -218,9 +255,23 @@ export type PaymentTransaction = {
   subscription_id?: string | null;
   payment_type?: string;
   amount: number;
-  method: "mpesa" | "ecocash" | "orange_money" | "mopay_mpesa" | "mopay_ecocash" | "mopay_card" | "bank_transfer" | "bank" | "cash";
+  method:
+    | "mpesa"
+    | "ecocash"
+    | "orange_money"
+    | "mopay_mpesa"
+    | "mopay_ecocash"
+    | "mopay_card"
+    | "bank_transfer"
+    | "bank"
+    | "cash";
   payer_phone?: string | null;
-  status: "pending" | "successful" | "failed" | "timeout" | "pending_verification";
+  status:
+    | "pending"
+    | "successful"
+    | "failed"
+    | "timeout"
+    | "pending_verification";
   idempotency_key: string;
   checkout_request_id?: string | null;
   provider_reference?: string | null;
@@ -243,7 +294,12 @@ export type SupportTicket = {
   description: string;
   assigned_to_user_id?: string | null;
   resolved_at?: string | null;
-  status: "open" | "assigned" | "in_progress" | "resolved" | "closed";
+  status:
+    | "open"
+    | "assigned"
+    | "in_progress"
+    | "resolved"
+    | "closed";
   created_at: string;
 };
 
@@ -269,7 +325,13 @@ export type LeaseAgreement = {
   monthly_rent: number;
   deposit_amount: number;
   terms?: string | null;
-  status: "draft" | "issued" | "signed" | "active" | "expired" | "terminated";
+  status:
+    | "draft"
+    | "issued"
+    | "signed"
+    | "active"
+    | "expired"
+    | "terminated";
   tenant_signed_at?: string | null;
   landlord_signed_at?: string | null;
   pdf_url?: string | null;
