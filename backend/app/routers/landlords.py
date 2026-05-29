@@ -412,9 +412,9 @@ def approve_landlord_verification(
                 status="vacant",
                 rent_price=room_rent,
                 deposit_amount=room_rent,
-           )
+            )
 
-           db.add(room)
+            db.add(room)
 
         amount, tier = calculate_property_subscription_amount(
             db,
