@@ -91,7 +91,7 @@ def create_rule(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -153,7 +153,7 @@ def update_rule(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -217,7 +217,7 @@ def delete_rule(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
