@@ -118,7 +118,7 @@ def create_landlord_account(
     landlord = db.query(Landlord).filter(Landlord.user_id == user.id).first()
 
     if landlord:
-        landlord.business_name = business_name
+        landlord.business_name = full_name
         landlord.contact_phone = phone
         landlord.email = email
         landlord.address = address
@@ -132,7 +132,7 @@ def create_landlord_account(
 
     landlord = Landlord(
         user_id=user.id,
-        business_name=business_name,
+        business_name=full_name,
         contact_phone=phone,
         email=email,
         address=address,
