@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_actor_landlord_id, get_current_user, require_roles
 from app.models import District, DistrictArea, Property, Room, User, UserRole
-from app.ownership import assert_landlord_access, landlord_scope_filter
+from app.ownership import assert_landlord_access, get_property_in_scope, scoped_query
 from app.schemas import PropertyCreate, PropertyRead, PropertyUpdate
 
 router = APIRouter(prefix="/properties", tags=["properties"])
@@ -57,6 +57,12 @@ def create_property(
 ):
     landlord_id = payload.landlord_id or get_actor_landlord_id(db, user)
 
+    if not landlord_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No landlord scope available.",
+        )
+
     assert_landlord_access(db, user, landlord_id)
 
     validate_district_area(
@@ -83,7 +89,7 @@ def list_properties(
     user: User = Depends(get_current_user),
 ):
     return (
-        landlord_scope_filter(db, user, Property)
+        scoped_query(db, user, Property)
         .order_by(Property.created_at.desc())
         .all()
     )
@@ -95,17 +101,7 @@ def get_property(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    prop = db.get(Property, property_id)
-
-    if not prop:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Property not found",
-        )
-
-    assert_landlord_access(db, user, prop.landlord_id)
-
-    return prop
+    return get_property_in_scope(db, user, property_id)
 
 
 @router.put("/{property_id}", response_model=PropertyRead)
@@ -115,15 +111,7 @@ def update_property(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(UserRole.admin, UserRole.landlord)),
 ):
-    prop = db.get(Property, property_id)
-
-    if not prop:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Property not found",
-        )
-
-    assert_landlord_access(db, user, prop.landlord_id)
+    prop = get_property_in_scope(db, user, property_id)
 
     update_data = payload.model_dump(exclude_unset=True)
 
@@ -151,15 +139,7 @@ def delete_property(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(UserRole.admin, UserRole.landlord)),
 ):
-    prop = db.get(Property, property_id)
-
-    if not prop:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Property not found",
-        )
-
-    assert_landlord_access(db, user, prop.landlord_id)
+    prop = get_property_in_scope(db, user, property_id)
 
     has_rooms = db.query(Room).filter(Room.property_id == prop.id).first()
 
