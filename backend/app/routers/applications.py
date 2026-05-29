@@ -62,7 +62,7 @@ def list_applications(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -86,7 +86,7 @@ def approve_application(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -118,7 +118,7 @@ def accept_room_request(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -177,7 +177,7 @@ def reject_application(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -208,7 +208,7 @@ def reject_application(
                 f"at "
                 f"{listing.listing_property.name if listing.listing_property else listing.location_area} "
                 f"was not accepted. "
-                f"You may continue searching for other available rooms on LineLink."
+                f"You may continue searching for other available rooms on Rentalink."
             )
         )
 
@@ -236,7 +236,7 @@ def request_application_info(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -267,7 +267,7 @@ def send_application_form_link(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -306,7 +306,7 @@ def send_application_form_link(
             application,
             application.preferred_response_method,
             (
-                f"Please complete your LineLink room application "
+                f"Please complete your Rentalink room application "
                 f"using this secure link: "
                 f"{base_url}/#/apply/{token}"
             ),
@@ -335,7 +335,7 @@ def mark_request_contacted(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -376,7 +376,7 @@ def application_response_logs(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
@@ -404,7 +404,7 @@ def assign_room(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
             UserRole.landlord,
             UserRole.caretaker,
