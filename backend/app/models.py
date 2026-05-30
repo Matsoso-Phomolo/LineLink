@@ -626,12 +626,21 @@ class Occupancy(Base, TimestampMixin):
     landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     room_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rooms.id"), index=True)
+    occupancy_slot_number: Mapped[int] = mapped_column(Integer, default=1, index=True)
     move_in_date: Mapped[date] = mapped_column(Date)
     move_out_date: Mapped[date | None] = mapped_column(Date)
     monthly_rent: Mapped[float] = mapped_column(Numeric(12, 2))
     deposit_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     billing_start_month: Mapped[date] = mapped_column(Date)
     status: Mapped[OccupancyStatus] = mapped_column(Enum(OccupancyStatus, name="occupancy_status"), default=OccupancyStatus.active)
+    __table_args__ = (
+        UniqueConstraint(
+            "room_id",
+            "occupancy_slot_number",
+            "status",
+            name="uq_room_slot_status",
+       ),
+    )
 
 
 class RentDue(Base, TimestampMixin):
