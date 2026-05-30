@@ -663,6 +663,9 @@ class RentDue(Base, TimestampMixin):
     due_date: Mapped[date | None] = mapped_column(Date)
     late_penalty_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     is_late: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    days_overdue: Mapped[int] = mapped_column(Integer, default=0)
+    last_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminder_count: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[RentDueStatus] = mapped_column(Enum(RentDueStatus, name="rent_due_status"), default=RentDueStatus.unpaid)
 
     __table_args__ = (UniqueConstraint("occupancy_id", "due_month", name="uq_due_occupancy_month"),)
