@@ -31,8 +31,18 @@ class UserRole(str, enum.Enum):
 
 class RoomStatus(str, enum.Enum):
     vacant = "vacant"
-    occupied = "occupied"
+    partially_occupied = "partially_occupied"
+    full = "full"
     maintenance = "maintenance"
+    reserved = "reserved"
+
+
+class RentalMode(str, enum.Enum):
+    private = "private"
+    family = "family"
+    shared_student = "shared_student"
+    shared_general = "shared_general"
+    apartment = "apartment"
 
 
 class RoomType(str, enum.Enum):
@@ -553,7 +563,17 @@ class Room(Base, TimestampMixin):
     room_number: Mapped[str] = mapped_column(String(80))
     status: Mapped[RoomStatus] = mapped_column(Enum(RoomStatus, name="room_status"), default=RoomStatus.vacant, index=True)
     room_type: Mapped[RoomType] = mapped_column(Enum(RoomType, name="room_type"))
+    
     room_size: Mapped[str | None] = mapped_column(String(80))
+
+    occupancy_limit: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    max_people: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    rental_mode: Mapped[RentalMode] = mapped_column(
+        Enum(RentalMode, name="rental_mode"),
+        default=RentalMode.private,
+        index=True,
+    )
+
     rent_price: Mapped[float] = mapped_column(Numeric(12, 2))
     deposit_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     notes: Mapped[str | None] = mapped_column(Text)
