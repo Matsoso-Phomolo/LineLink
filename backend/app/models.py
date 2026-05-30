@@ -651,6 +651,13 @@ class RentDue(Base, TimestampMixin):
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     occupancy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("occupancies.id"), index=True)
     due_month: Mapped[date] = mapped_column(Date)
+    
+    payment_reference: Mapped[str | None] = mapped_column(
+        String(120),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
     amount_due: Mapped[float] = mapped_column(Numeric(12, 2))
     amount_paid: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     due_date: Mapped[date | None] = mapped_column(Date)
