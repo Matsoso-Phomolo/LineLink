@@ -1,6 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.dashboard_logic import (
+    calculate_collection_rate,
+    calculate_landlord_revenue,
+    calculate_occupancy_rate,
+    calculate_overdue_exposure,
+    calculate_property_financial_summary,
+)
 from app.database import get_db
 from app.dependencies import (
     get_district_admin_district_ids,
@@ -51,6 +58,19 @@ def scoped_applications_query(
 
     return db.query(TenantApplication).filter(
         TenantApplication.listing_id.in_(scoped_listing_ids)
+    )
+
+
+def get_landlord_id_for_dashboard(user: User):
+    if user.role == UserRole.landlord and user.landlord_profile:
+        return user.landlord_profile.id
+
+    if user.role == UserRole.caretaker and user.caretaker_profile:
+        return user.caretaker_profile.landlord_id
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Financial dashboard is available only for landlord/caretaker scoped users.",
     )
 
 
@@ -122,7 +142,14 @@ def dashboard_summary(
         properties=props.count(),
         rooms=rooms.count(),
         vacant_rooms=rooms.filter(Room.status == RoomStatus.vacant).count(),
-        occupied_rooms=rooms.filter(Room.status == RoomStatus.occupied).count(),
+        occupied_rooms=rooms.filter(
+            Room.status.in_(
+                [
+                    RoomStatus.partially_occupied,
+                    RoomStatus.full,
+                ]
+            )
+        ).count(),
         active_tenants=occupancies.filter(
             Occupancy.status == OccupancyStatus.active
         ).count(),
@@ -172,3 +199,48 @@ def dashboard_summary(
         pending_landlord_requests=pending_landlord_requests,
         total_tenants=tenants.count(),
     )
+
+
+@router.get("/financial-summary")
+def financial_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.landlord, UserRole.caretaker)),
+):
+    landlord_id = get_landlord_id_for_dashboard(user)
+    return calculate_property_financial_summary(db, landlord_id)
+
+
+@router.get("/revenue")
+def revenue_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.landlord, UserRole.caretaker)),
+):
+    landlord_id = get_landlord_id_for_dashboard(user)
+    return calculate_landlord_revenue(db, landlord_id)
+
+
+@router.get("/occupancy")
+def occupancy_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.landlord, UserRole.caretaker)),
+):
+    landlord_id = get_landlord_id_for_dashboard(user)
+    return calculate_occupancy_rate(db, landlord_id)
+
+
+@router.get("/overdue")
+def overdue_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.landlord, UserRole.caretaker)),
+):
+    landlord_id = get_landlord_id_for_dashboard(user)
+    return calculate_overdue_exposure(db, landlord_id)
+
+
+@router.get("/collection-rate")
+def collection_rate_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.landlord, UserRole.caretaker)),
+):
+    landlord_id = get_landlord_id_for_dashboard(user)
+    return calculate_collection_rate(db, landlord_id)
