@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.intelligence_ws import intelligence_websocket_endpoint
 from app.routers import (
     applications,
     audit_logs,
@@ -69,6 +70,9 @@ def health_check() -> dict[str, str]:
         "status": "ok",
         "service": "Rentalink API",
     }
+
+
+app.websocket("/ws/intelligence")(intelligence_websocket_endpoint)
 
 
 # =========================================================
