@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import LiveAlertBadge from "../components/LiveAlertBadge";
 
 type IntelligenceLink = {
   label: string;
@@ -58,7 +59,7 @@ export default function IntelligenceLayout() {
       </aside>
 
       <main className="flex-1 min-w-0">
-        <header className="bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+        <header className="bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-widest text-cyan-400 font-semibold">
               AI-Enhanced Rental Governance
@@ -70,9 +71,7 @@ export default function IntelligenceLayout() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <span className="rounded-full bg-green-500/10 text-green-400 border border-green-700 px-3 py-1 text-sm">
-              Live Intelligence
-            </span>
+            <LiveAlertBadge />
 
             <span className="rounded-full bg-gray-900 text-gray-400 border border-gray-700 px-3 py-1 text-sm">
               Rentalink API
@@ -87,6 +86,10 @@ export default function IntelligenceLayout() {
             {mobileMenuOpen ? "Close" : "Menu"}
           </button>
         </header>
+
+        <div className="md:hidden border-b border-gray-800 bg-gray-950 px-4 py-3">
+          <LiveAlertBadge />
+        </div>
 
         {mobileMenuOpen ? (
           <div className="lg:hidden border-b border-gray-800 bg-gray-950 px-4 py-4">
