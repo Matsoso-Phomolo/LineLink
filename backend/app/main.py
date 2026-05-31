@@ -4,8 +4,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.config import settings
+from app.database import SessionLocal
 from app.intelligence_ws import intelligence_websocket_endpoint
 from app.routers import (
     applications,
@@ -77,6 +79,26 @@ def health_check() -> dict[str, str]:
 def debug_cors_origins() -> dict[str, list[str]]:
     return {
         "allowed_origins": settings.allowed_origin_list,
+    }
+
+
+@app.get("/debug/room-enum-values", tags=["debug"])
+def debug_room_enum_values() -> dict[str, list[str]]:
+    with SessionLocal() as db:
+        room_statuses = db.execute(
+            text("select distinct status::text from rooms order by status::text")
+        ).scalars().all()
+        room_types = db.execute(
+            text("select distinct room_type::text from rooms order by room_type::text")
+        ).scalars().all()
+        listing_statuses = db.execute(
+            text("select distinct status::text from room_listings order by status::text")
+        ).scalars().all()
+
+    return {
+        "room_statuses": list(room_statuses),
+        "room_types": list(room_types),
+        "listing_statuses": list(listing_statuses),
     }
 
 
