@@ -140,42 +140,42 @@ def dashboard_summary(
     pending_landlord_requests = 0
 
     if is_national_admin(user):
-        active_landlords = (
-            db.query(Landlord)
-            .filter(Landlord.is_active.is_(True))
-            .count()
+        active_landlords = count_scalar(
+            db,
+            "select count(*) from landlords where is_active is true",
         )
 
-        pending_landlord_requests = (
-            db.query(LandlordRequest)
-            .filter(LandlordRequest.status == LandlordRequestStatus.pending)
-            .count()
+        pending_landlord_requests = count_scalar(
+            db,
+            "select count(*) from landlord_requests where status::text = 'pending'",
         )
 
     elif is_district_admin(user):
         district_ids = get_district_admin_district_ids(db, user)
 
         if district_ids:
-            active_landlords = (
-                db.query(Landlord)
-                .join(Property, Property.landlord_id == Landlord.id)
-                .filter(
-                    Landlord.is_active.is_(True),
-                    Property.district_id.in_(district_ids),
-                )
-                .distinct()
-                .count()
+            active_landlords = count_scalar(
+                db,
+                """
+                select count(distinct l.id)
+                from landlords l
+                join properties p on p.landlord_id = l.id
+                where l.is_active is true
+                and p.district_id = any(:district_ids)
+                """,
+                {"district_ids": district_ids},
             )
 
-            pending_landlord_requests = (
-                db.query(LandlordRequest)
-                .join(Property, Property.landlord_id == LandlordRequest.landlord_id)
-                .filter(
-                    LandlordRequest.status == LandlordRequestStatus.pending,
-                    Property.district_id.in_(district_ids),
-                )
-                .distinct()
-                .count()
+            pending_landlord_requests = count_scalar(
+                db,
+                """
+                select count(distinct lr.id)
+                from landlord_requests lr
+                join properties p on p.landlord_id = lr.landlord_id
+                where lr.status::text = 'pending'
+                and p.district_id = any(:district_ids)
+                """,
+                {"district_ids": district_ids},
             )
 
     return DashboardSummary(
