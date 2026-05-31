@@ -136,6 +136,92 @@ def dashboard_summary(
     listing_where, listing_params = dashboard_scope(user, "room_listings")
     tenant_where, tenant_params = dashboard_scope(user, "tenants")
 
+    active_landlords = count_scalar(
+        db,
+        "select count(*) from landlords where is_active is true",
+    ) if is_national_admin(user) else 0
+    pending_landlord_requests = count_scalar(
+        db,
+        "select count(*) from landlord_requests where status::text = 'pending'",
+    ) if is_national_admin(user) else 0
+
+    return DashboardSummary(
+        properties=count_scalar(db, f"select count(*) from properties {property_where}", property_params),
+        rooms=count_scalar(db, f"select count(*) from rooms {room_where}", room_params),
+        vacant_rooms=count_scalar(
+            db,
+            f"select count(*) from rooms {room_where} {'and' if room_where else 'where'} status::text in ('vacant','available')",
+            room_params,
+        ),
+        occupied_rooms=count_scalar(
+            db,
+            f"select count(*) from rooms {room_where} {'and' if room_where else 'where'} status::text in ('occupied','partially_occupied','full')",
+            room_params,
+        ),
+        active_tenants=count_scalar(
+            db,
+            f"select count(*) from occupancies {occupancy_where} {'and' if occupancy_where else 'where'} status::text = 'active'",
+            occupancy_params,
+        ),
+        unpaid_rent_dues=count_scalar(
+            db,
+            f"select count(*) from rent_dues {rent_where} {'and' if rent_where else 'where'} status::text in ('unpaid','partial','overdue')",
+            rent_params,
+        ),
+        pending_payment_submissions=count_scalar(
+            db,
+            f"select count(*) from payment_submissions {payment_where} {'and' if payment_where else 'where'} status::text = 'pending'",
+            payment_params,
+        ),
+        published_listings=count_scalar(
+            db,
+            f"select count(*) from room_listings {listing_where} {'and' if listing_where else 'where'} status::text = 'published'",
+            listing_params,
+        ),
+        pending_applications=count_scalar(
+            db,
+            f"""
+            select count(*)
+            from tenant_applications ta
+            join room_listings rl on rl.id = ta.listing_id
+            {listing_where.replace('room_listings', 'rl')}
+            {'and' if listing_where else 'where'} ta.status::text in ('inquiry_pending','form_sent','submitted','pending','under_review','info_requested')
+            """,
+            listing_params,
+        ),
+        pending_room_requests=count_scalar(
+            db,
+            f"""
+            select count(*)
+            from tenant_applications ta
+            join room_listings rl on rl.id = ta.listing_id
+            {listing_where.replace('room_listings', 'rl')}
+            {'and' if listing_where else 'where'} ta.status::text = 'inquiry_pending'
+            """,
+            listing_params,
+        ),
+        maintenance_tickets=count_scalar(
+            db,
+            "select count(*) from support_tickets where status::text in ('open','assigned','in_progress')",
+        ),
+        overdue_rent_dues=count_scalar(
+            db,
+            f"select count(*) from rent_dues {rent_where} {'and' if rent_where else 'where'} status::text = 'overdue'",
+            rent_params,
+        ),
+        active_landlords=active_landlords,
+        pending_landlord_requests=pending_landlord_requests,
+        total_tenants=count_scalar(db, f"select count(*) from tenants {tenant_where}", tenant_params),
+    )
+
+    property_where, property_params = dashboard_scope(user, "properties")
+    room_where, room_params = dashboard_scope(user, "rooms")
+    occupancy_where, occupancy_params = dashboard_scope(user, "occupancies")
+    rent_where, rent_params = dashboard_scope(user, "rent_dues")
+    payment_where, payment_params = dashboard_scope(user, "payment_submissions")
+    listing_where, listing_params = dashboard_scope(user, "room_listings")
+    tenant_where, tenant_params = dashboard_scope(user, "tenants")
+
     active_landlords = 0
     pending_landlord_requests = 0
 
