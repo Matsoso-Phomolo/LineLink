@@ -3,10 +3,12 @@ import { apiFetch } from "../../api/client";
 
 type PreferredResponseMethod =
   | "email"
+  | "phone_call"
   | "sms"
   | "whatsapp";
 
 type LandlordRequestForm = {
+  business_name: string;
   full_name: string;
   email: string;
   phone: string;
@@ -18,6 +20,7 @@ type LandlordRequestForm = {
 };
 
 const initialForm: LandlordRequestForm = {
+  business_name: "",
   full_name: "",
   email: "",
   phone: "",
@@ -140,6 +143,22 @@ export function LandlordRequestPage() {
           </div>
 
           <label>
+            Business / line-house name
+
+            <input
+              required
+              value={form.business_name}
+              onChange={(event) =>
+                updateField(
+                  "business_name",
+                  event.target.value
+                )
+              }
+              placeholder="Matsoso Ten House Holdings"
+            />
+          </label>
+
+          <label>
             Full names
 
             <input
@@ -222,6 +241,10 @@ export function LandlordRequestPage() {
               >
                 <option value="email">
                   Email
+                </option>
+
+                <option value="phone_call">
+                  Phone call
                 </option>
 
                 <option value="sms">

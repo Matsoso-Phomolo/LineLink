@@ -376,8 +376,11 @@ def create_landlord_request(
     if existing:
         return existing
 
+    values = payload.model_dump()
+    values["business_name"] = values.get("business_name") or payload.full_name
+
     request = LandlordRequest(
-        **payload.model_dump(),
+        **values,
         status=LandlordRequestStatus.pending,
     )
 

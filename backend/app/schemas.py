@@ -150,6 +150,7 @@ class LandlordRequestPropertyRead(LandlordRequestPropertyCreate, ORMModel):
 
 
 class LandlordRequestCreate(BaseModel):
+    business_name: str | None = None
     full_name: str
     email: EmailStr
     phone: str | None = None
