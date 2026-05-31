@@ -186,14 +186,9 @@ export function AppRoutes() {
               <Route path="/admin/requests" element={<AdminDashboardPage section="requests" />} />
               <Route path="/admin/risk" element={<AdminDashboardPage section="risk" />} />
               <Route path="/admin/gateway" element={<AdminDashboardPage section="gateway" />} />
-              <Route path="/admin/reminders" element={<AdminDashboardPage section="reminders" />} />
-              <Route path="/admin/verification" element={<AdminDashboardPage section="verification" />} />
               <Route path="/admin/plans" element={<AdminDashboardPage section="plans" />} />
               <Route path="/admin/districts" element={<AdminDashboardPage section="districts" />} />
               <Route path="/admin/district-admins" element={<AdminDashboardPage section="district-admins" />} />
-              <Route path="/admin/landlords" element={<AdminDashboardPage section="landlords" />} />
-              <Route path="/admin/landlord-requests" element={<LandlordRequestsPage />} />
-              <Route path="/admin/landlord-verifications" element={<LandlordVerificationReviewPage />} />
               <Route
                 path="/admin/room-finder"
                 element={<PublicRoomFinderPage returnTo="/admin" returnLabel="Return to National Admin Dashboard" />}
@@ -206,9 +201,13 @@ export function AppRoutes() {
 
             <Route element={<ProtectedRoute roles={["district_admin"]} />}>
               <Route path="/district" element={<AdminDashboardPage section="districts" />} />
+              <Route path="/district/areas" element={<AdminDashboardPage section="districts" />} />
               <Route path="/district/landlords" element={<AdminDashboardPage section="landlords" />} />
               <Route path="/district/requests" element={<AdminDashboardPage section="requests" />} />
               <Route path="/district/risk" element={<AdminDashboardPage section="risk" />} />
+              <Route path="/district/reminders" element={<AdminDashboardPage section="reminders" />} />
+              <Route path="/district/landlord-requests" element={<LandlordRequestsPage />} />
+              <Route path="/district/landlord-verifications" element={<LandlordVerificationReviewPage />} />
               <Route
                 path="/district/room-finder"
                 element={<PublicRoomFinderPage returnTo="/district" returnLabel="Return to District Dashboard" />}

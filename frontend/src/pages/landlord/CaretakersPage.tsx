@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
+import { PasswordField } from "../../components/PasswordField";
 import { StatusPill } from "../../components/StatusPill";
 import type { Caretaker } from "../../types";
 
@@ -141,7 +142,7 @@ export function CaretakersPage() {
             <label>Email<input required type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label>
             <label>Phone<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
           </div>
-          {!form.id ? <label>Temporary password<input required minLength={8} type="password" value={form.password} onChange={(event) => update("password", event.target.value)} /></label> : null}
+          {!form.id ? <label>Temporary password<PasswordField required minLength={8} value={form.password} onChange={(value) => update("password", value)} /></label> : null}
           {form.id ? (
             <label className="inline-check"><input type="checkbox" checked={form.is_active} onChange={(event) => update("is_active", event.target.checked)} /> Account active</label>
           ) : null}

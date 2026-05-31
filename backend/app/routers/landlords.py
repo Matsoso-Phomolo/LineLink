@@ -576,7 +576,7 @@ def create_landlord_request(
 )
 def list_landlord_requests(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.national_admin)),
+    current_user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     columns = table_columns(db, "landlord_requests")
 
@@ -626,6 +626,10 @@ def list_landlord_requests(
             )
 
     results: list[dict[str, object]] = []
+    district_ids = set()
+    if is_district_admin(current_user):
+        district_ids = {str(item) for item in get_district_admin_district_ids(db, current_user)}
+
     for row in request_rows:
         serialized_request = serialize_landlord_request_row(
             row,
@@ -633,9 +637,37 @@ def list_landlord_requests(
         )
 
         if serialized_request:
+            if district_ids:
+                properties = serialized_request.get("properties") or []
+                if not any(str(property_item.get("district_id")) in district_ids for property_item in properties):
+                    continue
             results.append(serialized_request)
 
     return results
+
+
+def assert_landlord_request_scope(
+    db: Session,
+    current_user: User,
+    serialized_request: dict[str, object],
+) -> None:
+    if is_national_admin(current_user):
+        return
+
+    if not is_district_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    district_ids = {str(item) for item in get_district_admin_district_ids(db, current_user)}
+    properties = serialized_request.get("properties") or []
+
+    if not district_ids or not any(str(property_item.get("district_id")) in district_ids for property_item in properties):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage landlord requests inside your district",
+        )
 
 
 @router.post(
@@ -646,7 +678,7 @@ def reject_landlord_request(
     request_id: uuid.UUID,
     payload: LandlordRequestDecision,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.national_admin)),
+    current_user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     columns = table_columns(db, "landlord_requests")
     serialized = get_serialized_landlord_request(db, request_id)
@@ -656,6 +688,7 @@ def reject_landlord_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Landlord request not found",
         )
+    assert_landlord_request_scope(db, current_user, serialized)
 
     assignments = ["status = " + enum_insert_expr("status", "landlord_request_status", db)]
     params: dict[str, object] = {
@@ -698,7 +731,7 @@ def request_landlord_verification(
     request_id: uuid.UUID,
     payload: LandlordRequestDecision,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.national_admin)),
+    current_user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     columns = table_columns(db, "landlord_requests")
     serialized = get_serialized_landlord_request(db, request_id)
@@ -708,6 +741,7 @@ def request_landlord_verification(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Landlord request not found",
         )
+    assert_landlord_request_scope(db, current_user, serialized)
 
     if serialized["status"] == LandlordRequestStatus.rejected.value:
         raise HTTPException(
@@ -849,7 +883,7 @@ def reject_landlord_verification(
     request_id: uuid.UUID,
     payload: LandlordVerificationReview,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.national_admin)),
+    current_user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     request = db.get(LandlordRequest, request_id)
 
@@ -858,6 +892,10 @@ def reject_landlord_verification(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Landlord request not found",
         )
+
+    serialized = get_serialized_landlord_request(db, request_id)
+    if serialized:
+        assert_landlord_request_scope(db, current_user, serialized)
 
     if request.status not in [
         LandlordRequestStatus.verification_submitted,
@@ -888,7 +926,7 @@ def approve_landlord_verification(
     request_id: uuid.UUID,
     payload: LandlordRequestDecision,
     db: Session = Depends(get_db),
-    admin: User = Depends(require_roles(UserRole.national_admin)),
+    admin: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     request = db.get(LandlordRequest, request_id)
 
@@ -897,6 +935,10 @@ def approve_landlord_verification(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Landlord request not found",
         )
+
+    serialized = get_serialized_landlord_request(db, request_id)
+    if serialized:
+        assert_landlord_request_scope(db, admin, serialized)
 
     if request.status != (
         LandlordRequestStatus.verification_submitted

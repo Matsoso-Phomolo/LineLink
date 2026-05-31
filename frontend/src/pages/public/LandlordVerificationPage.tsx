@@ -171,7 +171,7 @@ export function LandlordVerificationPage() {
       setForm(initialVerification);
       setProperties([emptyProperty()]);
       setStatus(
-        "Verification submitted successfully. RentaLink administrators will review your information."
+        "Verification submitted successfully. Rentalink administrators will review your information."
       );
     } catch (err) {
       setError(
@@ -189,7 +189,7 @@ export function LandlordVerificationPage() {
           <div className="brand-mark light">
             <span>RL</span>
             <div>
-              <strong>RentaLink</strong>
+              <strong>Rentalink</strong>
               <small>Verification</small>
             </div>
           </div>

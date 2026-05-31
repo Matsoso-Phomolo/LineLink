@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 import { ErrorState, LoadingState } from "../../components/DataState";
+import { PasswordField } from "../../components/PasswordField";
 import { StatusPill } from "../../components/StatusPill";
 import type { Landlord, LandlordRequest, Listing, SubscriptionPlan } from "../../types";
 
@@ -37,6 +39,7 @@ type DistrictArea = {
 };
 
 type AreaForm = {
+  id: string;
   district_id: string;
   name: string;
   description: string;
@@ -71,7 +74,6 @@ export type AdminSection =
   | "risk"
   | "gateway"
   | "reminders"
-  | "verification"
   | "plans"
   | "landlords"
   | "districts"
@@ -95,6 +97,7 @@ const emptyPlan = {
 };
 
 const emptyAreaForm: AreaForm = {
+  id: "",
   district_id: "",
   name: "",
   description: ""
@@ -123,6 +126,7 @@ async function loadOptional<T>(path: string, fallback: T): Promise<T> {
 }
 
 export function AdminDashboardPage({ section = "onboarding" }: { section?: AdminSection }) {
+  const { user } = useAuth();
   const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [requests, setRequests] = useState<LandlordRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
@@ -337,22 +341,48 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     setNotice("");
 
     try {
-      const createdArea = (await apiFetch("/district-areas", {
-        method: "POST",
+      const savedArea = (await apiFetch(areaForm.id ? `/district-areas/${areaForm.id}` : "/district-areas", {
+        method: areaForm.id ? "PATCH" : "POST",
         body: JSON.stringify({
           district_id: areaForm.district_id,
           name: areaForm.name,
           description: nullable(areaForm.description),
-          is_active: true
+          ...(areaForm.id ? {} : { is_active: true })
         })
       })) as DistrictArea;
 
-      setAreas((current) => [...current, createdArea]);
-      setAreaForm((current) => ({ district_id: current.district_id, name: "", description: "" }));
+      setAreas((current) => areaForm.id ? current.map((item) => (item.id === savedArea.id ? savedArea : item)) : [...current, savedArea]);
+      setAreaForm((current) => ({ ...emptyAreaForm, district_id: current.district_id }));
       setDistrictView("areas");
-      setNotice(`${createdArea.name} area added successfully.`);
+      setNotice(`${savedArea.name} ${areaForm.id ? "updated" : "added"} successfully.`);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Could not add area");
+      setNotice(err instanceof Error ? err.message : "Could not save area or village");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  function editArea(area: DistrictArea) {
+    setAreaForm({
+      id: area.id,
+      district_id: area.district_id,
+      name: area.name,
+      description: area.description ?? ""
+    });
+    setDistrictView("add-area");
+  }
+
+  async function deleteArea(area: DistrictArea) {
+    if (!window.confirm(`Delete ${area.name}? This should only be used before real listings depend on it.`)) return;
+    setBusyId(area.id);
+    setNotice("");
+
+    try {
+      await apiFetch(`/district-areas/${area.id}`, { method: "DELETE" });
+      setAreas((current) => current.filter((item) => item.id !== area.id));
+      setNotice(`${area.name} deleted.`);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not delete area or village");
     } finally {
       setBusyId("");
     }
@@ -445,30 +475,6 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     }
   }
 
-  async function decideListing(listing: Listing, action: "verify" | "reject-verification") {
-    setBusyId(listing.id);
-    setNotice("");
-
-    try {
-      await apiFetch(`/listings/${listing.id}/${action}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          landlord_note:
-            action === "verify"
-              ? "Listing verified by platform admin."
-              : "Listing needs more verification before public visibility."
-        })
-      });
-
-      setNotice(action === "verify" ? "Listing verified." : "Listing rejected for verification.");
-      await loadData();
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Could not update listing verification");
-    } finally {
-      setBusyId("");
-    }
-  }
-
   async function savePlan(event: FormEvent) {
     event.preventDefault();
     setNotice("");
@@ -544,10 +550,16 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     const requestProperties = (request as any).properties ?? [];
     return requestProperties.some((property: any) => property.district_id === selectedDistrictId);
   });
-  const filteredListings = listings.filter((listing) => !districtScoped || (listing as any).district_id === selectedDistrictId);
   const filteredLandlords = landlords.filter((landlord) => {
     if (!districtScoped) return true;
-    return ((landlord as any).district_id === selectedDistrictId || (landlord as any).primary_district_id === selectedDistrictId);
+    const districtName = selectedDistrict?.name?.toLowerCase() ?? "";
+    const landlordText = `${landlord.business_name ?? ""} ${(landlord as any).name ?? ""} ${landlord.address ?? ""} ${(landlord as any).location_area ?? ""}`.toLowerCase();
+
+    return (
+      (landlord as any).district_id === selectedDistrictId ||
+      (landlord as any).primary_district_id === selectedDistrictId ||
+      (districtName === "maseru" && (landlordText.includes("maseru") || landlordText.includes("roma")))
+    );
   });
   const showDistrictSelector = section !== "districts" && section !== "gateway";
 
@@ -647,7 +659,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
                 <label>
                   Temporary password
-                  <input required minLength={8} type="password" value={manual.password} onChange={(event) => updateManual("password", event.target.value)} />
+                  <PasswordField required minLength={8} value={manual.password} onChange={(value) => updateManual("password", value)} />
                 </label>
 
                 <button className="primary-button" type="submit">
@@ -710,7 +722,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
               <div className="metric-grid compact-metrics">
                 <Metric label="Pending requests" value={riskCenter?.daily_admin_summary?.new_landlord_requests ?? 0} />
-                <Metric label="Listing checks" value={riskCenter?.daily_admin_summary?.pending_listing_verification ?? 0} />
+                <Metric label="Public listings" value={riskCenter?.daily_admin_summary?.pending_listing_verification ?? 0} />
                 <Metric label="Complaints" value={riskCenter?.daily_admin_summary?.unresolved_complaints ?? 0} />
                 <Metric label="Payment alerts" value={riskCenter?.suspicious_payment_alerts?.length ?? 0} />
               </div>
@@ -789,9 +801,15 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   <h2>Payment reminders</h2>
                 </div>
 
-                <button type="button" disabled={busyId === "run-reminders"} onClick={runReminders}>
-                  Run reminders
-                </button>
+                {user?.role === "national_admin" ? (
+                  <button type="button" disabled={busyId === "run-reminders"} onClick={runReminders}>
+                    Run reminders
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="data-state compact-state">
+                Reminders are automated from actual rent due dates set by landlords and subscription renewal dates managed by district operations.
               </div>
 
               <div className="list-stack compact-list">
@@ -805,47 +823,6 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                     </div>
 
                     <StatusPill value={log.status} />
-                  </article>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {section === "verification" ? (
-            <div className="panel">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Anti-scam controls</p>
-                  <h2>Listing verification</h2>
-                </div>
-              </div>
-
-              <div className="list-stack compact-list">
-                {filteredListings.length === 0 ? <div className="data-state">No listings have been submitted for verification in this district scope.</div> : null}
-
-                {filteredListings.slice(0, 20).map((listing) => (
-                  <article className="application-card" key={listing.id}>
-                    <div>
-                      <div className="card-topline">
-                        <StatusPill value={listing.verification_status ?? (listing.is_verified ? "verified" : "unverified")} />
-                        <span>{listing.status}</span>
-                      </div>
-
-                      <strong>{listing.title}</strong>
-                      <p>
-                        {listing.property_name ?? listing.location_area} - {listing.room_number ?? "Room"}
-                      </p>
-                    </div>
-
-                    <div className="review-actions">
-                      <button type="button" disabled={busyId === listing.id} onClick={() => decideListing(listing, "verify")}>
-                        Verify
-                      </button>
-
-                      <button type="button" disabled={busyId === listing.id} onClick={() => decideListing(listing, "reject-verification")}>
-                        Reject
-                      </button>
-                    </div>
                   </article>
                 ))}
               </div>
@@ -947,7 +924,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
               {districtView === "districts" ? (
                 <>
                   <p>
-                    RentaLink is currently available in Roma village under Maseru district. Admin will later activate full Maseru district access, then selected districts, and finally all 10 districts of Lesotho.
+                    Rentalink is currently available in Roma village under Maseru district. District Admins can activate or lock areas and villages as rollout expands.
                   </p>
 
                   <div className="metric-grid compact-metrics">
@@ -984,7 +961,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                 <form className="panel form-panel" onSubmit={submitArea}>
                   <div>
                     <p className="eyebrow">District areas</p>
-                    <h2>Add Area</h2>
+                  <h2>{areaForm.id ? "Edit area or village" : "Add area or village"}</h2>
                   </div>
 
                   <label>
@@ -999,7 +976,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   </label>
 
                   <label>
-                    Area name
+                    Area / village name
                     <input required placeholder="Example: Roma, Ha-Matala, Lithabaneng" value={areaForm.name} onChange={(event) => updateAreaForm("name", event.target.value)} />
                   </label>
 
@@ -1009,8 +986,17 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   </label>
 
                   <button className="primary-button" type="submit" disabled={busyId === "add-area"}>
-                    {busyId === "add-area" ? "Adding..." : "Add Area"}
+                    {busyId === "add-area" ? "Saving..." : areaForm.id ? "Save area / village" : "Add area / village"}
                   </button>
+
+                  {areaForm.id ? (
+                    <button
+                      type="button"
+                      onClick={() => setAreaForm((current) => ({ ...emptyAreaForm, district_id: current.district_id }))}
+                    >
+                      Cancel edit
+                    </button>
+                  ) : null}
                 </form>
               ) : null}
 
@@ -1024,7 +1010,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                         <div>
                           <div className="card-topline">
                             <StatusPill value={district.is_active ? "active" : "locked"} />
-                            <span>{districtAreas.length} areas</span>
+                            <span>{districtAreas.length} areas / villages</span>
                           </div>
 
                           <strong>{district.name}</strong>
@@ -1033,15 +1019,23 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                             {districtAreas.length === 0 ? <span>No areas yet</span> : null}
 
                             {districtAreas.map((area) => (
-                              <button
-                                key={area.id}
-                                type="button"
-                                className={`status-toggle ${area.is_active ? "active" : "locked"}`}
-                                disabled={busyId === area.id}
-                                onClick={() => toggleArea(area)}
-                              >
-                                {area.name}: {area.is_active ? "Active" : "Locked"}
-                              </button>
+                              <span className="area-admin-chip" key={area.id}>
+                                <strong>{area.name}</strong>
+                                <button
+                                  type="button"
+                                  className={`status-toggle ${area.is_active ? "active" : "locked"}`}
+                                  disabled={busyId === area.id}
+                                  onClick={() => toggleArea(area)}
+                                >
+                                  {area.is_active ? "Active" : "Locked"}
+                                </button>
+                                <button type="button" onClick={() => editArea(area)}>
+                                  Edit
+                                </button>
+                                <button type="button" disabled={busyId === area.id} onClick={() => deleteArea(area)}>
+                                  Delete
+                                </button>
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -1095,7 +1089,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                 {!districtAdminForm.id ? (
                   <label>
                     Temporary password
-                    <input required minLength={8} type="password" value={districtAdminForm.password} onChange={(event) => updateDistrictAdminForm("password", event.target.value)} />
+                    <PasswordField required minLength={8} value={districtAdminForm.password} onChange={(value) => updateDistrictAdminForm("password", value)} />
                   </label>
                 ) : null}
 
@@ -1200,7 +1194,6 @@ function adminSectionTitle(section: AdminSection) {
     risk: "AI Risk Center",
     gateway: "Payment gateway health",
     reminders: "Payment reminders",
-    verification: "Listing verification",
     plans: "Subscription plans",
     landlords: "Landlords",
     districts: "Districts",
@@ -1217,7 +1210,6 @@ function adminSectionDescription(section: AdminSection) {
     risk: "Review automated risk signals, suspicious activity, and admin decision-support indicators.",
     gateway: "Monitor payment gateway readiness, webhook status, and missing production configuration.",
     reminders: "Generate and review automated rent and subscription reminder logs.",
-    verification: "Verify or reject listings before they become trusted public room records.",
     plans: "Create and manage SaaS subscription plans for landlords.",
     landlords: "View active landlords and disable accounts when necessary.",
     districts: "Control districts, add areas, and manage rollout availability across Lesotho.",

@@ -354,7 +354,7 @@ export function ListingsPage() {
             <option value="published">Published</option>
             <option value="archived">Archived</option>
           </select></label>
-          <label className="inline-check"><input type="checkbox" checked={form.is_public} onChange={(event) => update("is_public", event.target.checked)} /> Show publicly after verification</label>
+          <label className="inline-check"><input type="checkbox" checked={form.is_public} onChange={(event) => update("is_public", event.target.checked)} /> Show publicly when this vacant room is published</label>
         </div>
         <div className="review-actions">
           <button className="primary-button" disabled={availableRooms.length === 0 && !form.id} type="submit">{form.id ? "Save listing" : "Post vacant room"}</button>

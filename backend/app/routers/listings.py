@@ -226,8 +226,8 @@ def create_listing(
         listing.area_id = prop.area_id
 
     if listing.is_public and listing.status == ListingStatus.published:
-        listing.verification_status = ListingVerificationStatus.pending_verification
-        listing.is_verified = False
+        listing.verification_status = ListingVerificationStatus.verified
+        listing.is_verified = True
 
     if room.status == RoomStatus.occupied:
         listing.status = ListingStatus.rented
@@ -374,13 +374,9 @@ def update_listing(
     if not listing.area_id:
         listing.area_id = prop.area_id
 
-    if (
-        listing.is_public
-        and listing.status == ListingStatus.published
-        and listing.verification_status != ListingVerificationStatus.verified
-    ):
-        listing.verification_status = ListingVerificationStatus.pending_verification
-        listing.is_verified = False
+    if listing.is_public and listing.status == ListingStatus.published:
+        listing.verification_status = ListingVerificationStatus.verified
+        listing.is_verified = True
 
     log_action(
         db,

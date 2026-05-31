@@ -49,7 +49,6 @@ def get_public_listing(db: Session, listing_id: uuid.UUID) -> RoomListing:
             RoomListing.id == listing_id,
             RoomListing.status == ListingStatus.published,
             RoomListing.is_public.is_(True),
-            RoomListing.verification_status == ListingVerificationStatus.verified,
             Room.status.in_(VACANT_ROOM_STATUSES),
         )
         .first()
@@ -77,7 +76,7 @@ def public_listings(
     water_available: bool | None = None,
     electricity_available: bool | None = None,
     furnished: bool | None = None,
-    verified_only: bool = True,
+    verified_only: bool = False,
     db: Session = Depends(get_db),
 ):
     clauses = [
@@ -87,10 +86,10 @@ def public_listings(
     ]
     params: dict[str, object] = {
         "published_status": ListingStatus.published.value,
-        "verified_status": ListingVerificationStatus.verified.value,
     }
 
     if verified_only:
+        params["verified_status"] = ListingVerificationStatus.verified.value
         clauses.append("rl.verification_status::text = :verified_status")
 
     if district_id:

@@ -100,7 +100,7 @@ export function RoomsPage() {
           is_public: true
         })
       });
-      setNotice("Vacant room sent to public listing verification.");
+      setNotice("Vacant room published to the public Room Finder.");
       await loadData();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not publish this vacant room");

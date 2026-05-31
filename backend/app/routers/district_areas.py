@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import require_roles
 from app.models import District, DistrictAdminAssignment, DistrictArea, User, UserRole
 from app.schemas import DistrictAreaCreate, DistrictAreaResponse, DistrictAreaUpdate
 
@@ -54,18 +55,6 @@ def user_can_manage_district(db: Session, user: User, district_id: uuid.UUID) ->
         .first()
         is not None
     )
-
-
-def get_current_user_placeholder(db: Session) -> User:
-    user = db.query(User).filter(User.role == UserRole.national_admin).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No admin user found",
-        )
-
-    return user
 
 
 @router.get("", response_model=list[DistrictAreaResponse])
@@ -124,9 +113,8 @@ def list_active_areas_for_district(
 def create_district_area(
     payload: DistrictAreaCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ) -> DistrictArea:
-    current_user = get_current_user_placeholder(db)
-
     district = db.query(District).filter(District.id == payload.district_id).first()
 
     if not district:
@@ -176,9 +164,8 @@ def update_district_area(
     area_id: uuid.UUID,
     payload: DistrictAreaUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ) -> DistrictArea:
-    current_user = get_current_user_placeholder(db)
-
     area = db.query(DistrictArea).filter(DistrictArea.id == area_id).first()
 
     if not area:
@@ -209,3 +196,29 @@ def update_district_area(
     db.refresh(area)
 
     return area
+
+
+@router.delete("/{area_id}")
+def delete_district_area(
+    area_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
+) -> dict[str, str]:
+    area = db.query(DistrictArea).filter(DistrictArea.id == area_id).first()
+
+    if not area:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Area not found",
+        )
+
+    if not user_can_manage_district(db, current_user, area.district_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete areas inside your assigned district",
+        )
+
+    db.delete(area)
+    db.commit()
+
+    return {"detail": "Area deleted"}

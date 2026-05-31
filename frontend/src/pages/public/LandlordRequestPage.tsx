@@ -73,7 +73,7 @@ export function LandlordRequestPage({
       setForm(initialForm);
 
       setStatus(
-        "Landlord request submitted successfully. RentaLink administrators will review your request and may send a verification form using your selected response method."
+        "Landlord request submitted successfully. Rentalink administrators will review your request and may send a verification form using your selected response method."
       );
     } catch (err) {
       setError(
@@ -94,7 +94,7 @@ export function LandlordRequestPage({
             <span>RL</span>
 
             <div>
-              <strong>RentaLink</strong>
+              <strong>Rentalink</strong>
               <small>Landlord onboarding</small>
             </div>
           </div>
@@ -109,7 +109,7 @@ export function LandlordRequestPage({
             </h1>
 
             <p>
-              RentaLink verifies landlord identity,
+              Rentalink verifies landlord identity,
               ownership legitimacy, district location,
               and operational information before
               granting landlord platform access.
@@ -159,7 +159,7 @@ export function LandlordRequestPage({
               Landlord request
             </p>
 
-            <h2>Join RentaLink</h2>
+            <h2>Join Rentalink</h2>
           </div>
 
           <label>
@@ -320,7 +320,7 @@ export function LandlordRequestPage({
                   event.target.value
                 )
               }
-              placeholder="Tell us about your rental operations and why you want to join RentaLink."
+              placeholder="Tell us about your rental operations and why you want to join Rentalink."
             />
           </label>
 

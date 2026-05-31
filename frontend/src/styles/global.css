@@ -473,13 +473,38 @@ textarea {
 
 .password-field button {
   min-height: 44px;
-  padding: 0 12px;
+  width: 52px;
+  padding: 0;
   border: 1px solid #ccd7d2;
   border-left: 0;
   border-radius: 0 8px 8px 0;
   background: #f8faf7;
   color: #246b61;
   font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-eye-button svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.area-admin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #ffffff;
+  flex-wrap: wrap;
+}
+
+.area-admin-chip button {
+  min-height: 34px;
 }
 
 .standalone-card {

@@ -20,14 +20,20 @@ async function responseError(response: Response) {
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = tokenStorage.get();
   const isFormData = options.body instanceof FormData;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
-    }
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers
+      }
+    });
+  } catch {
+    throw new Error("Could not reach Rentalink backend. Please check your connection or backend deployment.");
+  }
 
   if (!response.ok) {
     throw await responseError(response);

@@ -115,7 +115,7 @@ export function PublicRoomFinderPage({
 
       try {
         const [listingItems, districtItems] = await Promise.all([
-          apiFetch("/public/listings?verified_only=true") as Promise<Listing[]>,
+          apiFetch("/public/listings") as Promise<Listing[]>,
           apiFetch("/districts/active") as Promise<District[]>
         ]);
 
@@ -491,7 +491,7 @@ export function PublicRoomFinderPage({
                     <div className="card-topline">
                       <StatusPill value="vacant" />
                       <StatusPill value="available_now" />
-                      {listing.verification_status === "verified" || listing.is_verified ? <StatusPill value="verified" /> : null}
+                      <StatusPill value="public" />
                       <span>{listing.distance_from_nul ?? "Near NUL"}</span>
                     </div>
 
@@ -549,7 +549,7 @@ export function PublicRoomFinderPage({
             <div className="card-topline">
               <StatusPill value="vacant" />
               <StatusPill value="available_now" />
-              {selectedListing.verification_status === "verified" || selectedListing.is_verified ? <StatusPill value="verified" /> : null}
+              <StatusPill value="public" />
               <span>{selectedListing.property_name ?? "Line-house"} - {selectedListing.location_area}</span>
             </div>
 

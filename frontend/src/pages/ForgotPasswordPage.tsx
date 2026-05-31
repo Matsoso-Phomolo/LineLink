@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { apiFetch } from "../api/client";
+import { PasswordField } from "../components/PasswordField";
 
 export function ForgotPasswordPage() {
   const [identifier, setIdentifier] = useState("");
@@ -7,7 +8,6 @@ export function ForgotPasswordPage() {
   const [notice, setNotice] = useState("");
   const [token, setToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   async function requestReset(event: FormEvent) {
     event.preventDefault();
@@ -53,7 +53,7 @@ export function ForgotPasswordPage() {
           <form className="form-panel" onSubmit={confirmReset}>
             <h2>Set new password</h2>
             <label>Reset token<input required value={token} onChange={(event) => setToken(event.target.value)} /></label>
-            <label>New password<div className="password-field"><input required minLength={8} type={showPassword ? "text" : "password"} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /><button type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</button></div></label>
+            <label>New password<PasswordField required minLength={8} value={newPassword} onChange={setNewPassword} /></label>
             <button className="secondary-button" type="submit">Reset password</button>
           </form>
           {notice ? <div className="data-state">{notice}</div> : null}

@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { getDefaultDashboardForRole } from "../auth/roleDashboardMap";
 import { useAuth } from "../auth/AuthContext";
 import { HeroPhotoCarousel } from "../components/HeroPhotoCarousel";
+import { PasswordField } from "../components/PasswordField";
 
 export function LoginPage() {
   const { user, login, verifyTwoFactor } = useAuth();
@@ -10,7 +11,6 @@ export function LoginPage() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [twoFactorChallenge, setTwoFactorChallenge] = useState<{
     id: string;
@@ -186,26 +186,13 @@ export function LoginPage() {
               <div className="field-group">
                 <label htmlFor="login-password">Password</label>
 
-                <div className="password-field">
-                  <input
-                    id="login-password"
-                    required
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                  />
-
-                  <button
-                    type="button"
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                    onClick={() => setShowPassword((value) => !value)}
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
+                <PasswordField
+                  id="login-password"
+                  required
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete="current-password"
+                />
               </div>
             </>
           )}
