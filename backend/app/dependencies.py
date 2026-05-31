@@ -64,7 +64,7 @@ def require_roles(*roles: UserRole) -> Callable:
 
 
 def is_national_admin(user: User) -> bool:
-    return user.role == UserRole.admin
+    return user.role == UserRole.national_admin
 
 
 def is_district_admin(user: User) -> bool:
@@ -156,7 +156,7 @@ def require_national_admin() -> Callable:
 def require_national_or_district_admin() -> Callable:
     def checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in {
-            UserRole.admin,
+            UserRole.national_admin,
             UserRole.district_admin,
         }:
             raise HTTPException(
@@ -173,7 +173,7 @@ def get_actor_landlord_id(
     db: Session,
     user: User,
 ) -> uuid.UUID | None:
-    if user.role in {UserRole.admin, UserRole.district_admin}:
+    if user.role in {UserRole.national_admin, UserRole.district_admin}:
         return None
 
     if user.role == UserRole.landlord:

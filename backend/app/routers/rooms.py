@@ -25,7 +25,7 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 def create_room(
     payload: RoomCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     prop = get_property_in_scope(db, user, payload.property_id)
 
@@ -61,23 +61,13 @@ def update_room(
     user: User = Depends(
         require_roles(
             UserRole.national_admin,
-            UserRole.landlord,
-            UserRole.caretaker,
+            UserRole.district_admin,
         )
     ),
 ):
     room = get_room_in_scope(db, user, room_id)
 
     values = payload.model_dump(exclude_unset=True)
-
-    if user.role == UserRole.caretaker:
-        disallowed = set(values) - {"status", "notes"}
-
-        if disallowed:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Caretakers can only update room status and operational notes.",
-            )
 
     for key, value in values.items():
         setattr(room, key, value)
@@ -107,7 +97,7 @@ def update_room(
 def delete_room(
     room_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     room = get_room_in_scope(db, user, room_id)
 

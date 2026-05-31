@@ -114,7 +114,7 @@ export function LandlordDashboardPage() {
       <div className="dashboard-content">
         <div className="page-header">
           <div>
-            <p className="eyebrow">LineLink landlord operations</p>
+            <p className="eyebrow">Rentalink landlord operations</p>
             <h1>Portfolio snapshot</h1>
             <p>
               View approved properties, rooms, payments, tenant activity, and

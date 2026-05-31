@@ -53,8 +53,8 @@ export type Room = {
   landlord_id: string;
   property_id: string;
   room_number: string;
-  status: "vacant" | "occupied" | "maintenance";
-  room_type: "single" | "double";
+  status: "vacant" | "occupied" | "partially_occupied" | "full" | "maintenance" | "reserved";
+  room_type: "single" | "double" | "multiple";
   room_size?: string | null;
   rent_price: number;
   deposit_amount: number;
@@ -73,7 +73,7 @@ export type Listing = {
   description?: string | null;
   rent_price: number;
   deposit_amount: number;
-  room_type: "single" | "double";
+  room_type: "single" | "double" | "multiple";
   room_size?: string | null;
   location_area: string;
   allowed_tenant_type: "student" | "non_student" | "both";

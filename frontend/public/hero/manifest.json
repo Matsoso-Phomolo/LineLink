@@ -1,20 +1,44 @@
 {
   "villages": [
-    "roma-village.jpg",
+    "village-1.jpg",
     "village-2.jpg",
-    "village-3.jpg"
+    "village-3.jpg",
+    "village-6.jpg",
+    "village-7.jpg"
   ],
   "nul-campus": [
-    "campus-2.jpg",
-    "campus-3.jpg",
-    "nul-campus.jpg"
+    "nul-1.jpg",
+    "nul-2.jpg",
+    "nul-3.jpg",
+    "nul-4.jpg",
+    "nul-5.jpg",
+    "nul-6.jpg",
+    "nul-7.jpg",
+    "nul-8.jpg",
+    "nul-9.jpg",
+    "nul-10.jpg",
+    "nul-11.jpg",
+    "nul-12.jpg",
+    "nul-13.jpg",
+    "nul-14.jpg",
+    "nul-15.jpg",
+    "nul-16.jpg",
+    "nul-17.jpg",
+    "nul-18.jpg"
   ],
   "lines": [
+    "line-1.jpg.jpeg",
     "line-2.jpg",
     "line-3.jpg",
     "line-4.jpg.jpeg",
     "line-5.jpg.jpeg",
     "line-6.jpg.jpeg",
+    "line-7.jpg.jpeg",
+    "line-8.jpg.jpeg",
+    "line-9.jpg.jpeg",
+    "line-10.jpg.jpeg",
+    "line-12.jpg.jpeg",
+    "line-13.jpg.jpeg",
     "roma-accommodation.jpg"
   ]
 }

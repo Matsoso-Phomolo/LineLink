@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import get_actor_landlord_id, get_current_user, require_roles
+from app.dependencies import get_current_user, require_roles
 from app.models import District, DistrictArea, Property, Room, User, UserRole
-from app.ownership import assert_landlord_access, get_property_in_scope, scoped_query
+from app.ownership import assert_district_access, get_property_in_scope, scoped_query
 from app.schemas import PropertyCreate, PropertyRead, PropertyUpdate
 
 router = APIRouter(prefix="/properties", tags=["properties"])
@@ -53,23 +53,22 @@ def validate_district_area(
 def create_property(
     payload: PropertyCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
-    landlord_id = payload.landlord_id or get_actor_landlord_id(db, user)
+    landlord_id = payload.landlord_id
 
     if not landlord_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No landlord scope available.",
+            detail="Admin-created properties must be linked to a verified landlord.",
         )
-
-    assert_landlord_access(db, user, landlord_id)
 
     validate_district_area(
         db=db,
         district_id=payload.district_id,
         area_id=payload.area_id,
     )
+    assert_district_access(db, user, payload.district_id)
 
     prop = Property(
         **payload.model_dump(exclude={"landlord_id"}),
@@ -109,7 +108,7 @@ def update_property(
     property_id: uuid.UUID,
     payload: PropertyUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     prop = get_property_in_scope(db, user, property_id)
 
@@ -137,7 +136,7 @@ def update_property(
 def delete_property(
     property_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord)),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
 ):
     prop = get_property_in_scope(db, user, property_id)
 

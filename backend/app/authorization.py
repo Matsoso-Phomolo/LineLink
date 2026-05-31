@@ -9,4 +9,4 @@ def assert_role(user: User, *roles: UserRole) -> None:
 
 
 def assert_admin_or_landlord_actor(user: User) -> None:
-    assert_role(user, UserRole.admin, UserRole.landlord, UserRole.caretaker)
+    assert_role(user, UserRole.national_admin, UserRole.district_admin, UserRole.landlord, UserRole.caretaker)

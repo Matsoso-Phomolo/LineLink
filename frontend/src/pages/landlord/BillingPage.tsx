@@ -81,7 +81,7 @@ export function BillingPage() {
         <div>
           <p className="eyebrow">Billing</p>
           <h1>Subscription</h1>
-          <p>Pay landlord SaaS subscriptions through MoPay or manual bank transfer. LineLink never asks for wallet PINs.</p>
+          <p>Pay landlord SaaS subscriptions through MoPay or manual bank transfer. Rentalink never asks for wallet PINs.</p>
         </div>
       </div>
       {loading ? <LoadingState /> : null}
