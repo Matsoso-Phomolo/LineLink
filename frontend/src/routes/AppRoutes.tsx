@@ -190,6 +190,7 @@ export function AppRoutes() {
               <Route path="/admin/verification" element={<AdminDashboardPage section="verification" />} />
               <Route path="/admin/plans" element={<AdminDashboardPage section="plans" />} />
               <Route path="/admin/districts" element={<AdminDashboardPage section="districts" />} />
+              <Route path="/admin/district-admins" element={<AdminDashboardPage section="district-admins" />} />
               <Route path="/admin/landlords" element={<AdminDashboardPage section="landlords" />} />
               <Route path="/admin/landlord-requests" element={<LandlordRequestsPage />} />
               <Route path="/admin/landlord-verifications" element={<LandlordVerificationReviewPage />} />
@@ -237,7 +238,14 @@ export function AppRoutes() {
             </Route>
 
             <Route element={<ProtectedRoute roles={["tenant"]} />}>
-              <Route path="/tenant" element={<TenantPortalPage />} />
+              <Route path="/tenant" element={<TenantPortalPage section="overview" />} />
+              <Route path="/tenant/reminders" element={<TenantPortalPage section="reminders" />} />
+              <Route path="/tenant/leases" element={<TenantPortalPage section="leases" />} />
+              <Route path="/tenant/rent-dues" element={<TenantPortalPage section="rent-dues" />} />
+              <Route path="/tenant/occupancy" element={<TenantPortalPage section="occupancy" />} />
+              <Route path="/tenant/payments" element={<TenantPortalPage section="payments" />} />
+              <Route path="/tenant/receipts" element={<TenantPortalPage section="receipts" />} />
+              <Route path="/tenant/support" element={<TenantPortalPage section="support" />} />
             </Route>
           </Route>
         </Route>

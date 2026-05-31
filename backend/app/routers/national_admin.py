@@ -47,6 +47,14 @@ class DistrictAdminCreate(BaseModel):
     district_id: uuid.UUID
 
 
+class DistrictAdminUpdate(BaseModel):
+    full_name: str | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    district_id: uuid.UUID | None = None
+    is_active: bool | None = None
+
+
 class DistrictAdminRead(BaseModel):
     id: uuid.UUID
     username: str | None = None
@@ -231,3 +239,108 @@ def enable_district_admin(
     db.commit()
 
     return {"detail": "District admin enabled"}
+
+
+@router.patch("/district-admins/{user_id}", response_model=DistrictAdminRead)
+def update_district_admin(
+    user_id: uuid.UUID,
+    payload: DistrictAdminUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.national_admin)),
+):
+    user = db.get(User, user_id)
+
+    if not user or user.role != UserRole.district_admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="District admin not found",
+        )
+
+    assignment = (
+        db.query(DistrictAdminAssignment)
+        .filter(DistrictAdminAssignment.user_id == user.id)
+        .first()
+    )
+
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="District admin assignment not found",
+        )
+
+    if payload.email and payload.email != user.email:
+        existing_email = db.query(User).filter(User.email == payload.email).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A user with this email already exists",
+            )
+        user.email = payload.email
+
+    if payload.phone is not None and payload.phone != user.phone:
+        if payload.phone:
+            existing_phone = db.query(User).filter(User.phone == payload.phone).first()
+            if existing_phone and existing_phone.id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A user with this phone number already exists",
+                )
+        user.phone = payload.phone
+
+    if payload.full_name is not None:
+        user.full_name = payload.full_name
+
+    if payload.district_id is not None:
+        district = db.get(District, payload.district_id)
+        if not district:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="District not found",
+            )
+        assignment.district_id = district.id
+    else:
+        district = db.get(District, assignment.district_id)
+
+    if payload.is_active is not None:
+        user.is_active = payload.is_active
+        assignment.is_active = payload.is_active
+
+    db.commit()
+    db.refresh(user)
+    db.refresh(assignment)
+    district = db.get(District, assignment.district_id)
+
+    return DistrictAdminRead(
+        id=user.id,
+        username=user.username,
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        role=user.role,
+        is_active=user.is_active and assignment.is_active,
+        district_id=assignment.district_id,
+        district_name=district.name if district else "Unknown district",
+    )
+
+
+@router.delete("/district-admins/{user_id}")
+def delete_district_admin(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.national_admin)),
+):
+    user = db.get(User, user_id)
+
+    if not user or user.role != UserRole.district_admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="District admin not found",
+        )
+
+    db.query(DistrictAdminAssignment).filter(
+        DistrictAdminAssignment.user_id == user.id
+    ).delete()
+    db.delete(user)
+    db.commit()
+
+    return {"detail": "District admin deleted"}

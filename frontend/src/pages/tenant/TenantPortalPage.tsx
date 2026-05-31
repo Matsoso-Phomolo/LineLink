@@ -26,7 +26,17 @@ type TenantPortal = {
   support_tickets: Array<{ id: string; title: string; category: string; priority?: string; status: string; created_at: string }>;
 };
 
-export function TenantPortalPage() {
+export type TenantPortalSection =
+  | "overview"
+  | "reminders"
+  | "leases"
+  | "rent-dues"
+  | "occupancy"
+  | "payments"
+  | "receipts"
+  | "support";
+
+export function TenantPortalPage({ section = "overview" }: { section?: TenantPortalSection }) {
   const [portal, setPortal] = useState<TenantPortal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -106,13 +116,37 @@ export function TenantPortalPage() {
     }
   }
 
+  const sectionTitle: Record<TenantPortalSection, string> = {
+    overview: portal?.tenant?.full_name ?? "My rental",
+    reminders: "Rent reminders",
+    leases: "Lease agreements",
+    "rent-dues": "Rent dues",
+    occupancy: "Occupancy",
+    payments: "Payment history",
+    receipts: "Receipts",
+    support: "Support tickets"
+  };
+
+  const sectionDescription: Record<TenantPortalSection, string> = {
+    overview: "A focused summary of your rental account, balance, deposit, and profile status.",
+    reminders: "Rent due and overdue reminders sent through Rentalink.",
+    leases: "Issued lease agreements and electronic signing status.",
+    "rent-dues": "Monthly dues, unpaid balances, and mobile money payment requests.",
+    occupancy: "Your active room assignment and occupancy status.",
+    payments: "Submitted and processed rent payment history.",
+    receipts: "Receipts generated after approved payments.",
+    support: "Support and maintenance tickets linked to your tenancy."
+  };
+
+  const renderEmpty = (message: string) => <div className="data-state">{message}</div>;
+
   return (
     <section className="page-stack">
       <div className="page-header">
         <div>
           <p className="eyebrow">Tenant portal</p>
-          <h1>{portal?.tenant?.full_name ?? "My rental"}</h1>
-          <p>Rent status, occupancy information, payments, and support tickets.</p>
+          <h1>{sectionTitle[section]}</h1>
+          <p>{sectionDescription[section]}</p>
         </div>
       </div>
       {loading ? <LoadingState /> : null}
@@ -120,20 +154,22 @@ export function TenantPortalPage() {
       {notice ? <div className="data-state">{notice}</div> : null}
       {portal?.tenant ? (
         <>
-          <div className="metric-grid">
-            <Metric label="Verification" value={portal.tenant.verification_status.replaceAll("_", " ")} />
-            <Metric label="Tenant status" value={(portal.tenant.tenant_status ?? "active").replaceAll("_", " ")} />
-            <Metric label="Balance" value={`M${Number(portal.tenant.outstanding_balance ?? 0).toLocaleString()}`} />
-            <Metric label="Deposit" value={portal.tenant.deposit_paid ? "Paid" : "Pending"} />
-            <Metric label="Student number" value={portal.tenant.student_number ?? "Not set"} />
-            <Metric label="Institution" value={portal.tenant.institution ?? "Not set"} />
-          </div>
+          {section === "overview" ? (
+            <div className="metric-grid">
+              <Metric label="Verification" value={portal.tenant.verification_status.replaceAll("_", " ")} />
+              <Metric label="Tenant status" value={(portal.tenant.tenant_status ?? "active").replaceAll("_", " ")} />
+              <Metric label="Balance" value={`M${Number(portal.tenant.outstanding_balance ?? 0).toLocaleString()}`} />
+              <Metric label="Deposit" value={portal.tenant.deposit_paid ? "Paid" : "Pending"} />
+              <Metric label="Student number" value={portal.tenant.student_number ?? "Not set"} />
+              <Metric label="Institution" value={portal.tenant.institution ?? "Not set"} />
+            </div>
+          ) : null}
 
-          <section className="panel">
+          {section === "reminders" ? <section className="panel">
             <h2>Rent reminders</h2>
             <div className="list-stack">
-              {(reminders ?? []).length === 0 ? <div className="data-state">Rent reminders and overdue notices will appear here.</div> : null}
-              {(reminders ?? []).slice(0, 4).map((reminder) => (
+              {(reminders ?? []).length === 0 ? renderEmpty("Rent reminders and overdue notices will appear here.") : null}
+              {(reminders ?? []).map((reminder) => (
                 <article className="row-item" key={reminder.id}>
                   <div>
                     <strong>{reminder.reminder_type.replaceAll("_", " ")}</strong>
@@ -143,12 +179,12 @@ export function TenantPortalPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
 
-          <section className="panel">
+          {section === "leases" ? <section className="panel">
             <h2>Lease agreements</h2>
             <div className="list-stack">
-              {(portal.leases ?? []).length === 0 ? <div className="data-state">No lease agreement has been issued yet.</div> : null}
+              {(portal.leases ?? []).length === 0 ? renderEmpty("No lease agreement has been issued yet.") : null}
               {(portal.leases ?? []).map((lease) => (
                 <article className="row-item" key={lease.id}>
                   <div>
@@ -165,11 +201,12 @@ export function TenantPortalPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
 
-          <section className="panel">
+          {section === "rent-dues" ? <section className="panel">
             <h2>Rent dues</h2>
             <div className="list-stack">
+              {portal.rent_dues.length === 0 ? renderEmpty("No rent dues have been generated yet.") : null}
               {portal.rent_dues.map((due) => (
                 <article className="row-item" key={due.id}>
                   <div>
@@ -183,9 +220,9 @@ export function TenantPortalPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
 
-          {payingDueId ? (
+          {section === "rent-dues" && payingDueId ? (
             <form className="panel form-panel payment-request-panel" ref={paymentPanelRef} onSubmit={initiatePayment}>
               <div>
                 <p className="eyebrow">Secure mobile money</p>
@@ -212,9 +249,10 @@ export function TenantPortalPage() {
             </form>
           ) : null}
 
-          <section className="panel">
+          {section === "occupancy" ? <section className="panel">
             <h2>Occupancy</h2>
             <div className="list-stack">
+              {portal.occupancies.length === 0 ? renderEmpty("No active occupancy has been assigned yet.") : null}
               {portal.occupancies.map((occupancy) => (
                 <article className="row-item" key={occupancy.id}>
                   <div>
@@ -225,12 +263,13 @@ export function TenantPortalPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
 
-          <section className="panel">
+          {section === "payments" ? <section className="panel">
             <h2>Payment history</h2>
             <div className="list-stack">
-              {(portal.payments ?? []).slice(0, 6).map((payment) => (
+              {(portal.payments ?? []).length === 0 ? renderEmpty("No payment history yet.") : null}
+              {(portal.payments ?? []).map((payment) => (
                 <article className="row-item" key={payment.id}>
                   <div>
                     <strong>M{Number(payment.amount).toLocaleString()} via {payment.method.replaceAll("_", " ")}</strong>
@@ -240,13 +279,13 @@ export function TenantPortalPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
 
-          <section className="panel">
+          {section === "receipts" ? <section className="panel">
             <h2>Receipts</h2>
             <div className="list-stack">
-              {(portal.receipts ?? []).length === 0 ? <div className="data-state">Receipts will appear after approved payments.</div> : null}
-              {(portal.receipts ?? []).slice(0, 6).map((receipt) => (
+              {(portal.receipts ?? []).length === 0 ? renderEmpty("Receipts will appear after approved payments.") : null}
+              {(portal.receipts ?? []).map((receipt) => (
                 <article className="row-item" key={receipt.id}>
                   <div>
                     <strong>{receipt.receipt_number}</strong>
@@ -257,12 +296,13 @@ export function TenantPortalPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
 
-          <section className="panel">
+          {section === "support" ? <section className="panel">
             <h2>Support tickets</h2>
             <div className="list-stack">
-              {(portal.support_tickets ?? []).slice(0, 6).map((ticket) => (
+              {(portal.support_tickets ?? []).length === 0 ? renderEmpty("No support tickets have been opened yet.") : null}
+              {(portal.support_tickets ?? []).map((ticket) => (
                 <article className="row-item" key={ticket.id}>
                   <div>
                     <strong>{ticket.title}</strong>
@@ -272,7 +312,7 @@ export function TenantPortalPage() {
                 </article>
               ))}
             </div>
-          </section>
+          </section> : null}
         </>
       ) : null}
     </section>

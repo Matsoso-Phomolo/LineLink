@@ -30,7 +30,14 @@ const caretakerLinks = [
 ];
 
 const tenantLinks = [
-  { to: "/tenant", label: "Tenant portal" },
+  { to: "/tenant", label: "Overview" },
+  { to: "/tenant/reminders", label: "Rent reminders" },
+  { to: "/tenant/leases", label: "Lease agreements" },
+  { to: "/tenant/rent-dues", label: "Rent dues" },
+  { to: "/tenant/occupancy", label: "Occupancy" },
+  { to: "/tenant/payments", label: "Payment history" },
+  { to: "/tenant/receipts", label: "Receipts" },
+  { to: "/tenant/support", label: "Support tickets" },
   { to: "/security", label: "Security" },
 ];
 
@@ -62,6 +69,7 @@ const nationalAdminLinks = [
   { to: "/admin/verification", label: "Listing Verification" },
   { to: "/admin/plans", label: "Subscription Plans" },
   { to: "/admin/districts", label: "Districts" },
+  { to: "/admin/district-admins", label: "District Admins" },
   { to: "/admin/landlords", label: "Landlords" },
   { to: "/rooms", label: "Room Finder" },
   { to: "/security", label: "Security" },

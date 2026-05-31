@@ -190,12 +190,31 @@ export type LandlordRequest = {
   phone?: string | null;
   address?: string | null;
   message?: string | null;
-  status: "pending" | "approved" | "rejected";
+  status:
+    | "pending"
+    | "under_review"
+    | "verification_requested"
+    | "verification_submitted"
+    | "ai_reviewed"
+    | "approved"
+    | "rejected";
   admin_note?: string | null;
   landlord_id?: string | null;
   approved_by_user_id?: string | null;
   approved_at?: string | null;
   created_at: string;
+  properties?: Array<{
+    id: string;
+    landlord_request_id: string;
+    property_name: string;
+    district_id: string;
+    area_id: string;
+    village_location: string;
+    address?: string | null;
+    total_rooms: number;
+    single_rooms: number;
+    double_rooms: number;
+  }>;
 };
 
 export type Caretaker = {

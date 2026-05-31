@@ -42,6 +42,27 @@ type AreaForm = {
   description: string;
 };
 
+type DistrictAdmin = {
+  id: string;
+  username?: string | null;
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  role: "district_admin";
+  is_active: boolean;
+  district_id: string;
+  district_name: string;
+};
+
+type DistrictAdminForm = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  password: string;
+  district_id: string;
+};
+
 type DistrictView = "districts" | "add-area" | "areas";
 
 export type AdminSection =
@@ -53,7 +74,8 @@ export type AdminSection =
   | "verification"
   | "plans"
   | "landlords"
-  | "districts";
+  | "districts"
+  | "district-admins";
 
 const emptyManual: ManualLandlordForm = {
   business_name: "",
@@ -78,6 +100,15 @@ const emptyAreaForm: AreaForm = {
   description: ""
 };
 
+const emptyDistrictAdminForm: DistrictAdminForm = {
+  id: "",
+  full_name: "",
+  email: "",
+  phone: "",
+  password: "",
+  district_id: ""
+};
+
 function nullable(value: string) {
   return value.trim() ? value.trim() : null;
 }
@@ -92,36 +123,45 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const [paymentHealth, setPaymentHealth] = useState<any>(null);
   const [districts, setDistricts] = useState<District[]>([]);
   const [areas, setAreas] = useState<DistrictArea[]>([]);
+  const [districtAdmins, setDistrictAdmins] = useState<DistrictAdmin[]>([]);
 
   const [manual, setManual] = useState<ManualLandlordForm>(emptyManual);
   const [planForm, setPlanForm] = useState(emptyPlan);
   const [areaForm, setAreaForm] = useState<AreaForm>(emptyAreaForm);
+  const [districtAdminForm, setDistrictAdminForm] = useState<DistrictAdminForm>(emptyDistrictAdminForm);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState("");
   const [districtView, setDistrictView] = useState<DistrictView>("districts");
+  const [selectedDistrictId, setSelectedDistrictId] = useState("all");
 
   async function loadData() {
     setLoading(true);
     setError("");
 
     try {
-      const [landlordItems, requestItems, districtItems, areaItems] = await Promise.all([
+      const [landlordItems, requestItems, districtItems, areaItems, districtAdminItems] = await Promise.all([
         apiFetch("/landlords") as Promise<Landlord[]>,
         apiFetch("/landlords/requests") as Promise<LandlordRequest[]>,
         apiFetch("/districts") as Promise<District[]>,
-        apiFetch("/district-areas") as Promise<DistrictArea[]>
+        apiFetch("/district-areas") as Promise<DistrictArea[]>,
+        apiFetch("/admin/district-admins") as Promise<DistrictAdmin[]>
       ]);
 
       setLandlords(landlordItems);
       setRequests(requestItems);
       setDistricts(districtItems);
       setAreas(areaItems);
+      setDistrictAdmins(districtAdminItems);
 
       if (!areaForm.district_id && districtItems.length > 0) {
         setAreaForm((current) => ({ ...current, district_id: districtItems[0].id }));
+      }
+
+      if (!districtAdminForm.district_id && districtItems.length > 0) {
+        setDistrictAdminForm((current) => ({ ...current, district_id: districtItems[0].id }));
       }
 
       const [listingItems, planItems] = await Promise.all([
@@ -158,6 +198,106 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
   function updateAreaForm<K extends keyof AreaForm>(key: K, value: AreaForm[K]) {
     setAreaForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateDistrictAdminForm<K extends keyof DistrictAdminForm>(key: K, value: DistrictAdminForm[K]) {
+    setDistrictAdminForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function editDistrictAdmin(admin: DistrictAdmin) {
+    setDistrictAdminForm({
+      id: admin.id,
+      full_name: admin.full_name,
+      email: admin.email,
+      phone: admin.phone ?? "",
+      password: "",
+      district_id: admin.district_id
+    });
+    setSelectedDistrictId(admin.district_id);
+  }
+
+  async function saveDistrictAdmin(event: FormEvent) {
+    event.preventDefault();
+    setBusyId("district-admin");
+    setNotice("");
+
+    try {
+      if (districtAdminForm.id) {
+        const updatedAdmin = (await apiFetch(`/admin/district-admins/${districtAdminForm.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            full_name: districtAdminForm.full_name,
+            email: districtAdminForm.email,
+            phone: nullable(districtAdminForm.phone),
+            district_id: districtAdminForm.district_id
+          })
+        })) as DistrictAdmin;
+
+        setDistrictAdmins((current) => current.map((item) => (item.id === updatedAdmin.id ? updatedAdmin : item)));
+        setNotice("District admin updated.");
+      } else {
+        const createdAdmin = (await apiFetch("/admin/district-admins", {
+          method: "POST",
+          body: JSON.stringify({
+            full_name: districtAdminForm.full_name,
+            email: districtAdminForm.email,
+            phone: nullable(districtAdminForm.phone),
+            password: districtAdminForm.password,
+            district_id: districtAdminForm.district_id
+          })
+        })) as DistrictAdmin;
+
+        setDistrictAdmins((current) => [...current, createdAdmin]);
+        setNotice(`District admin created. Username: ${createdAdmin.username ?? "created"}`);
+      }
+
+      setDistrictAdminForm({
+        ...emptyDistrictAdminForm,
+        district_id: districtAdminForm.district_id
+      });
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not save district admin");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function toggleDistrictAdmin(admin: DistrictAdmin) {
+    setBusyId(admin.id);
+    setNotice("");
+
+    try {
+      await apiFetch(`/admin/district-admins/${admin.id}/${admin.is_active ? "disable" : "enable"}`, {
+        method: "POST"
+      });
+      setDistrictAdmins((current) => current.map((item) => item.id === admin.id ? { ...item, is_active: !admin.is_active } : item));
+      setNotice(`${admin.full_name} is now ${admin.is_active ? "disabled" : "active"}.`);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not update district admin");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function deleteDistrictAdmin(admin: DistrictAdmin) {
+    const confirmed = window.confirm(`Delete district admin ${admin.full_name}? This removes their district admin account.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setBusyId(admin.id);
+    setNotice("");
+
+    try {
+      await apiFetch(`/admin/district-admins/${admin.id}`, { method: "DELETE" });
+      setDistrictAdmins((current) => current.filter((item) => item.id !== admin.id));
+      setNotice("District admin deleted.");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not delete district admin");
+    } finally {
+      setBusyId("");
+    }
   }
 
   async function toggleDistrict(district: District) {
@@ -387,6 +527,20 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const lockedDistricts = districts.filter((district) => !district.is_active).length;
   const activeAreas = areas.filter((area) => area.is_active).length;
   const lockedAreas = areas.filter((area) => !area.is_active).length;
+  const districtScoped = selectedDistrictId !== "all";
+  const selectedDistrict = districts.find((district) => district.id === selectedDistrictId);
+  const filteredDistrictAdmins = districtAdmins.filter((admin) => !districtScoped || admin.district_id === selectedDistrictId);
+  const filteredRequests = requests.filter((request) => {
+    if (!districtScoped) return true;
+    const requestProperties = (request as any).properties ?? [];
+    return requestProperties.some((property: any) => property.district_id === selectedDistrictId);
+  });
+  const filteredListings = listings.filter((listing) => !districtScoped || (listing as any).district_id === selectedDistrictId);
+  const filteredLandlords = landlords.filter((landlord) => {
+    if (!districtScoped) return true;
+    return ((landlord as any).district_id === selectedDistrictId || (landlord as any).primary_district_id === selectedDistrictId);
+  });
+  const showDistrictSelector = section !== "districts" && section !== "gateway";
 
   return (
     <section className="page-stack">
@@ -398,14 +552,52 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
         </div>
 
         <div className="header-stat">
-          <strong>{landlords.length}</strong>
-          <span>landlords</span>
+          <strong>{districtScoped ? filteredLandlords.length : landlords.length}</strong>
+          <span>{districtScoped ? "district landlords" : "landlords"}</span>
         </div>
       </div>
 
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
       {notice ? <div className="data-state">{notice}</div> : null}
+
+      {!loading && !error && showDistrictSelector ? (
+        <section className="panel compact-panel district-scope-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">District scope</p>
+              <h2>Choose District first</h2>
+              <p>
+                National Admin actions are filtered by district so requests,
+                landlords, listing checks, and district admins remain clearly
+                structured.
+              </p>
+            </div>
+          </div>
+
+          <label>
+            Active working district
+            <select value={selectedDistrictId} onChange={(event) => setSelectedDistrictId(event.target.value)}>
+              <option value="all">All districts</option>
+              {districts.map((district) => (
+                <option key={district.id} value={district.id}>
+                  {district.name} {district.is_active ? "" : "(locked)"}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {districtScoped ? (
+            <div className="data-state compact-state">
+              Showing records for {selectedDistrict?.name ?? "selected district"} only.
+            </div>
+          ) : (
+            <div className="data-state compact-state">
+              Choose a district for operational work. Use all districts only for national overview checks.
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {!loading && !error ? (
         <>
@@ -466,9 +658,9 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
               </div>
 
               <div className="list-stack compact-list">
-                {requests.length === 0 ? <div className="data-state">No landlord requests yet.</div> : null}
+                {filteredRequests.length === 0 ? <div className="data-state">No landlord requests in this district scope.</div> : null}
 
-                {requests.map((request) => (
+                {filteredRequests.map((request) => (
                   <article className="application-card" key={request.id}>
                     <div>
                       <div className="card-topline">
@@ -620,9 +812,9 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
               </div>
 
               <div className="list-stack compact-list">
-                {listings.length === 0 ? <div className="data-state">No listings have been submitted for verification yet.</div> : null}
+                {filteredListings.length === 0 ? <div className="data-state">No listings have been submitted for verification in this district scope.</div> : null}
 
-                {listings.slice(0, 20).map((listing) => (
+                {filteredListings.slice(0, 20).map((listing) => (
                   <article className="application-card" key={listing.id}>
                     <div>
                       <div className="card-topline">
@@ -856,11 +1048,106 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
             </div>
           ) : null}
 
+          {section === "district-admins" ? (
+            <div className="admin-grid">
+              <form className="panel form-panel" onSubmit={saveDistrictAdmin}>
+                <div>
+                  <p className="eyebrow">District administration</p>
+                  <h2>{districtAdminForm.id ? "Edit District Admin" : "Add District Admin"}</h2>
+                  <p>Choose the district first, then create or update the admin responsible for that district.</p>
+                </div>
+
+                <label>
+                  District
+                  <select required value={districtAdminForm.district_id} onChange={(event) => updateDistrictAdminForm("district_id", event.target.value)}>
+                    {districts.map((district) => (
+                      <option key={district.id} value={district.id}>
+                        {district.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Full name
+                  <input required value={districtAdminForm.full_name} onChange={(event) => updateDistrictAdminForm("full_name", event.target.value)} />
+                </label>
+
+                <label>
+                  Email
+                  <input required type="email" value={districtAdminForm.email} onChange={(event) => updateDistrictAdminForm("email", event.target.value)} />
+                </label>
+
+                <label>
+                  Phone
+                  <input value={districtAdminForm.phone} onChange={(event) => updateDistrictAdminForm("phone", event.target.value)} />
+                </label>
+
+                {!districtAdminForm.id ? (
+                  <label>
+                    Temporary password
+                    <input required minLength={8} type="password" value={districtAdminForm.password} onChange={(event) => updateDistrictAdminForm("password", event.target.value)} />
+                  </label>
+                ) : null}
+
+                <div className="review-actions">
+                  <button className="primary-button" type="submit" disabled={busyId === "district-admin"}>
+                    {districtAdminForm.id ? "Save District Admin" : "Create District Admin"}
+                  </button>
+
+                  {districtAdminForm.id ? (
+                    <button type="button" onClick={() => setDistrictAdminForm({ ...emptyDistrictAdminForm, district_id: selectedDistrictId === "all" ? districts[0]?.id ?? "" : selectedDistrictId })}>
+                      Cancel edit
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+
+              <div className="panel">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">District Admins</p>
+                    <h2>{districtScoped ? selectedDistrict?.name : "All districts"}</h2>
+                  </div>
+                </div>
+
+                <div className="list-stack compact-list">
+                  {filteredDistrictAdmins.length === 0 ? <div className="data-state">No district admins in this district scope.</div> : null}
+
+                  {filteredDistrictAdmins.map((admin) => (
+                    <article className="row-item rich" key={admin.id}>
+                      <div>
+                        <div className="card-topline">
+                          <StatusPill value={admin.is_active ? "active" : "disabled"} />
+                          <span>{admin.username ?? "No identifier"}</span>
+                        </div>
+
+                        <strong>{admin.full_name}</strong>
+                        <p>{admin.email} - {admin.phone ?? "No phone"}</p>
+                        <small>{admin.district_name}</small>
+                      </div>
+
+                      <div className="review-actions">
+                        <button type="button" onClick={() => editDistrictAdmin(admin)}>Edit</button>
+                        <button type="button" disabled={busyId === admin.id} onClick={() => toggleDistrictAdmin(admin)}>
+                          {admin.is_active ? "Disable" : "Enable"}
+                        </button>
+                        <button type="button" disabled={busyId === admin.id} onClick={() => deleteDistrictAdmin(admin)}>
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {section === "landlords" ? (
             <div className="list-stack">
-              {landlords.length === 0 ? <div className="data-state">No landlords yet.</div> : null}
+              {filteredLandlords.length === 0 ? <div className="data-state">No landlords in this district scope.</div> : null}
 
-              {landlords.map((landlord) => (
+              {filteredLandlords.map((landlord) => (
                 <article className="row-item rich" key={landlord.id}>
                   <div>
                     <div className="card-topline">
@@ -907,7 +1194,8 @@ function adminSectionTitle(section: AdminSection) {
     verification: "Listing verification",
     plans: "Subscription plans",
     landlords: "Landlords",
-    districts: "Districts"
+    districts: "Districts",
+    "district-admins": "District Admins"
   };
 
   return titles[section];
@@ -923,7 +1211,8 @@ function adminSectionDescription(section: AdminSection) {
     verification: "Verify or reject listings before they become trusted public room records.",
     plans: "Create and manage SaaS subscription plans for landlords.",
     landlords: "View active landlords and disable accounts when necessary.",
-    districts: "Control districts, add areas, and manage rollout availability across Lesotho."
+    districts: "Control districts, add areas, and manage rollout availability across Lesotho.",
+    "district-admins": "Add, edit, disable, or delete District Admins after choosing their operating district."
   };
 
   return descriptions[section];
