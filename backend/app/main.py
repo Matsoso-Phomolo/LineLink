@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -8,7 +8,9 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import SessionLocal
+from app.dependencies import require_national_admin
 from app.intelligence_ws import intelligence_websocket_endpoint
+from app.models import User
 from app.routers import (
     applications,
     audit_logs,
@@ -83,7 +85,9 @@ def debug_cors_origins() -> dict[str, list[str]]:
 
 
 @app.get("/debug/room-enum-values", tags=["debug"])
-def debug_room_enum_values() -> dict[str, list[str]]:
+def debug_room_enum_values(
+    _: User = Depends(require_national_admin()),
+) -> dict[str, list[str]]:
     with SessionLocal() as db:
         room_statuses = db.execute(
             text("select distinct status::text from rooms order by status::text")
