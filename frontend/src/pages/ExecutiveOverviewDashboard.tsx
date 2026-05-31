@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import IntelligenceActivityFeed from "../components/IntelligenceActivityFeed";
+import PushNotificationPrompt from "../components/PushNotificationPrompt";
 
 const API_BASE =
   import.meta.env.VITE_API_URL || "http://127.0.0.1:9000";
@@ -71,6 +72,10 @@ export default function ExecutiveOverviewDashboard() {
           Rentalink mission control for national, district, portfolio and tenant
           financial intelligence.
         </p>
+
+        <div className="mt-6">
+          <PushNotificationPrompt />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
