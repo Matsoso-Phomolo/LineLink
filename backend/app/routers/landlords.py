@@ -132,7 +132,7 @@ def enum_insert_expr(column: str, enum_name: str, db: Session) -> str:
     return f":{column}"
 
 
-def landlord_request_select_sql(columns: set[str]) -> str:
+def landlord_request_select_sql(columns: set[str], where_clause: str = "") -> str:
     optional_columns = {
         "business_name": "business_name",
         "emergency_contact": "emergency_contact",
@@ -179,8 +179,34 @@ def landlord_request_select_sql(columns: set[str]) -> str:
         select
             {", ".join(select_parts)}
         from landlord_requests
+        {where_clause}
         order by {order_by}
     """
+
+
+def get_serialized_landlord_request(
+    db: Session,
+    request_id: uuid.UUID,
+) -> dict[str, object] | None:
+    columns = table_columns(db, "landlord_requests")
+
+    if not columns:
+        return None
+
+    row = db.execute(
+        text(
+            landlord_request_select_sql(
+                columns,
+                where_clause="where id = :request_id",
+            )
+        ),
+        {"request_id": request_id},
+    ).mappings().first()
+
+    if not row:
+        return None
+
+    return serialize_landlord_request_row(dict(row), {})
 
 
 def serialize_landlord_request_property(row: dict[str, object]) -> dict[str, object] | None:
@@ -450,25 +476,9 @@ def create_landlord_request(
     ).mappings().first()
 
     if existing:
-        request_rows = [
-            dict(row)
-            for row in db.execute(
-                text(
-                    landlord_request_select_sql(columns).replace(
-                        "order by created_at desc",
-                        "where id = :request_id order by created_at desc",
-                    ).replace(
-                        "order by id desc",
-                        "where id = :request_id order by id desc",
-                    )
-                ),
-                {"request_id": existing["id"]},
-            ).mappings().all()
-        ]
-        if request_rows:
-            serialized = serialize_landlord_request_row(request_rows[0], {})
-            if serialized:
-                return serialized
+        serialized = get_serialized_landlord_request(db, existing["id"])
+        if serialized:
+            return serialized
 
     request_id = uuid.uuid4()
     now = datetime.now(timezone.utc)
@@ -638,21 +648,46 @@ def reject_landlord_request(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(UserRole.national_admin)),
 ):
-    request = db.get(LandlordRequest, request_id)
+    columns = table_columns(db, "landlord_requests")
+    serialized = get_serialized_landlord_request(db, request_id)
 
-    if not request:
+    if not serialized:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Landlord request not found",
         )
 
-    request.status = LandlordRequestStatus.rejected
-    request.admin_note = payload.admin_note
+    assignments = ["status = " + enum_insert_expr("status", "landlord_request_status", db)]
+    params: dict[str, object] = {
+        "request_id": request_id,
+        "status": LandlordRequestStatus.rejected.value,
+    }
 
+    if "admin_note" in columns:
+        assignments.append("admin_note = :admin_note")
+        params["admin_note"] = payload.admin_note
+
+    if "updated_at" in columns:
+        assignments.append("updated_at = :updated_at")
+        params["updated_at"] = datetime.now(timezone.utc)
+
+    db.execute(
+        text(
+            f"""
+            update landlord_requests
+            set {", ".join(assignments)}
+            where id = :request_id
+            """
+        ),
+        params,
+    )
     db.commit()
-    db.refresh(request)
 
-    return request
+    return get_serialized_landlord_request(db, request_id) or {
+        **serialized,
+        "status": LandlordRequestStatus.rejected.value,
+        "admin_note": payload.admin_note,
+    }
 
 
 @router.post(
@@ -665,31 +700,62 @@ def request_landlord_verification(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(UserRole.national_admin)),
 ):
-    request = db.get(LandlordRequest, request_id)
+    columns = table_columns(db, "landlord_requests")
+    serialized = get_serialized_landlord_request(db, request_id)
 
-    if not request:
+    if not serialized:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Landlord request not found",
         )
 
-    if request.status == LandlordRequestStatus.rejected:
+    if serialized["status"] == LandlordRequestStatus.rejected.value:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Rejected request cannot be moved to verification",
         )
 
-    request.status = LandlordRequestStatus.verification_requested
-    request.admin_note = payload.admin_note
-    request.verification_token = secrets.token_urlsafe(48)
-    request.verification_token_expires_at = (
-        datetime.now(timezone.utc) + timedelta(days=7)
+    assignments = ["status = " + enum_insert_expr("status", "landlord_request_status", db)]
+    params: dict[str, object] = {
+        "request_id": request_id,
+        "status": LandlordRequestStatus.verification_requested.value,
+    }
+
+    if "admin_note" in columns:
+        assignments.append("admin_note = :admin_note")
+        params["admin_note"] = payload.admin_note
+
+    if "verification_token" in columns:
+        assignments.append("verification_token = :verification_token")
+        params["verification_token"] = secrets.token_urlsafe(48)
+
+    if "verification_token_expires_at" in columns:
+        assignments.append("verification_token_expires_at = :verification_token_expires_at")
+        params["verification_token_expires_at"] = (
+            datetime.now(timezone.utc) + timedelta(days=7)
+        )
+
+    if "updated_at" in columns:
+        assignments.append("updated_at = :updated_at")
+        params["updated_at"] = datetime.now(timezone.utc)
+
+    db.execute(
+        text(
+            f"""
+            update landlord_requests
+            set {", ".join(assignments)}
+            where id = :request_id
+            """
+        ),
+        params,
     )
-
     db.commit()
-    db.refresh(request)
 
-    return request
+    return get_serialized_landlord_request(db, request_id) or {
+        **serialized,
+        "status": LandlordRequestStatus.verification_requested.value,
+        "admin_note": payload.admin_note,
+    }
 
 
 @router.post(
