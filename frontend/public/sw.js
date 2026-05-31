@@ -1,26 +1,47 @@
-const CACHE_NAME = "rentalink-v2";
+const CACHE_NAME = "rentalink-pwa-v1";
 
-const urlsToCache = [
+const APP_SHELL = [
   "/",
-  "/manifest.json",
-  "/offline.html",
+  "/manifest.webmanifest",
   "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "/icons/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(urlsToCache);
+      return cache.addAll(APP_SHELL);
     })
   );
+
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    )
+  );
+
+  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
+  const request = event.request;
+
+  if (request.method !== "GET") {
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request).then((response) => {
-        return response || caches.match("/offline.html");
+    fetch(request).catch(() => {
+      return caches.match(request).then((response) => {
+        return response || caches.match("/");
       });
     })
   );
