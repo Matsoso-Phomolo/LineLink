@@ -141,7 +141,7 @@ def serialize_landlord_request_property(row: dict[str, object]) -> dict[str, obj
                         "double_rooms": double_rooms,
                     },
                 )
-                total_rooms = max(total_rooms, single_rooms + double_rooms, 1)
+                total_rooms = max(single_rooms + double_rooms, 1)
 
         return {
             "id": str(property_id),
