@@ -145,6 +145,7 @@ def dashboard_summary(
         occupied_rooms=rooms.filter(
             Room.status.in_(
                 [
+                    RoomStatus.occupied,
                     RoomStatus.partially_occupied,
                     RoomStatus.full,
                 ]

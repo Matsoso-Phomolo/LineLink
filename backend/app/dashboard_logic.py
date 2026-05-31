@@ -126,6 +126,7 @@ def calculate_room_status_summary(
 
     return {
         "vacant": sum(1 for room in rooms if room.status == RoomStatus.vacant),
+        "occupied": sum(1 for room in rooms if room.status == RoomStatus.occupied),
         "partially_occupied": sum(
             1 for room in rooms if room.status == RoomStatus.partially_occupied
         ),
