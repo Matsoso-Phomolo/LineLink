@@ -124,12 +124,13 @@ export function LoginPage() {
             <p className="eyebrow">Rentalink</p>
 
             <h1>
-              Manage rentals remotely. Monitor payments intelligently.
+              Manage rentals remotely. Find vacant rooms faster.
             </h1>
 
             <p>
-              A national smart rental governance platform for landlords,
-              caretakers, tenants, district admins, and rental operations teams.
+              A nationwide smart rental platform for landlords, caretakers,
+              tenants, and room seekers — now launching in Roma before
+              expanding across Lesotho.
             </p>
           </div>
 
