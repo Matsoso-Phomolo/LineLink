@@ -1,8 +1,10 @@
+import logging
 import secrets
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth import get_password_hash
@@ -22,6 +24,7 @@ from app.models import (
     LandlordRequestProperty,
     LandlordRequestStatus,
     LandlordVerification,
+    PreferredResponseMethod,
     Property,
     PropertySubscription,
     Room,
@@ -44,6 +47,202 @@ from app.services.room_generation_service import generate_room_numbers
 from app.subscription_rules import calculate_property_subscription_amount
 
 router = APIRouter(prefix="/landlords", tags=["landlords"])
+logger = logging.getLogger(__name__)
+
+NIL_UUID = "00000000-0000-0000-0000-000000000000"
+
+
+def normalize_request_status(raw_status: object) -> LandlordRequestStatus:
+    value = str(raw_status or "").strip().lower()
+
+    for item in LandlordRequestStatus:
+        if value == item.value:
+            return item
+
+    legacy_statuses = {
+        "active": LandlordRequestStatus.approved,
+        "disabled": LandlordRequestStatus.rejected,
+        "pending_verification": LandlordRequestStatus.verification_requested,
+        "under-review": LandlordRequestStatus.under_review,
+        "review": LandlordRequestStatus.under_review,
+        "submitted": LandlordRequestStatus.verification_submitted,
+        "verified": LandlordRequestStatus.ai_reviewed,
+        "accepted": LandlordRequestStatus.approved,
+        "declined": LandlordRequestStatus.rejected,
+    }
+
+    normalized = legacy_statuses.get(value, LandlordRequestStatus.pending)
+    logger.warning(
+        "Normalized malformed landlord request status",
+        extra={"raw_status": raw_status, "normalized_status": normalized.value},
+    )
+    return normalized
+
+
+def normalize_response_method(raw_method: object) -> PreferredResponseMethod:
+    value = str(raw_method or "").strip().lower()
+
+    for item in PreferredResponseMethod:
+        if value == item.value:
+            return item
+
+    logger.warning(
+        "Normalized malformed landlord request response method",
+        extra={"raw_method": raw_method},
+    )
+    return PreferredResponseMethod.email
+
+
+def safe_positive_int(value: object, fallback: int = 1) -> int:
+    try:
+        parsed = int(value)
+        return parsed if parsed > 0 else fallback
+    except (TypeError, ValueError):
+        return fallback
+
+
+def safe_non_negative_int(value: object, fallback: int = 0) -> int:
+    try:
+        parsed = int(value)
+        return parsed if parsed >= 0 else fallback
+    except (TypeError, ValueError):
+        return fallback
+
+
+def safe_email(value: object, request_id: object) -> str:
+    email = str(value or "").strip()
+
+    if "@" in email and "." in email.split("@")[-1]:
+        return email
+
+    return f"landlord-request-{request_id}@rentalink.local"
+
+
+def serialize_landlord_request_property(row: dict[str, object]) -> dict[str, object] | None:
+    request_id = row.get("landlord_request_id")
+    property_id = row.get("id")
+
+    try:
+        total_rooms = safe_positive_int(row.get("total_rooms"))
+        single_rooms = safe_non_negative_int(row.get("single_rooms"))
+        double_rooms = safe_non_negative_int(row.get("double_rooms"))
+
+        if single_rooms + double_rooms != total_rooms:
+            if single_rooms == 0 and double_rooms == 0:
+                single_rooms = total_rooms
+            else:
+                logger.warning(
+                    "Normalized malformed landlord request property room counts",
+                    extra={
+                        "landlord_request_id": str(request_id),
+                        "landlord_request_property_id": str(property_id),
+                        "total_rooms": total_rooms,
+                        "single_rooms": single_rooms,
+                        "double_rooms": double_rooms,
+                    },
+                )
+                total_rooms = max(total_rooms, single_rooms + double_rooms, 1)
+
+        return {
+            "id": str(property_id),
+            "landlord_request_id": str(request_id),
+            "property_name": row.get("property_name")
+            or row.get("business_name")
+            or "Unspecified property",
+            "district_id": str(row.get("district_id") or NIL_UUID),
+            "area_id": str(row.get("area_id") or NIL_UUID),
+            "village_location": row.get("village_location")
+            or row.get("location_area")
+            or "Unspecified location",
+            "address": row.get("address") or "Address pending verification",
+            "description": row.get("description"),
+            "total_rooms": total_rooms,
+            "single_rooms": single_rooms,
+            "double_rooms": double_rooms,
+            "single_room_prefix": row.get("single_room_prefix") or "A",
+            "double_room_prefix": row.get("double_room_prefix") or "B",
+            "starting_room_number": safe_positive_int(
+                row.get("starting_room_number"),
+                fallback=101,
+            ),
+            "single_room_rent": row.get("single_room_rent"),
+            "double_room_rent": row.get("double_room_rent"),
+            "created_at": row.get("created_at") or datetime.now(timezone.utc),
+        }
+    except Exception:
+        logger.exception(
+            "Skipped malformed landlord request property row",
+            extra={
+                "landlord_request_id": str(request_id),
+                "landlord_request_property_id": str(property_id),
+            },
+        )
+        return None
+
+
+def serialize_landlord_request_row(
+    row: dict[str, object],
+    properties_by_request_id: dict[str, list[dict[str, object]]],
+) -> dict[str, object] | None:
+    request_id = row.get("id")
+
+    try:
+        full_name = str(
+            row.get("full_name")
+            or row.get("business_name")
+            or row.get("email")
+            or "Unknown landlord"
+        ).strip()
+        email = safe_email(row.get("email"), request_id)
+        phone = str(row.get("phone") or "").strip() or None
+        address = str(row.get("address") or row.get("physical_address") or "").strip()
+        response_method = normalize_response_method(
+            row.get("preferred_response_method")
+        )
+        response_contact_value = (
+            str(row.get("response_contact_value") or "").strip()
+            or (email if response_method == PreferredResponseMethod.email else phone)
+            or email
+        )
+
+        serialized = {
+            "id": str(request_id),
+            "full_name": full_name,
+            "email": email,
+            "phone": phone,
+            "address": address or "Address pending verification",
+            "preferred_response_method": response_method.value,
+            "response_contact_value": response_contact_value,
+            "emergency_contact": row.get("emergency_contact"),
+            "message": row.get("message"),
+            "status": normalize_request_status(row.get("status")).value,
+            "admin_note": row.get("admin_note"),
+            "landlord_id": str(row["landlord_id"]) if row.get("landlord_id") else None,
+            "approved_by_user_id": (
+                str(row["approved_by_user_id"])
+                if row.get("approved_by_user_id")
+                else None
+            ),
+            "approved_at": row.get("approved_at"),
+            "created_at": row.get("created_at") or datetime.now(timezone.utc),
+            "properties": properties_by_request_id.get(str(request_id), []),
+        }
+
+        logger.info(
+            "Serialized landlord request row",
+            extra={
+                "landlord_request_id": str(request_id),
+                "status": serialized["status"],
+                "properties_count": len(serialized["properties"]),
+            },
+        )
+        return serialized
+    except Exception:
+        logger.exception(
+            "Skipped malformed landlord request row",
+            extra={"landlord_request_id": str(request_id)},
+        )
+        return None
 
 
 def generate_landlord_number(db: Session) -> str:
@@ -197,11 +396,81 @@ def list_landlord_requests(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(UserRole.national_admin)),
 ):
-    return (
-        db.query(LandlordRequest)
-        .order_by(LandlordRequest.created_at.desc())
-        .all()
-    )
+    try:
+        request_rows = [
+            dict(row)
+            for row in db.execute(
+                text(
+                    """
+                    select
+                        id,
+                        business_name,
+                        full_name,
+                        email,
+                        phone,
+                        address,
+                        emergency_contact,
+                        message,
+                        preferred_response_method::text as preferred_response_method,
+                        response_contact_value,
+                        status::text as status,
+                        admin_note,
+                        landlord_id,
+                        approved_by_user_id,
+                        approved_at,
+                        created_at
+                    from landlord_requests
+                    order by created_at desc
+                    """
+                )
+            )
+            .mappings()
+            .all()
+        ]
+    except Exception:
+        logger.exception("Failed to load landlord request rows")
+        return []
+
+    try:
+        property_rows = [
+            dict(row)
+            for row in db.execute(
+                text(
+                    """
+                    select *
+                    from landlord_request_properties
+                    order by created_at asc
+                    """
+                )
+            )
+            .mappings()
+            .all()
+        ]
+    except Exception:
+        logger.exception("Failed to load landlord request property rows")
+        property_rows = []
+
+    properties_by_request_id: dict[str, list[dict[str, object]]] = {}
+    for row in property_rows:
+        serialized_property = serialize_landlord_request_property(row)
+
+        if serialized_property:
+            request_key = str(serialized_property["landlord_request_id"])
+            properties_by_request_id.setdefault(request_key, []).append(
+                serialized_property
+            )
+
+    results: list[dict[str, object]] = []
+    for row in request_rows:
+        serialized_request = serialize_landlord_request_row(
+            row,
+            properties_by_request_id,
+        )
+
+        if serialized_request:
+            results.append(serialized_request)
+
+    return results
 
 
 @router.post(
