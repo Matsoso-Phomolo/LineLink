@@ -44,9 +44,13 @@ class Settings(BaseSettings):
             "http://127.0.0.1:3000,"
             "http://localhost:8001,"
             "http://127.0.0.1:8001,"
-            "https://rentalink.app"
+            "https://rentalink.app,"
+            "https://www.rentalink.app,"
+            "https://app.rentalink.app,"
+            "https://linelink-three.vercel.app"
         )
     )
+    cors_origins: str | None = None
 
     # =========================================================
     # MPESA
@@ -87,11 +91,23 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origin_list(self) -> list[str]:
-        configured = [
-            origin.strip()
-            for origin in self.allowed_origins.split(",")
-            if origin.strip()
+        fallback_origins = [
+            "https://rentalink.app",
+            "https://www.rentalink.app",
+            "https://app.rentalink.app",
+            "https://linelink-three.vercel.app",
         ]
+
+        configured: list[str] = []
+
+        for raw_value in (self.allowed_origins, self.cors_origins or ""):
+            configured.extend(
+                origin.strip()
+                for origin in raw_value.split(",")
+                if origin.strip()
+            )
+
+        configured.extend(fallback_origins)
 
         if self.app_env.lower() in {
             "local",

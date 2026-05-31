@@ -34,6 +34,7 @@ def check_required_env(failures: list[str]) -> None:
         "DATABASE_URL": settings.database_url,
         "SECRET_KEY": settings.secret_key,
         "ALLOWED_ORIGINS": settings.allowed_origins,
+        "CORS_ORIGINS": settings.cors_origins,
         "PUBLIC_BASE_URL": settings.public_base_url,
     }
     if settings.app_env.strip().lower() == "production":

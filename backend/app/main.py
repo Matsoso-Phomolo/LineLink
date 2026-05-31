@@ -73,6 +73,13 @@ def health_check() -> dict[str, str]:
     }
 
 
+@app.get("/debug/cors-origins", tags=["debug"])
+def debug_cors_origins() -> dict[str, list[str]]:
+    return {
+        "allowed_origins": settings.allowed_origin_list,
+    }
+
+
 app.websocket("/ws/intelligence")(intelligence_websocket_endpoint)
 
 
