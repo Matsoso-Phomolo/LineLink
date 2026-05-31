@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.dashboard_logic import (
@@ -45,6 +46,46 @@ from app.schemas import DashboardSummary
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
+def count_scalar(db: Session, sql: str, params: dict[str, object] | None = None) -> int:
+    try:
+        return int(db.execute(text(sql), params or {}).scalar() or 0)
+    except Exception:
+        return 0
+
+
+def dashboard_scope(user: User, alias: str) -> tuple[str, dict[str, object]]:
+    if user.role == UserRole.national_admin:
+        return "", {}
+
+    if user.role == UserRole.landlord and user.landlord_profile:
+        return f"where {alias}.landlord_id = :landlord_id", {
+            "landlord_id": user.landlord_profile.id,
+        }
+
+    if user.role == UserRole.caretaker and user.caretaker_profile:
+        return f"where {alias}.landlord_id = :landlord_id", {
+            "landlord_id": user.caretaker_profile.landlord_id,
+        }
+
+    if user.role == UserRole.district_admin:
+        return (
+            f"""
+            where exists (
+                select 1
+                from properties p
+                join district_admin_assignments daa
+                    on daa.district_id = p.district_id
+                where p.landlord_id = {alias}.landlord_id
+                and daa.user_id = :user_id
+                and daa.is_active is true
+            )
+            """,
+            {"user_id": user.id},
+        )
+
+    return "where false", {}
+
+
 def scoped_applications_query(
     db: Session,
     user: User,
@@ -87,15 +128,13 @@ def dashboard_summary(
         )
     ),
 ):
-    props = scoped_query(db, user, Property)
-    rooms = scoped_query(db, user, Room)
-    occupancies = scoped_query(db, user, Occupancy)
-    rent_dues = scoped_query(db, user, RentDue)
-    payment_submissions = scoped_query(db, user, PaymentSubmission)
-    listings = scoped_query(db, user, RoomListing)
-    support_tickets = scoped_query(db, user, SupportTicket)
-    tenants = scoped_query(db, user, Tenant)
-    scoped_applications = scoped_applications_query(db, user)
+    property_where, property_params = dashboard_scope(user, "properties")
+    room_where, room_params = dashboard_scope(user, "rooms")
+    occupancy_where, occupancy_params = dashboard_scope(user, "occupancies")
+    rent_where, rent_params = dashboard_scope(user, "rent_dues")
+    payment_where, payment_params = dashboard_scope(user, "payment_submissions")
+    listing_where, listing_params = dashboard_scope(user, "room_listings")
+    tenant_where, tenant_params = dashboard_scope(user, "tenants")
 
     active_landlords = 0
     pending_landlord_requests = 0
@@ -140,66 +179,72 @@ def dashboard_summary(
             )
 
     return DashboardSummary(
-        properties=props.count(),
-        rooms=rooms.count(),
-        vacant_rooms=rooms.filter(Room.status.in_(VACANT_ROOM_STATUSES)).count(),
-        occupied_rooms=rooms.filter(
-            Room.status.in_(
-                [
-                    RoomStatus.occupied,
-                    RoomStatus.partially_occupied,
-                    RoomStatus.full,
-                ]
-            )
-        ).count(),
-        active_tenants=occupancies.filter(
-            Occupancy.status == OccupancyStatus.active
-        ).count(),
-        unpaid_rent_dues=rent_dues.filter(
-            RentDue.status.in_(
-                [
-                    RentDueStatus.unpaid,
-                    RentDueStatus.partial,
-                    RentDueStatus.overdue,
-                ]
-            )
-        ).count(),
-        pending_payment_submissions=payment_submissions.filter(
-            PaymentSubmission.status == PaymentSubmissionStatus.pending
-        ).count(),
-        published_listings=listings.filter(
-            RoomListing.status == ListingStatus.published
-        ).count(),
-        pending_applications=scoped_applications.filter(
-            TenantApplication.status.in_(
-                [
-                    ApplicationStatus.inquiry_pending,
-                    ApplicationStatus.form_sent,
-                    ApplicationStatus.submitted,
-                    ApplicationStatus.pending,
-                    ApplicationStatus.under_review,
-                    ApplicationStatus.info_requested,
-                ]
-            )
-        ).count(),
-        pending_room_requests=scoped_applications.filter(
-            TenantApplication.status == ApplicationStatus.inquiry_pending
-        ).count(),
-        maintenance_tickets=support_tickets.filter(
-            SupportTicket.status.in_(
-                [
-                    TicketStatus.open,
-                    TicketStatus.assigned,
-                    TicketStatus.in_progress,
-                ]
-            )
-        ).count(),
-        overdue_rent_dues=rent_dues.filter(
-            RentDue.status == RentDueStatus.overdue
-        ).count(),
+        properties=count_scalar(db, f"select count(*) from properties {property_where}", property_params),
+        rooms=count_scalar(db, f"select count(*) from rooms {room_where}", room_params),
+        vacant_rooms=count_scalar(
+            db,
+            f"select count(*) from rooms {room_where} {'and' if room_where else 'where'} status::text in ('vacant','available')",
+            room_params,
+        ),
+        occupied_rooms=count_scalar(
+            db,
+            f"select count(*) from rooms {room_where} {'and' if room_where else 'where'} status::text in ('occupied','partially_occupied','full')",
+            room_params,
+        ),
+        active_tenants=count_scalar(
+            db,
+            f"select count(*) from occupancies {occupancy_where} {'and' if occupancy_where else 'where'} status::text = 'active'",
+            occupancy_params,
+        ),
+        unpaid_rent_dues=count_scalar(
+            db,
+            f"select count(*) from rent_dues {rent_where} {'and' if rent_where else 'where'} status::text in ('unpaid','partial','overdue')",
+            rent_params,
+        ),
+        pending_payment_submissions=count_scalar(
+            db,
+            f"select count(*) from payment_submissions {payment_where} {'and' if payment_where else 'where'} status::text = 'pending'",
+            payment_params,
+        ),
+        published_listings=count_scalar(
+            db,
+            f"select count(*) from room_listings {listing_where} {'and' if listing_where else 'where'} status::text = 'published'",
+            listing_params,
+        ),
+        pending_applications=count_scalar(
+            db,
+            f"""
+            select count(*)
+            from tenant_applications ta
+            join room_listings rl on rl.id = ta.listing_id
+            {listing_where.replace('room_listings', 'rl')}
+            {'and' if listing_where else 'where'} ta.status::text in ('inquiry_pending','form_sent','submitted','pending','under_review','info_requested')
+            """,
+            listing_params,
+        ),
+        pending_room_requests=count_scalar(
+            db,
+            f"""
+            select count(*)
+            from tenant_applications ta
+            join room_listings rl on rl.id = ta.listing_id
+            {listing_where.replace('room_listings', 'rl')}
+            {'and' if listing_where else 'where'} ta.status::text = 'inquiry_pending'
+            """,
+            listing_params,
+        ),
+        maintenance_tickets=count_scalar(
+            db,
+            "select count(*) from support_tickets where status::text in ('open','assigned','in_progress')",
+        ),
+        overdue_rent_dues=count_scalar(
+            db,
+            f"select count(*) from rent_dues {rent_where} {'and' if rent_where else 'where'} status::text = 'overdue'",
+            rent_params,
+        ),
         active_landlords=active_landlords,
         pending_landlord_requests=pending_landlord_requests,
-        total_tenants=tenants.count(),
+        total_tenants=count_scalar(db, f"select count(*) from tenants {tenant_where}", tenant_params),
     )
 
 

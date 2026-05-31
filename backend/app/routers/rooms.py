@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -19,6 +20,49 @@ from app.ownership import get_property_in_scope, get_room_in_scope, scoped_query
 from app.schemas import RoomCreate, RoomRead, RoomUpdate
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
+
+
+def normalize_room_status(raw_status: object) -> str:
+    value = str(raw_status or "").strip().lower()
+    return value if value in {item.value for item in RoomStatus} else RoomStatus.vacant.value
+
+
+def normalize_room_type(raw_type: object) -> str:
+    value = str(raw_type or "").strip().lower()
+    return value if value in {"single", "double", "multiple"} else "single"
+
+
+def room_scope_sql(user: User) -> tuple[str, dict[str, object]]:
+    if user.role == UserRole.national_admin:
+        return "", {}
+
+    if user.role == UserRole.landlord and user.landlord_profile:
+        return "where r.landlord_id = :landlord_id", {
+            "landlord_id": user.landlord_profile.id,
+        }
+
+    if user.role == UserRole.caretaker and user.caretaker_profile:
+        return "where r.landlord_id = :landlord_id", {
+            "landlord_id": user.caretaker_profile.landlord_id,
+        }
+
+    if user.role == UserRole.district_admin:
+        return (
+            """
+            where exists (
+                select 1
+                from properties p
+                join district_admin_assignments daa
+                    on daa.district_id = p.district_id
+                where p.id = r.property_id
+                and daa.user_id = :user_id
+                and daa.is_active is true
+            )
+            """,
+            {"user_id": user.id},
+        )
+
+    return "where false", {}
 
 
 @router.post("", response_model=RoomRead)
@@ -46,11 +90,43 @@ def list_rooms(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return (
-        scoped_query(db, user, Room)
-        .order_by(Room.created_at.desc())
+    where_sql, params = room_scope_sql(user)
+    rows = (
+        db.execute(
+            text(
+                f"""
+                select
+                    r.id,
+                    r.landlord_id,
+                    r.property_id,
+                    r.category_id,
+                    r.room_number,
+                    r.status::text as status,
+                    r.room_type::text as room_type,
+                    r.room_size,
+                    r.rent_price,
+                    r.deposit_amount,
+                    r.notes,
+                    r.created_at
+                from rooms r
+                {where_sql}
+                order by r.created_at desc
+                """
+            ),
+            params,
+        )
+        .mappings()
         .all()
     )
+
+    return [
+        {
+            **dict(row),
+            "status": normalize_room_status(row.get("status")),
+            "room_type": normalize_room_type(row.get("room_type")),
+        }
+        for row in rows
+    ]
 
 
 @router.put("/{room_id}", response_model=RoomRead)

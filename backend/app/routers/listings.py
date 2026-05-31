@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.audit import log_action
@@ -49,6 +50,63 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/listings", tags=["listings"])
+
+
+def listing_scope_sql(user: User) -> tuple[str, dict[str, object]]:
+    if user.role == UserRole.national_admin:
+        return "", {}
+
+    if user.role == UserRole.landlord and user.landlord_profile:
+        return "where rl.landlord_id = :landlord_id", {
+            "landlord_id": user.landlord_profile.id,
+        }
+
+    if user.role == UserRole.caretaker and user.caretaker_profile:
+        return "where rl.landlord_id = :landlord_id", {
+            "landlord_id": user.caretaker_profile.landlord_id,
+        }
+
+    if user.role == UserRole.district_admin:
+        return (
+            """
+            where exists (
+                select 1
+                from properties p
+                join district_admin_assignments daa
+                    on daa.district_id = p.district_id
+                where p.id = rl.property_id
+                and daa.user_id = :user_id
+                and daa.is_active is true
+            )
+            """,
+            {"user_id": user.id},
+        )
+
+    return "where false", {}
+
+
+def normalize_listing_status(raw_status: object) -> str:
+    value = str(raw_status or "").strip().lower()
+    return value if value in {item.value for item in ListingStatus} else ListingStatus.draft.value
+
+
+def normalize_listing_verification_status(raw_status: object) -> str:
+    value = str(raw_status or "").strip().lower()
+    return (
+        value
+        if value in {item.value for item in ListingVerificationStatus}
+        else ListingVerificationStatus.unverified.value
+    )
+
+
+def normalize_allowed_tenant_type(raw_type: object) -> str:
+    value = str(raw_type or "").strip().lower()
+    return value if value in {"student", "non_student", "both"} else "both"
+
+
+def normalize_listing_room_type(raw_type: object) -> str:
+    value = str(raw_type or "").strip().lower()
+    return value if value in {"single", "double", "multiple"} else "single"
 
 
 def validate_district_area(
@@ -196,11 +254,73 @@ def my_listings(
         require_roles(UserRole.national_admin, UserRole.landlord, UserRole.caretaker)
     ),
 ):
-    return (
-        scoped_query(db, user, RoomListing)
-        .order_by(RoomListing.created_at.desc())
+    where_sql, params = listing_scope_sql(user)
+    rows = (
+        db.execute(
+            text(
+                f"""
+                select
+                    rl.id,
+                    rl.landlord_id,
+                    rl.property_id,
+                    rl.room_id,
+                    rl.district_id,
+                    rl.area_id,
+                    rl.title,
+                    rl.description,
+                    rl.rent_price,
+                    rl.deposit_amount,
+                    rl.room_type::text as room_type,
+                    rl.room_size,
+                    rl.location_area,
+                    rl.allowed_tenant_type::text as allowed_tenant_type,
+                    rl.available_from,
+                    rl.distance_from_nul,
+                    rl.contact_phone,
+                    rl.water_available,
+                    rl.electricity_available,
+                    rl.internet_included,
+                    rl.furnished,
+                    rl.parking_available,
+                    rl.pets_allowed,
+                    rl.gender_preference,
+                    rl.security_features,
+                    rl.house_rules,
+                    rl.status::text as status,
+                    rl.is_public,
+                    rl.is_verified,
+                    rl.verification_status::text as verification_status,
+                    rl.verification_note,
+                    r.room_number as room_number,
+                    p.name as property_name,
+                    rl.created_at
+                from room_listings rl
+                left join rooms r on r.id = rl.room_id
+                left join properties p on p.id = rl.property_id
+                {where_sql}
+                order by rl.created_at desc
+                """
+            ),
+            params,
+        )
+        .mappings()
         .all()
     )
+
+    return [
+        {
+            **dict(row),
+            "room_type": normalize_listing_room_type(row.get("room_type")),
+            "allowed_tenant_type": normalize_allowed_tenant_type(
+                row.get("allowed_tenant_type")
+            ),
+            "status": normalize_listing_status(row.get("status")),
+            "verification_status": normalize_listing_verification_status(
+                row.get("verification_status")
+            ),
+        }
+        for row in rows
+    ]
 
 
 @router.put("/{listing_id}", response_model=ListingRead)
