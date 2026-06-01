@@ -12,8 +12,21 @@ type TenantPortal = {
     email?: string;
     verification_status: string;
     tenant_status?: string;
+    tenant_category?: string | null;
+    tenant_subtype?: string | null;
     student_number?: string;
     institution?: string;
+    institution_name?: string | null;
+    sponsor_or_guardian_name?: string | null;
+    employer_or_business_name?: string | null;
+    occupation?: string | null;
+    work_location?: string | null;
+    number_of_occupants?: number | null;
+    children_count?: number | null;
+    parking_required?: boolean | null;
+    funding_source?: string | null;
+    guarantor_name?: string | null;
+    additional_notes?: string | null;
     outstanding_balance?: number;
     deposit_paid?: boolean;
   };
@@ -139,6 +152,8 @@ export function TenantPortalPage({ section = "overview" }: { section?: TenantPor
   };
 
   const renderEmpty = (message: string) => <div className="data-state">{message}</div>;
+  const tenantCategory = portal?.tenant?.tenant_category ?? (portal?.tenant?.student_number || portal?.tenant?.institution ? "student" : "worker");
+  const tenantSubtype = portal?.tenant?.tenant_subtype ?? "Not set";
 
   return (
     <section className="page-stack">
@@ -160,8 +175,32 @@ export function TenantPortalPage({ section = "overview" }: { section?: TenantPor
               <Metric label="Tenant status" value={(portal.tenant.tenant_status ?? "active").replaceAll("_", " ")} />
               <Metric label="Balance" value={`M${Number(portal.tenant.outstanding_balance ?? 0).toLocaleString()}`} />
               <Metric label="Deposit" value={portal.tenant.deposit_paid ? "Paid" : "Pending"} />
-              <Metric label="Student number" value={portal.tenant.student_number ?? "Not set"} />
-              <Metric label="Institution" value={portal.tenant.institution ?? "Not set"} />
+              <Metric label="Profile category" value={tenantCategory.replaceAll("_", " ")} />
+              <Metric label="Profile subtype" value={tenantSubtype.replaceAll("_", " ")} />
+              {tenantCategory === "student" ? (
+                <>
+                  <Metric label="Institution" value={portal.tenant.institution_name ?? portal.tenant.institution ?? "Not set"} />
+                  <Metric label="Student ID" value={portal.tenant.student_number ?? "Optional/not set"} />
+                </>
+              ) : null}
+              {tenantCategory === "worker" ? (
+                <>
+                  <Metric label="Occupation" value={portal.tenant.occupation ?? "Not set"} />
+                  <Metric label="Work location" value={portal.tenant.work_location ?? "Optional/not set"} />
+                </>
+              ) : null}
+              {tenantCategory === "family" ? (
+                <>
+                  <Metric label="Occupants" value={portal.tenant.number_of_occupants ? String(portal.tenant.number_of_occupants) : "Not set"} />
+                  <Metric label="Parking" value={portal.tenant.parking_required == null ? "Optional/not set" : portal.tenant.parking_required ? "Required" : "Not required"} />
+                </>
+              ) : null}
+              {tenantCategory === "other" ? (
+                <>
+                  <Metric label="Funding source" value={portal.tenant.funding_source ?? "Optional/not set"} />
+                  <Metric label="Guarantor" value={portal.tenant.guarantor_name ?? "Optional/not set"} />
+                </>
+              ) : null}
             </div>
           ) : null}
 

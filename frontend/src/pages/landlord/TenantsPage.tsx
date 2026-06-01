@@ -2,9 +2,10 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
+import { TenantProfileFields, tenantTypeFromCategory, type TenantCategory, type TenantProfileForm } from "../../components/TenantProfileFields";
 import type { Room, Tenant } from "../../types";
 
-type TenantForm = {
+type TenantForm = TenantProfileForm & {
   id?: string;
   full_name: string;
   gender: string;
@@ -12,8 +13,6 @@ type TenantForm = {
   email: string;
   national_id: string;
   passport_number: string;
-  tenant_type: "student" | "non_student";
-  occupation: string;
   next_of_kin_name: string;
   next_of_kin_phone: string;
   emergency_contact_name: string;
@@ -30,8 +29,20 @@ const emptyTenant: TenantForm = {
   email: "",
   national_id: "",
   passport_number: "",
-  tenant_type: "non_student",
+  tenant_category: "worker",
+  tenant_subtype: "employed",
+  institution_name: "",
+  student_id: "",
+  sponsor_or_guardian_name: "",
+  employer_or_business_name: "",
   occupation: "",
+  work_location: "",
+  number_of_occupants: "",
+  children_count: "",
+  parking_required: "",
+  funding_source: "",
+  guarantor_name: "",
+  additional_notes: "",
   next_of_kin_name: "",
   next_of_kin_phone: "",
   emergency_contact_name: "",
@@ -95,7 +106,22 @@ export function TenantsPage() {
             email: nullable(form.email),
             national_id: nullable(form.national_id),
             passport_number: nullable(form.passport_number),
+            tenant_type: tenantTypeFromCategory(form.tenant_category),
+            tenant_category: form.tenant_category,
+            tenant_subtype: form.tenant_subtype,
+            student_number: nullable(form.student_id),
+            institution: nullable(form.institution_name),
+            institution_name: nullable(form.institution_name),
+            sponsor_or_guardian_name: nullable(form.sponsor_or_guardian_name),
             occupation: nullable(form.occupation),
+            employer_or_business_name: nullable(form.employer_or_business_name),
+            work_location: nullable(form.work_location),
+            number_of_occupants: form.number_of_occupants ? Number(form.number_of_occupants) : null,
+            children_count: form.children_count ? Number(form.children_count) : null,
+            parking_required: form.parking_required ? form.parking_required === "yes" : null,
+            funding_source: nullable(form.funding_source),
+            guarantor_name: nullable(form.guarantor_name),
+            additional_notes: nullable(form.additional_notes),
             next_of_kin_name: nullable(form.next_of_kin_name),
             next_of_kin_phone: nullable(form.next_of_kin_phone),
             emergency_contact_name: nullable(form.emergency_contact_name),
@@ -115,8 +141,22 @@ export function TenantsPage() {
             email: nullable(form.email),
             national_id: nullable(form.national_id),
             passport_number: nullable(form.passport_number),
-            tenant_type: form.tenant_type,
+            tenant_type: tenantTypeFromCategory(form.tenant_category),
+            tenant_category: form.tenant_category,
+            tenant_subtype: form.tenant_subtype,
+            student_number: nullable(form.student_id),
+            institution: nullable(form.institution_name),
+            institution_name: nullable(form.institution_name),
+            sponsor_or_guardian_name: nullable(form.sponsor_or_guardian_name),
             occupation: nullable(form.occupation),
+            employer_or_business_name: nullable(form.employer_or_business_name),
+            work_location: nullable(form.work_location),
+            number_of_occupants: form.number_of_occupants ? Number(form.number_of_occupants) : null,
+            children_count: form.children_count ? Number(form.children_count) : null,
+            parking_required: form.parking_required ? form.parking_required === "yes" : null,
+            funding_source: nullable(form.funding_source),
+            guarantor_name: nullable(form.guarantor_name),
+            additional_notes: nullable(form.additional_notes),
             next_of_kin_name: nullable(form.next_of_kin_name),
             next_of_kin_phone: nullable(form.next_of_kin_phone),
             emergency_contact_name: nullable(form.emergency_contact_name),
@@ -177,10 +217,7 @@ export function TenantsPage() {
           <label>National ID<input value={form.national_id} onChange={(event) => update("national_id", event.target.value)} /></label>
           <label>Passport<input value={form.passport_number} onChange={(event) => update("passport_number", event.target.value)} /></label>
         </div>
-        <div className="form-grid">
-          <label>Tenant type<select value={form.tenant_type} onChange={(event) => update("tenant_type", event.target.value as TenantForm["tenant_type"])}><option value="student">Student</option><option value="non_student">Non-student</option></select></label>
-          <label>Occupation<input value={form.occupation} onChange={(event) => update("occupation", event.target.value)} /></label>
-        </div>
+        <TenantProfileFields form={form} update={update} />
         <div className="form-grid">
           <label>Next of kin<input value={form.next_of_kin_name} onChange={(event) => update("next_of_kin_name", event.target.value)} /></label>
           <label>Next of kin phone<input value={form.next_of_kin_phone} onChange={(event) => update("next_of_kin_phone", event.target.value)} /></label>
@@ -204,13 +241,13 @@ export function TenantsPage() {
         {tenants.map((tenant) => (
           <article className="row-item rich" key={tenant.id}>
             <div>
-              <div className="card-topline"><StatusPill value={tenant.tenant_status ?? "active"} /><span>{tenant.tenant_type.replace("_", " ")}</span></div>
+              <div className="card-topline"><StatusPill value={tenant.tenant_status ?? "active"} /><span>{(tenant.tenant_category ?? tenant.tenant_type).replace("_", " ")}</span></div>
               <strong>{tenant.full_name}</strong>
               <p>{tenant.phone}{tenant.email ? ` - ${tenant.email}` : ""}</p>
               <small>{tenant.national_id ?? tenant.passport_number ?? "No ID captured"}</small>
             </div>
             <div className="review-actions">
-              <button type="button" onClick={() => setForm({ ...emptyTenant, id: tenant.id, full_name: tenant.full_name, gender: tenant.gender ?? "", phone: tenant.phone, email: tenant.email ?? "", national_id: tenant.national_id ?? "", passport_number: tenant.passport_number ?? "", tenant_type: tenant.tenant_type, occupation: tenant.occupation ?? "", next_of_kin_name: tenant.next_of_kin_name ?? "", next_of_kin_phone: tenant.next_of_kin_phone ?? "", emergency_contact_name: tenant.emergency_contact_name ?? "", emergency_contact_phone: tenant.emergency_contact_phone ?? "", lease_start_date: tenant.lease_start_date ?? "", lease_end_date: tenant.lease_end_date ?? "" })}>Edit</button>
+              <button type="button" onClick={() => setForm({ ...emptyTenant, id: tenant.id, full_name: tenant.full_name, gender: tenant.gender ?? "", phone: tenant.phone, email: tenant.email ?? "", national_id: tenant.national_id ?? "", passport_number: tenant.passport_number ?? "", tenant_category: (tenant.tenant_category as TenantCategory) ?? (tenant.tenant_type === "student" ? "student" : "worker"), tenant_subtype: tenant.tenant_subtype ?? (tenant.tenant_type === "student" ? "tertiary" : "employed"), institution_name: tenant.institution_name ?? "", student_id: (tenant as any).student_number ?? "", sponsor_or_guardian_name: tenant.sponsor_or_guardian_name ?? "", employer_or_business_name: tenant.employer_or_business_name ?? "", occupation: tenant.occupation ?? "", work_location: tenant.work_location ?? "", number_of_occupants: tenant.number_of_occupants ? String(tenant.number_of_occupants) : "", children_count: tenant.children_count ? String(tenant.children_count) : "", parking_required: tenant.parking_required === true ? "yes" : tenant.parking_required === false ? "no" : "", funding_source: tenant.funding_source ?? "", guarantor_name: tenant.guarantor_name ?? "", additional_notes: tenant.additional_notes ?? "", next_of_kin_name: tenant.next_of_kin_name ?? "", next_of_kin_phone: tenant.next_of_kin_phone ?? "", emergency_contact_name: tenant.emergency_contact_name ?? "", emergency_contact_phone: tenant.emergency_contact_phone ?? "", lease_start_date: tenant.lease_start_date ?? "", lease_end_date: tenant.lease_end_date ?? "" })}>Edit</button>
               <button type="button" disabled={busyId === tenant.id} onClick={() => disableTenant(tenant)}>Disable</button>
             </div>
           </article>

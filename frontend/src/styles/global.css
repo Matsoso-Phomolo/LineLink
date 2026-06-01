@@ -507,6 +507,15 @@ textarea {
   min-height: 34px;
 }
 
+.profile-fieldset {
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
 .standalone-card {
   width: min(520px, 100%);
   border: 1px solid #dce4df;

@@ -78,6 +78,12 @@ function nullable(value: string) {
   return value.trim() ? value.trim() : null;
 }
 
+function applicationProfileLabel(application: TenantApplication) {
+  const category = (application.tenant_category ?? application.tenant_type ?? "other").replace("_", " ");
+  const subtype = application.tenant_subtype ? ` / ${application.tenant_subtype.replace("_", " ")}` : "";
+  return `${category}${subtype}`;
+}
+
 export function ListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [applications, setApplications] = useState<ApplicationMap>({});
@@ -419,7 +425,7 @@ export function ListingsPage() {
                       <div>
                         <div className="card-topline">
                           <StatusPill value={application.status} />
-                          <span>{application.tenant_type.replace("_", " ")}</span>
+                          <span>{applicationProfileLabel(application)}</span>
                         </div>
                         <strong>{application.full_name}</strong>
                         <p>{application.phone}{application.email ? ` - ${application.email}` : ""}</p>

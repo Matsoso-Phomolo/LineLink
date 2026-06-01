@@ -333,6 +333,8 @@ def create_room_request(
         phone=payload.phone,
         email=payload.email,
         tenant_type=TenantType.non_student,
+        tenant_category="other",
+        tenant_subtype="other",
         message=payload.message,
         preferred_response_method=payload.preferred_response_method,
         response_contact_value=(

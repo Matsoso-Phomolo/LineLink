@@ -329,6 +329,8 @@ class RoomRead(RoomBase, ORMModel):
 
 class TenantBase(BaseModel):
     tenant_type: TenantType
+    tenant_category: str | None = None
+    tenant_subtype: str | None = None
     full_name: str
     gender: str | None = None
     phone: str
@@ -337,11 +339,37 @@ class TenantBase(BaseModel):
     passport_number: str | None = None
     student_number: str | None = None
     institution: str | None = None
+    institution_name: str | None = None
+    sponsor_or_guardian_name: str | None = None
     occupation: str | None = None
+    employer_or_business_name: str | None = None
+    work_location: str | None = None
+    number_of_occupants: int | None = None
+    children_count: int | None = None
+    parking_required: bool | None = None
+    funding_source: str | None = None
+    guarantor_name: str | None = None
+    additional_notes: str | None = None
     next_of_kin_name: str | None = None
     next_of_kin_phone: str | None = None
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
+
+    @model_validator(mode="after")
+    def normalize_profile(self):
+        if not self.tenant_category:
+            self.tenant_category = "student" if self.tenant_type == TenantType.student else "worker"
+        else:
+            self.tenant_category = self.tenant_category.strip().lower()
+        if self.tenant_subtype:
+            self.tenant_subtype = self.tenant_subtype.strip().lower()
+        if self.tenant_category != "student" and self.tenant_type == TenantType.student:
+            self.tenant_type = TenantType.non_student
+        if self.tenant_category == "student":
+            self.tenant_type = TenantType.student
+            if self.institution_name and not self.institution:
+                self.institution = self.institution_name
+        return self
 
 
 class TenantCreate(TenantBase):
@@ -361,6 +389,24 @@ class TenantUpdate(BaseModel):
     gender: str | None = None
     phone: str | None = None
     email: EmailStr | None = None
+    national_id: str | None = None
+    passport_number: str | None = None
+    tenant_type: TenantType | None = None
+    tenant_category: str | None = None
+    tenant_subtype: str | None = None
+    student_number: str | None = None
+    institution: str | None = None
+    institution_name: str | None = None
+    sponsor_or_guardian_name: str | None = None
+    occupation: str | None = None
+    employer_or_business_name: str | None = None
+    work_location: str | None = None
+    number_of_occupants: int | None = None
+    children_count: int | None = None
+    parking_required: bool | None = None
+    funding_source: str | None = None
+    guarantor_name: str | None = None
+    additional_notes: str | None = None
     verification_status: TenantVerificationStatus | None = None
     tenant_status: TenantStatus | None = None
     lease_start_date: date | None = None
@@ -374,6 +420,22 @@ class TenantUpdate(BaseModel):
     next_of_kin_phone: str | None = None
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
+
+    @model_validator(mode="after")
+    def normalize_profile(self):
+        if self.tenant_category:
+            self.tenant_category = self.tenant_category.strip().lower()
+            if self.tenant_category == "student":
+                self.tenant_type = TenantType.student
+                if self.institution_name and not self.institution:
+                    self.institution = self.institution_name
+            elif self.tenant_category in {"worker", "family", "other"}:
+                self.tenant_type = TenantType.non_student
+        elif self.tenant_type and not self.tenant_category:
+            self.tenant_category = "student" if self.tenant_type == TenantType.student else "worker"
+        if self.tenant_subtype:
+            self.tenant_subtype = self.tenant_subtype.strip().lower()
+        return self
 
 
 class TenantRead(TenantBase, ORMModel):
@@ -643,15 +705,43 @@ class TenantApplicationCreate(BaseModel):
     national_id: str | None = None
     passport_number: str | None = None
     tenant_type: TenantType
+    tenant_category: str | None = None
+    tenant_subtype: str | None = None
     student_number: str | None = None
     institution: str | None = None
+    institution_name: str | None = None
+    sponsor_or_guardian_name: str | None = None
     occupation: str | None = None
+    employer_or_business_name: str | None = None
+    work_location: str | None = None
+    number_of_occupants: int | None = None
+    children_count: int | None = None
+    parking_required: bool | None = None
+    funding_source: str | None = None
+    guarantor_name: str | None = None
+    additional_notes: str | None = None
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
     preferred_move_in_date: date | None = None
     emergency_contact: str | None = None
     document_path: str | None = None
     message: str | None = None
+
+    @model_validator(mode="after")
+    def normalize_profile(self):
+        if not self.tenant_category:
+            self.tenant_category = "student" if self.tenant_type == TenantType.student else "worker"
+        else:
+            self.tenant_category = self.tenant_category.strip().lower()
+        if self.tenant_subtype:
+            self.tenant_subtype = self.tenant_subtype.strip().lower()
+        if self.tenant_category == "student":
+            self.tenant_type = TenantType.student
+            if self.institution_name and not self.institution:
+                self.institution = self.institution_name
+        else:
+            self.tenant_type = TenantType.non_student
+        return self
 
 
 class RoomInquiryCreate(BaseModel):

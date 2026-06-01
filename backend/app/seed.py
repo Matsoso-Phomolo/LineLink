@@ -457,8 +457,11 @@ def seed_tenant(
     tenant.phone = "+26659000000"
     tenant.email = TENANT_EMAIL
     tenant.tenant_type = TenantType.student
+    tenant.tenant_category = "student"
+    tenant.tenant_subtype = "tertiary"
     tenant.student_number = "20240001"
     tenant.institution = "National University of Lesotho"
+    tenant.institution_name = "National University of Lesotho"
     tenant.verification_status = TenantVerificationStatus.pending_verification
 
     if user:

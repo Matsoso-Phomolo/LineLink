@@ -17,6 +17,44 @@ function money(value: number) {
   return `M${Number(value).toLocaleString()}`;
 }
 
+function displayProfileCategory(application: TenantApplication) {
+  return (application.tenant_category ?? application.tenant_type ?? "other").replace("_", " ");
+}
+
+function displayProfileSubtype(application: TenantApplication) {
+  return (application.tenant_subtype ?? "Not provided").replace("_", " ");
+}
+
+function profileDetails(application: TenantApplication) {
+  const category = application.tenant_category ?? (application.tenant_type === "student" ? "student" : "worker");
+  if (category === "student") {
+    return [
+      ["Institution", application.institution_name ?? application.institution ?? "Not provided"],
+      ["Student ID", application.student_number ?? "Optional/not provided"],
+      ["Sponsor/guardian", application.sponsor_or_guardian_name ?? "Optional/not provided"]
+    ];
+  }
+  if (category === "worker") {
+    return [
+      ["Occupation", application.occupation ?? "Not provided"],
+      ["Employer/business", application.employer_or_business_name ?? "Optional/not provided"],
+      ["Work location", application.work_location ?? "Optional/not provided"]
+    ];
+  }
+  if (category === "family") {
+    return [
+      ["Occupants", application.number_of_occupants ? String(application.number_of_occupants) : "Not provided"],
+      ["Children", application.children_count != null ? String(application.children_count) : "Optional/not provided"],
+      ["Parking", application.parking_required == null ? "Optional/not provided" : application.parking_required ? "Required" : "Not required"]
+    ];
+  }
+  return [
+    ["Funding source", application.funding_source ?? "Optional/not provided"],
+    ["Guarantor", application.guarantor_name ?? "Optional/not provided"],
+    ["Notes", application.additional_notes ?? "Optional/not provided"]
+  ];
+}
+
 export function RoomRequestsPage() {
   const [applications, setApplications] = useState<TenantApplication[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
@@ -167,13 +205,15 @@ export function RoomRequestsPage() {
                   <dl className="detail-grid compact">
                     <div><dt>Room</dt><dd>{listing?.title ?? application.listing_id.slice(0, 8)}</dd></div>
                     <div><dt>Rent</dt><dd>{listing ? money(listing.rent_price) : "Pending"}</dd></div>
-                    <div><dt>Tenant type</dt><dd>{application.tenant_type.replace("_", " ")}</dd></div>
+                    <div><dt>Profile category</dt><dd>{displayProfileCategory(application)}</dd></div>
+                    <div><dt>Profile subtype</dt><dd>{displayProfileSubtype(application)}</dd></div>
                     <div><dt>Move-in</dt><dd>{application.preferred_move_in_date ?? "Not provided"}</dd></div>
                   </dl>
                   <div className="detail-grid compact">
                     <div><dt>ID</dt><dd>{application.national_id ?? application.passport_number ?? "Not provided"}</dd></div>
-                    <div><dt>Student</dt><dd>{application.student_number ?? application.institution ?? "Not provided"}</dd></div>
-                    <div><dt>Occupation</dt><dd>{application.occupation ?? "Not provided"}</dd></div>
+                    {profileDetails(application).map(([label, value]) => (
+                      <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+                    ))}
                     <div><dt>Emergency</dt><dd>{application.emergency_contact_name ?? application.emergency_contact ?? "Not provided"}</dd></div>
                   </div>
                   {links[application.id] ? (

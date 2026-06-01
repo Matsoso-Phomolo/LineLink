@@ -3,9 +3,10 @@ import { useParams } from "react-router-dom";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
+import { TenantProfileFields, tenantTypeFromCategory, type TenantCategory, type TenantProfileForm } from "../../components/TenantProfileFields";
 import type { TenantApplication } from "../../types";
 
-type FullApplicationForm = {
+type FullApplicationForm = TenantProfileForm & {
   full_name: string;
   gender: string;
   phone: string;
@@ -13,10 +14,6 @@ type FullApplicationForm = {
   email: string;
   national_id: string;
   passport_number: string;
-  tenant_type: "student" | "non_student";
-  student_number: string;
-  institution: string;
-  occupation: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
   preferred_move_in_date: string;
@@ -31,10 +28,20 @@ const emptyForm: FullApplicationForm = {
   email: "",
   national_id: "",
   passport_number: "",
-  tenant_type: "student",
-  student_number: "",
-  institution: "",
+  tenant_category: "student",
+  tenant_subtype: "tertiary",
+  institution_name: "",
+  student_id: "",
+  sponsor_or_guardian_name: "",
+  employer_or_business_name: "",
   occupation: "",
+  work_location: "",
+  number_of_occupants: "",
+  children_count: "",
+  parking_required: "",
+  funding_source: "",
+  guarantor_name: "",
+  additional_notes: "",
   emergency_contact_name: "",
   emergency_contact_phone: "",
   preferred_move_in_date: "",
@@ -67,10 +74,20 @@ export function ApplicationFormPage() {
           email: item.email ?? "",
           national_id: item.national_id ?? "",
           passport_number: item.passport_number ?? "",
-          tenant_type: item.tenant_type ?? "student",
-          student_number: item.student_number ?? "",
-          institution: item.institution ?? "",
+          tenant_category: (item.tenant_category as TenantCategory) ?? (item.tenant_type === "student" ? "student" : "worker"),
+          tenant_subtype: item.tenant_subtype ?? (item.tenant_type === "student" ? "tertiary" : "employed"),
+          institution_name: item.institution_name ?? item.institution ?? "",
+          student_id: item.student_number ?? "",
+          sponsor_or_guardian_name: item.sponsor_or_guardian_name ?? "",
+          employer_or_business_name: item.employer_or_business_name ?? "",
           occupation: item.occupation ?? "",
+          work_location: item.work_location ?? "",
+          number_of_occupants: item.number_of_occupants ? String(item.number_of_occupants) : "",
+          children_count: item.children_count ? String(item.children_count) : "",
+          parking_required: item.parking_required === true ? "yes" : item.parking_required === false ? "no" : "",
+          funding_source: item.funding_source ?? "",
+          guarantor_name: item.guarantor_name ?? "",
+          additional_notes: item.additional_notes ?? "",
           emergency_contact_name: item.emergency_contact_name ?? "",
           emergency_contact_phone: item.emergency_contact_phone ?? "",
           preferred_move_in_date: item.preferred_move_in_date ?? "",
@@ -88,12 +105,16 @@ export function ApplicationFormPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-    if (form.tenant_type === "student" && (!form.institution.trim() || !form.student_number.trim())) {
-      setNotice("Student applications require institution and student number.");
+    if (form.tenant_category === "student" && !form.institution_name.trim()) {
+      setNotice("Student applications require institution name.");
       return;
     }
-    if (form.tenant_type === "non_student" && !form.occupation.trim()) {
-      setNotice("Non-student applications require occupation.");
+    if (form.tenant_category === "worker" && !form.occupation.trim()) {
+      setNotice("Worker applications require occupation.");
+      return;
+    }
+    if (form.tenant_category === "family" && !form.number_of_occupants.trim()) {
+      setNotice("Family applications require number of occupants.");
       return;
     }
     setSubmitting(true);
@@ -109,10 +130,22 @@ export function ApplicationFormPage() {
           email: nullable(form.email),
           national_id: nullable(form.national_id),
           passport_number: nullable(form.passport_number),
-          tenant_type: form.tenant_type,
-          student_number: nullable(form.student_number),
-          institution: nullable(form.institution),
+          tenant_type: tenantTypeFromCategory(form.tenant_category),
+          tenant_category: form.tenant_category,
+          tenant_subtype: form.tenant_subtype,
+          student_number: nullable(form.student_id),
+          institution: nullable(form.institution_name),
+          institution_name: nullable(form.institution_name),
+          sponsor_or_guardian_name: nullable(form.sponsor_or_guardian_name),
           occupation: nullable(form.occupation),
+          employer_or_business_name: nullable(form.employer_or_business_name),
+          work_location: nullable(form.work_location),
+          number_of_occupants: form.number_of_occupants ? Number(form.number_of_occupants) : null,
+          children_count: form.children_count ? Number(form.children_count) : null,
+          parking_required: form.parking_required ? form.parking_required === "yes" : null,
+          funding_source: nullable(form.funding_source),
+          guarantor_name: nullable(form.guarantor_name),
+          additional_notes: nullable(form.additional_notes),
           emergency_contact_name: form.emergency_contact_name,
           emergency_contact_phone: form.emergency_contact_phone,
           preferred_move_in_date: nullable(form.preferred_move_in_date),
@@ -168,18 +201,8 @@ export function ApplicationFormPage() {
                 <label>National ID<input value={form.national_id} onChange={(event) => update("national_id", event.target.value)} /></label>
                 <label>Passport number<input value={form.passport_number} onChange={(event) => update("passport_number", event.target.value)} /></label>
               </div>
-              <div className="form-grid">
-                <label>Tenant type<select value={form.tenant_type} onChange={(event) => update("tenant_type", event.target.value as FullApplicationForm["tenant_type"])}>
-                  <option value="student">Student</option>
-                  <option value="non_student">Non-student</option>
-                </select></label>
-                <label>Preferred move-in<input type="date" value={form.preferred_move_in_date} onChange={(event) => update("preferred_move_in_date", event.target.value)} /></label>
-              </div>
-              <div className="form-grid">
-                <label>Student number<input required={form.tenant_type === "student"} value={form.student_number} onChange={(event) => update("student_number", event.target.value)} /></label>
-                <label>Institution<input required={form.tenant_type === "student"} value={form.institution} onChange={(event) => update("institution", event.target.value)} /></label>
-              </div>
-              <label>Occupation<input required={form.tenant_type === "non_student"} value={form.occupation} onChange={(event) => update("occupation", event.target.value)} /></label>
+              <TenantProfileFields form={form} update={update} />
+              <label>Preferred move-in<input type="date" value={form.preferred_move_in_date} onChange={(event) => update("preferred_move_in_date", event.target.value)} /></label>
               <div className="form-grid">
                 <label>Emergency contact name<input required value={form.emergency_contact_name} onChange={(event) => update("emergency_contact_name", event.target.value)} /></label>
                 <label>Emergency contact phone<input required value={form.emergency_contact_phone} onChange={(event) => update("emergency_contact_phone", event.target.value)} /></label>
