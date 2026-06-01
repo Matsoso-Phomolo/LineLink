@@ -350,6 +350,8 @@ export type RoomReservation = {
     | "completed";
   reservation_amount: number;
   reservation_expiry?: string | null;
+  rejection_message?: string | null;
+  rejection_expires_at?: string | null;
   full_name?: string | null;
   phone?: string | null;
   email?: string | null;

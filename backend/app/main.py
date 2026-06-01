@@ -77,7 +77,6 @@ def health_check() -> dict[str, str]:
         "service": "Rentalink API",
     }
 
-
 @app.get("/debug/cors-origins", tags=["debug"])
 def debug_cors_origins() -> dict[str, list[str]]:
     return {
@@ -108,6 +107,22 @@ def debug_room_enum_values(
 
 
 app.websocket("/ws/intelligence")(intelligence_websocket_endpoint)
+
+
+@app.on_event("startup")
+def run_safe_startup_maintenance() -> None:
+    try:
+        from app.scheduler_jobs import run_operational_maintenance_jobs
+
+        db = SessionLocal()
+        try:
+            run_operational_maintenance_jobs(db)
+        finally:
+            db.close()
+    except Exception:
+        # Startup cleanup is best-effort only; deployment must not fail because
+        # an optional scheduler dependency or transient database call failed.
+        pass
 
 
 # =========================================================

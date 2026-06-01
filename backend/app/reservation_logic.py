@@ -52,6 +52,8 @@ def serialize_reservation(reservation: RoomReservation) -> dict:
         "status": reservation.status,
         "reservation_amount": float(reservation.reservation_amount or 0),
         "reservation_expiry": reservation.reservation_expiry,
+        "rejection_message": visible_rejection_message(reservation),
+        "rejection_expires_at": reservation.rejection_expires_at,
         "full_name": reservation.full_name,
         "phone": reservation.phone,
         "email": reservation.email,
@@ -100,6 +102,30 @@ def expire_stale_reservations(db: Session, now: datetime | None = None) -> int:
     for reservation in stale:
         reservation.status = RoomReservationStatus.expired
     return len(stale)
+
+
+def visible_rejection_message(reservation: RoomReservation) -> str | None:
+    if not reservation.rejection_message:
+        return None
+    if not reservation.rejection_expires_at:
+        return reservation.rejection_message
+    expires_at = reservation.rejection_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return reservation.rejection_message if expires_at > datetime.now(timezone.utc) else None
+
+
+def clear_expired_rejection_messages(db: Session, now: datetime | None = None) -> int:
+    now = now or datetime.now(timezone.utc)
+    return (
+        db.query(RoomReservation)
+        .filter(
+            RoomReservation.rejection_message.is_not(None),
+            RoomReservation.rejection_expires_at.is_not(None),
+            RoomReservation.rejection_expires_at < now,
+        )
+        .update({RoomReservation.rejection_message: None}, synchronize_session=False)
+    )
 
 
 def complete_room_reservation_payment(db: Session, transaction: PaymentTransaction, receipt_number: str) -> None:

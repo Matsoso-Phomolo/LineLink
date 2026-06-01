@@ -29,7 +29,6 @@ export function ReservationStatusPage() {
       await apiFetch(`/room-reservations/${reservation.id}/pay`, {
         method: "POST",
         body: JSON.stringify({
-          amount: reservation.reservation_amount,
           method: paymentForm.method,
           payer_phone: paymentForm.payer_phone
         })
@@ -79,7 +78,9 @@ export function ReservationStatusPage() {
         {reservation.status === "approved_for_payment" ? <p>Approved: you may now pay the deposit/reservation amount.</p> : null}
         {reservation.status === "payment_pending" ? <p>Payment is pending provider confirmation. Do not pay again unless the landlord asks you to retry.</p> : null}
         {reservation.status === "confirmed" ? <p>Your room reservation is confirmed and a receipt has been generated.</p> : null}
-        {reservation.status === "rejected" ? <p>This request was not accepted. You may continue searching for other available rooms.</p> : null}
+        {reservation.status === "rejected" ? <p>{reservation.rejection_message ?? "This request was not accepted. You may continue searching for other available rooms."}</p> : null}
+        {reservation.status === "cancelled" ? <p>{reservation.rejection_message ?? "This reservation was cancelled before payment confirmation."}</p> : null}
+        {reservation.status === "expired" ? <p>This reservation request expired. The room may be requested again if it is still available.</p> : null}
       </div>
 
       {canPay ? (

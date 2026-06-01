@@ -647,13 +647,13 @@ class RoomReservationRequestCreate(BaseModel):
 
 
 class RoomReservationPayRequest(BaseModel):
-    amount: float | None = None
     method: PaymentMethod
     payer_phone: str | None = None
     idempotency_key: str | None = None
 
 
 class RoomReservationDecision(BaseModel):
+    amount: float | None = Field(default=None, gt=0)
     note: str | None = None
 
 
@@ -669,6 +669,8 @@ class RoomReservationRead(ORMModel):
     status: RoomReservationStatus
     reservation_amount: float
     reservation_expiry: datetime | None = None
+    rejection_message: str | None = None
+    rejection_expires_at: datetime | None = None
     full_name: str | None = None
     phone: str | None = None
     email: str | None = None

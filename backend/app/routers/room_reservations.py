@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -154,7 +154,9 @@ def pay_room_reservation(reservation_id: uuid.UUID, payload: RoomReservationPayR
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported payment method")
     if payload.method in {PaymentMethod.mpesa, PaymentMethod.ecocash, PaymentMethod.mopay_mpesa, PaymentMethod.mopay_ecocash} and not payload.payer_phone:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Phone number is required for mobile money payments")
-    amount = payload.amount or float(reservation.reservation_amount or 0)
+    amount = float(reservation.reservation_amount or 0)
+    if amount <= 0:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Landlord must set a payment amount before payment can start.")
     idempotency_key = payload.idempotency_key or f"reservation-{reservation.id}-{payload.method.value}-{amount}"
     existing = db.query(PaymentTransaction).filter(PaymentTransaction.idempotency_key == idempotency_key).first()
     if existing:
@@ -211,11 +213,16 @@ def approve_reservation_payment(reservation_id: uuid.UUID, payload: RoomReservat
     ensure_landlord_reservation_scope(db, user, reservation)
     if reservation.status != RoomReservationStatus.pending_landlord_review:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only pending requests can be approved for payment.")
+    if payload.amount is None or payload.amount <= 0:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Payment amount must be greater than 0.")
     room = db.get(Room, reservation.room_id)
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
     assert_room_can_receive_reservation(db, room, reservation.id)
+    reservation.reservation_amount = payload.amount
     reservation.status = RoomReservationStatus.approved_for_payment
+    reservation.rejection_message = None
+    reservation.rejection_expires_at = None
     if reservation.application_id:
         application = db.get(TenantApplication, reservation.application_id)
         if application:
@@ -234,7 +241,10 @@ def reject_reservation(reservation_id: uuid.UUID, payload: RoomReservationDecisi
     ensure_landlord_reservation_scope(db, user, reservation)
     if reservation.status in {RoomReservationStatus.confirmed, RoomReservationStatus.completed}:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Confirmed reservations cannot be rejected.")
-    reservation.status = RoomReservationStatus.rejected
+    previous_status = reservation.status
+    reservation.status = RoomReservationStatus.cancelled if previous_status in {RoomReservationStatus.approved_for_payment, RoomReservationStatus.payment_pending} else RoomReservationStatus.rejected
+    reservation.rejection_message = payload.note or "This reservation request was not accepted."
+    reservation.rejection_expires_at = datetime.now(timezone.utc) + timedelta(minutes=60)
     if reservation.application_id:
         application = db.get(TenantApplication, reservation.application_id)
         if application:

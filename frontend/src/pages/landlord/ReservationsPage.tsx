@@ -9,6 +9,7 @@ export function ReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [decisionForms, setDecisionForms] = useState<Record<string, { amount: string; note: string }>>({});
 
   async function load() {
     setLoading(true);
@@ -27,12 +28,26 @@ export function ReservationsPage() {
     load();
   }, []);
 
+  function formFor(reservation: RoomReservation) {
+    return decisionForms[reservation.id] ?? { amount: reservation.reservation_amount ? String(reservation.reservation_amount) : "", note: "" };
+  }
+
+  function updateDecision(reservation: RoomReservation, key: "amount" | "note", value: string) {
+    setDecisionForms((current) => ({ ...current, [reservation.id]: { ...formFor(reservation), [key]: value } }));
+  }
+
   async function decide(reservation: RoomReservation, action: "approve-payment" | "reject") {
     setNotice("");
+    const form = formFor(reservation);
+    const amount = Number(form.amount);
+    if (action === "approve-payment" && (!amount || amount <= 0)) {
+      setNotice("Enter a deposit/payment amount greater than 0 before approving payment.");
+      return;
+    }
     try {
       await apiFetch(`/landlord/reservations/${reservation.id}/${action}`, {
         method: "POST",
-        body: JSON.stringify({ note: action === "approve-payment" ? "Approved to pay deposit." : "Reservation request rejected." })
+        body: JSON.stringify({ amount: action === "approve-payment" ? amount : undefined, note: form.note || (action === "approve-payment" ? "Approved to pay deposit." : "Reservation request rejected.") })
       });
       setNotice(action === "approve-payment" ? "Room seeker can now pay the deposit." : "Reservation request rejected.");
       await load();
@@ -76,14 +91,24 @@ export function ReservationsPage() {
               </dl>
               {reservation.message ? <p>{reservation.message}</p> : null}
               {reservation.status === "pending_landlord_review" ? (
-                <div className="button-row">
-                  <button className="primary-button" type="button" onClick={() => decide(reservation, "approve-payment")}>Approve Payment</button>
-                  <button className="secondary-button danger" type="button" onClick={() => decide(reservation, "reject")}>Reject</button>
+                <div className="form-panel compact-form">
+                  <label>Approved payment amount<input inputMode="numeric" value={formFor(reservation).amount} onChange={(event) => updateDecision(reservation, "amount", event.target.value)} /></label>
+                  <label>Decision message<input value={formFor(reservation).note} onChange={(event) => updateDecision(reservation, "note", event.target.value)} placeholder="Optional message for this room seeker" /></label>
+                  <div className="button-row">
+                    <button className="primary-button" type="button" onClick={() => decide(reservation, "approve-payment")}>Approve Payment</button>
+                    <button className="secondary-button danger" type="button" onClick={() => decide(reservation, "reject")}>Reject</button>
+                  </div>
                 </div>
               ) : null}
-              {reservation.status === "approved_for_payment" ? <p className="privacy-note">Waiting for room seeker deposit payment.</p> : null}
+              {reservation.status === "approved_for_payment" ? (
+                <div className="button-row">
+                  <p className="privacy-note">Waiting for room seeker deposit payment.</p>
+                  <button className="secondary-button danger" type="button" onClick={() => decide(reservation, "reject")}>Cancel approval</button>
+                </div>
+              ) : null}
               {reservation.status === "payment_pending" ? <p className="privacy-note">Payment sent and waiting for verified provider webhook confirmation.</p> : null}
               {reservation.status === "confirmed" ? <p className="privacy-note">Reservation confirmed. The room is reserved and hidden from public listings.</p> : null}
+              {reservation.status === "rejected" || reservation.status === "cancelled" ? <p className="privacy-note">{reservation.rejection_message ?? "Request closed."}</p> : null}
             </article>
           ))}
         </div>

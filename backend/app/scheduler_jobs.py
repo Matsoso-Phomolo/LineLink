@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models import PaymentTransaction, PaymentTransactionStatus
 from app.reminders import run_reminders
-from app.reservation_logic import expire_stale_reservations
+from app.reservation_logic import clear_expired_rejection_messages, expire_stale_reservations
 
 
 def run_operational_maintenance_jobs(db: Session) -> dict[str, int]:
@@ -16,6 +16,7 @@ def run_operational_maintenance_jobs(db: Session) -> dict[str, int]:
     """
     now = datetime.now(timezone.utc)
     expired_reservations = expire_stale_reservations(db, now)
+    expired_rejection_messages = clear_expired_rejection_messages(db, now)
     timed_out_payments = (
         db.query(PaymentTransaction)
         .filter(
@@ -28,6 +29,7 @@ def run_operational_maintenance_jobs(db: Session) -> dict[str, int]:
     db.commit()
     return {
         "expired_reservations": expired_reservations,
+        "expired_rejection_messages": expired_rejection_messages,
         "timed_out_payments": timed_out_payments,
         "tenant_rent_reminders": int(reminder_result.get("tenant_rent_reminders", 0)),
         "subscription_reminders": int(reminder_result.get("subscription_reminders", 0)),

@@ -796,6 +796,8 @@ class RoomReservation(Base, TimestampMixin):
     )
     reservation_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     reservation_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    rejection_message: Mapped[str | None] = mapped_column(Text)
+    rejection_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     full_name: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str | None] = mapped_column(String(40))
     email: Mapped[str | None] = mapped_column(String(255))
