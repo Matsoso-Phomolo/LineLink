@@ -18,7 +18,6 @@ depends_on = None
 MASERU_DISTRICT_ID = "00000000-0000-0000-0000-00000000a001"
 ROMA_AREA_ID = "00000000-0000-0000-0000-00000000a002"
 THERESIA_USER_ID = "00000000-0000-0000-0000-00000000a003"
-THERESIA_ASSIGNMENT_ID = "00000000-0000-0000-0000-00000000a004"
 THERESIA_HASH = "$2b$12$rg5MVhLgLbenfWBiAgFg5OfcWCXqZkretnG6fw534tRLjLkAG4lXu"
 
 
@@ -128,6 +127,7 @@ def upgrade() -> None:
                 where lower(email) in ('theresia@gmail.com', 'motebang@gmail.com')
                    or username = 'theresia'
                    or lower(full_name) = 'theresia kalaka'
+                   or phone = '63523544'
                 order by created_at asc
                 limit 1;
 
@@ -203,7 +203,7 @@ def upgrade() -> None:
                         updated_at
                     )
                     values (
-                        '{THERESIA_ASSIGNMENT_ID}'::uuid,
+                        (md5(random()::text || clock_timestamp()::text))::uuid,
                         theresia_id,
                         maseru_id,
                         true,
