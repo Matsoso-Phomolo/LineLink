@@ -10,9 +10,9 @@ export function SupportTicketsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    apiFetch("/support-tickets")
+    apiFetch("/support")
       .then(setTickets)
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load support tickets"))
+      .catch(() => setTickets([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,6 +28,10 @@ export function SupportTicketsPage() {
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
       <div className="list-stack">
+        {!loading && tickets.length === 0 ? (
+          <div className="data-state">Tenant support tickets will appear here.</div>
+        ) : null}
+
         {tickets.map((ticket) => (
           <article className="row-item rich" key={ticket.id}>
             <div>

@@ -235,6 +235,7 @@ export function AppRoutes() {
               <Route path="/landlord" element={<LandlordDashboardPage />} />
               <Route path="/landlord/rooms" element={<RoomsPage />} />
               <Route path="/landlord/tenants" element={<TenantsPage />} />
+              <Route path="/landlord/tenants/new" element={<TenantsPage mode="form" />} />
               <Route path="/landlord/listings" element={<ListingsPage />} />
               <Route path="/landlord/leases" element={<LeasesPage />} />
               <Route path="/landlord/requests" element={<RoomRequestsPage />} />

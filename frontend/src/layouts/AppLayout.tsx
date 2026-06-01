@@ -8,6 +8,7 @@ const landlordLinks = [
   { to: "/landlord/rooms", label: "Rooms" },
   { to: "/landlord/caretakers", label: "Caretakers" },
   { to: "/landlord/tenants", label: "Tenants" },
+  { to: "/landlord/tenants/new", label: "Add Tenant" },
   { to: "/landlord/listings", label: "Listings" },
   { to: "/landlord/leases", label: "Leases" },
   { to: "/landlord/requests", label: "Room Requests" },
