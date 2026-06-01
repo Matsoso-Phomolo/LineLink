@@ -30,6 +30,10 @@ def first_name_password(full_name: str) -> str:
     return f"{first}123"
 
 
+def first_name_username(full_name: str) -> str:
+    return (full_name.strip().split() or ["user"])[0].lower()
+
+
 def sync_landlord_username(db: Session, landlord: Landlord) -> None:
     if landlord.user and landlord.system_landlord_number:
         landlord.user.username = landlord.system_landlord_number

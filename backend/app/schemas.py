@@ -169,12 +169,12 @@ class LandlordRequestCreate(BaseModel):
 
 
 class LandlordManualCreate(BaseModel):
-    business_name: str
+    business_name: str | None = None
     full_name: str
     email: EmailStr
     phone: str | None = None
     address: str | None = None
-    password: str = Field(min_length=8)
+    password: str | None = Field(default=None, min_length=8)
 
 
 class LandlordRequestDecision(BaseModel):

@@ -4,7 +4,7 @@ import type { Role } from "../types";
 
 function fallbackPath(role: Role): string {
   if (role === "tenant") return "/tenant";
-  if (role === "national_admin") return "/admin";
+  if (role === "national_admin") return "/admin/district-admins";
   if (role === "district_admin") return "/district";
   return "/landlord";
 }

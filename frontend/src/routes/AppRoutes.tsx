@@ -165,7 +165,7 @@ function HomeRedirect() {
   }
 
   if (user.role === "national_admin") {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/admin/district-admins" replace />;
   }
 
   if (user.role === "district_admin") {
@@ -196,21 +196,11 @@ export function AppRoutes() {
             <Route path="/security" element={<SecurityPage />} />
 
             <Route element={<ProtectedRoute roles={["national_admin"]} />}>
-              <Route path="/admin" element={<AdminDashboardPage section="onboarding" />} />
-              <Route path="/admin/requests" element={<AdminDashboardPage section="requests" />} />
-              <Route path="/admin/risk" element={<AdminDashboardPage section="risk" />} />
+              <Route path="/admin" element={<Navigate to="/admin/district-admins" replace />} />
               <Route path="/admin/gateway" element={<AdminDashboardPage section="gateway" />} />
               <Route path="/admin/plans" element={<AdminDashboardPage section="plans" />} />
               <Route path="/admin/districts" element={<AdminDashboardPage section="districts" />} />
               <Route path="/admin/district-admins" element={<AdminDashboardPage section="district-admins" />} />
-              <Route
-                path="/admin/room-finder"
-                element={<PublicRoomFinderPage returnTo="/admin" returnLabel="Return to National Admin Dashboard" />}
-              />
-              <Route
-                path="/admin/landlord-request-form"
-                element={<LandlordRequestPage returnTo="/admin" returnLabel="Return to National Admin Dashboard" />}
-              />
             </Route>
 
             <Route element={<ProtectedRoute roles={["district_admin"]} />}>
@@ -239,7 +229,6 @@ export function AppRoutes() {
                     "landlord",
                     "caretaker",
                     "district_admin",
-                    "national_admin",
                   ]}
                 />
               }
@@ -258,7 +247,7 @@ export function AppRoutes() {
             <Route
               element={
                 <ProtectedRoute
-                  roles={["landlord", "district_admin", "national_admin"]}
+                  roles={["landlord", "district_admin"]}
                 />
               }
             >

@@ -16,7 +16,7 @@ export function getDefaultDashboardForRole(
 ): string {
   switch (role) {
     case "national_admin":
-      return "/intelligence";
+      return "/admin/district-admins";
 
     case "district_admin":
       return context.districtId
@@ -43,7 +43,6 @@ export function canAccessIntelligence(
   role?: string | null
 ): boolean {
   return [
-    "national_admin",
     "district_admin",
     "landlord",
     "caretaker",

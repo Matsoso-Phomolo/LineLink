@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { ErrorState, LoadingState } from "../../components/DataState";
-import { PasswordField } from "../../components/PasswordField";
 import { StatusPill } from "../../components/StatusPill";
 import type { Landlord, LandlordRequest, Listing, SubscriptionPlan } from "../../types";
 
@@ -11,7 +10,6 @@ type ManualLandlordForm = {
   email: string;
   phone: string;
   address: string;
-  password: string;
 };
 
 type District = {
@@ -47,6 +45,7 @@ type AreaForm = {
 type DistrictAdmin = {
   id: string;
   username?: string | null;
+  temporary_password?: string | null;
   full_name: string;
   email: string;
   phone?: string | null;
@@ -68,7 +67,6 @@ type DistrictAdminForm = {
   full_name: string;
   email: string;
   phone: string;
-  password: string;
   district_id: string;
 };
 
@@ -89,8 +87,7 @@ const emptyManual: ManualLandlordForm = {
   full_name: "",
   email: "",
   phone: "",
-  address: "",
-  password: ""
+  address: ""
 };
 
 const emptyPlan = {
@@ -113,7 +110,6 @@ const emptyDistrictAdminForm: DistrictAdminForm = {
   full_name: "",
   email: "",
   phone: "",
-  password: "",
   district_id: ""
 };
 
@@ -161,9 +157,10 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     setError("");
 
     try {
+      const canLoadLandlordOperations = user?.role !== "national_admin";
       const [landlordItems, requestItems, districtItems, areaItems, districtAdminItems] = await Promise.all([
-        loadOptional<Landlord[]>("/landlords", []),
-        loadOptional<LandlordRequest[]>("/landlords/requests", []),
+        canLoadLandlordOperations ? loadOptional<Landlord[]>("/landlords", []) : Promise.resolve([]),
+        canLoadLandlordOperations ? loadOptional<LandlordRequest[]>("/landlords/requests", []) : Promise.resolve([]),
         loadOptional<District[]>("/districts", []),
         loadOptional<DistrictArea[]>("/district-areas", []),
         loadOptional<DistrictAdmin[]>("/admin/district-admins", [])
@@ -212,7 +209,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.role]);
 
   function updateManual<K extends keyof ManualLandlordForm>(key: K, value: ManualLandlordForm[K]) {
     setManual((current) => ({ ...current, [key]: value }));
@@ -232,7 +229,6 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
       full_name: admin.full_name,
       email: admin.email,
       phone: admin.phone ?? "",
-      password: "",
       district_id: admin.district_id
     });
     setSelectedDistrictId(admin.district_id);
@@ -264,13 +260,16 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
             full_name: districtAdminForm.full_name,
             email: districtAdminForm.email,
             phone: nullable(districtAdminForm.phone),
-            password: districtAdminForm.password,
             district_id: districtAdminForm.district_id
           })
         })) as DistrictAdmin;
 
         setDistrictAdmins((current) => [...current, createdAdmin]);
-        setNotice(`District admin created. Username: ${createdAdmin.username ?? "created"}`);
+        setNotice(
+          createdAdmin.temporary_password
+            ? `District admin account generated. Username: ${createdAdmin.username ?? "created"}, password: ${createdAdmin.temporary_password}`
+            : `District admin account generated. Username: ${createdAdmin.username ?? "created"}`
+        );
       }
 
       setDistrictAdminForm({
@@ -456,20 +455,23 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     setNotice("");
 
     try {
-      await apiFetch("/landlords/manual", {
+      const result = (await apiFetch("/landlords/manual", {
         method: "POST",
         body: JSON.stringify({
           business_name: manual.full_name,
           full_name: manual.full_name,
           email: manual.email,
           phone: nullable(manual.phone),
-          address: nullable(manual.address),
-          password: manual.password
+          address: nullable(manual.address)
         })
-      });
+      })) as { temporary_password?: string | null; landlord?: Landlord | null };
 
       setManual(emptyManual);
-      setNotice("Landlord account created.");
+      setNotice(
+        `Landlord account generated.${
+          result.temporary_password ? ` Password: ${result.temporary_password}` : ""
+        }`
+      );
       await loadData();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not create landlord");
@@ -606,6 +608,20 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     );
   });
   const showDistrictSelector = section !== "districts" && section !== "gateway";
+  const headerStat = section === "district-admins"
+    ? {
+        value: filteredDistrictAdmins.length,
+        label: districtScoped ? "district admins" : "district admins"
+      }
+    : user?.role === "national_admin"
+    ? {
+        value: activeDistricts,
+        label: "active districts"
+      }
+    : {
+        value: districtScoped ? filteredLandlords.length : landlords.length,
+        label: districtScoped ? "district landlords" : "landlords"
+      };
 
   return (
     <section className="page-stack">
@@ -617,8 +633,8 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
         </div>
 
         <div className="header-stat">
-          <strong>{districtScoped ? filteredLandlords.length : landlords.length}</strong>
-          <span>{districtScoped ? "district landlords" : "landlords"}</span>
+          <strong>{headerStat.value}</strong>
+          <span>{headerStat.label}</span>
         </div>
       </div>
 
@@ -633,9 +649,8 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
               <p className="eyebrow">District scope</p>
               <h2>Choose District first</h2>
               <p>
-                National Admin actions are filtered by district so requests,
-                landlords, listing checks, and district admins remain clearly
-                structured.
+                National Admin actions are filtered by district so district
+                admins, areas, and rollout records remain clearly structured.
               </p>
             </div>
           </div>
@@ -696,13 +711,8 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   <input value={manual.address} onChange={(event) => updateManual("address", event.target.value)} />
                 </label>
 
-                <label>
-                  Temporary password
-                  <PasswordField required minLength={8} value={manual.password} onChange={(value) => updateManual("password", value)} />
-                </label>
-
                 <button className="primary-button" type="submit">
-                  Create landlord
+                  Generate landlord account
                 </button>
               </form>
             </div>
@@ -1125,16 +1135,9 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   <input value={districtAdminForm.phone} onChange={(event) => updateDistrictAdminForm("phone", event.target.value)} />
                 </label>
 
-                {!districtAdminForm.id ? (
-                  <label>
-                    Temporary password
-                    <PasswordField required minLength={8} value={districtAdminForm.password} onChange={(value) => updateDistrictAdminForm("password", value)} />
-                  </label>
-                ) : null}
-
                 <div className="review-actions">
                   <button className="primary-button" type="submit" disabled={busyId === "district-admin"}>
-                    {districtAdminForm.id ? "Save District Admin" : "Create District Admin"}
+                    {districtAdminForm.id ? "Save District Admin" : "Generate Account"}
                   </button>
 
                   {districtAdminForm.id ? (
