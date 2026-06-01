@@ -51,7 +51,6 @@ def create_tenant(
     db: Session = Depends(get_db),
     user: User = Depends(
         require_roles(
-            UserRole.national_admin,
             UserRole.landlord,
             UserRole.caretaker,
         )
@@ -117,6 +116,14 @@ def create_tenant_account(
             detail="Tenant accounts must be linked to one verified property room.",
         )
 
+    room = get_room_in_scope(db, user, payload.room_id)
+
+    if room.status == RoomStatus.occupied:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Room is already occupied",
+        )
+
     email = (
         str(payload.email)
         if payload.email
@@ -177,14 +184,6 @@ def create_tenant_account(
     )
 
     if payload.room_id:
-        room = get_room_in_scope(db, user, payload.room_id)
-
-        if room.status == RoomStatus.occupied:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Room is already occupied",
-            )
-
         monthly_rent = payload.monthly_rent or float(room.rent_price)
 
         deposit = (
@@ -256,6 +255,12 @@ def list_tenants(
             db.query(Tenant)
             .filter(Tenant.user_id == user.id)
             .all()
+        )
+
+    if user.role == UserRole.national_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="National Admin cannot access landlord-owned tenant records",
         )
 
     return (

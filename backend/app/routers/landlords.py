@@ -1315,8 +1315,22 @@ def approve_landlord_verification(
 def manually_create_landlord(
     payload: LandlordManualCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.district_admin)),
+    current_user: User = Depends(require_roles(UserRole.district_admin)),
 ):
+    district_ids = get_district_admin_district_ids(db, current_user)
+
+    if not district_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No district scope assigned",
+        )
+
+    if payload.district_id and payload.district_id not in district_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Landlord account must be generated inside your assigned district",
+        )
+
     password = payload.password or first_name_password(payload.full_name)
 
     landlord = create_landlord_account(

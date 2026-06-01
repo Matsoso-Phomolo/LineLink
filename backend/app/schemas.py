@@ -174,6 +174,7 @@ class LandlordManualCreate(BaseModel):
     email: EmailStr
     phone: str | None = None
     address: str | None = None
+    district_id: uuid.UUID | None = None
     password: str | None = Field(default=None, min_length=8)
 
 

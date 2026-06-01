@@ -48,20 +48,9 @@ const districtAdminLinks = [
   { to: "/district/landlord-verifications", label: "Verification Reviews" },
   { to: "/district/landlords", label: "District Landlords" },
   { to: "/district/requests", label: "District Requests" },
-  { to: "/district/risk", label: "District Risk Center" },
-  { to: "/district/reminders", label: "Payment Reminders" },
   { to: "/district/areas", label: "Areas & Villages" },
-  { to: "/landlord/properties", label: "Properties" },
-  { to: "/landlord/rooms", label: "Rooms" },
-  { to: "/landlord/tenants", label: "Tenants" },
-  { to: "/landlord/listings", label: "Listings" },
-  { to: "/landlord/leases", label: "Leases" },
-  { to: "/landlord/requests", label: "Room Requests" },
-  { to: "/landlord/payments", label: "Payments" },
-  { to: "/landlord/support", label: "Support" },
-  { to: "/district/room-finder", label: "Room Finder" },
-  { to: "/district/landlord-request-form", label: "Landlord Request Form" },
-  { to: "/security", label: "Security" },
+  { to: "/district/reminders", label: "Payment Reminders" },
+  { to: "/district/risk", label: "District Risk Center" },
 ];
 
 const nationalAdminLinks = [

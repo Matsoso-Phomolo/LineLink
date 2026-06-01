@@ -268,7 +268,10 @@ def get_tenant_in_scope(
         return tenant
 
     if is_national_admin(user):
-        return tenant
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="National Admin cannot manage landlord-owned tenant records",
+        )
 
     if is_district_admin(user):
         district_ids = get_district_admin_district_ids(db, user)

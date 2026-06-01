@@ -228,7 +228,6 @@ export function AppRoutes() {
                   roles={[
                     "landlord",
                     "caretaker",
-                    "district_admin",
                   ]}
                 />
               }
@@ -247,7 +246,7 @@ export function AppRoutes() {
             <Route
               element={
                 <ProtectedRoute
-                  roles={["landlord", "district_admin"]}
+                  roles={["landlord"]}
                 />
               }
             >
