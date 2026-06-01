@@ -7,7 +7,6 @@ import { StatusPill } from "../../components/StatusPill";
 import type { Landlord, LandlordRequest, Listing, SubscriptionPlan } from "../../types";
 
 type ManualLandlordForm = {
-  business_name: string;
   full_name: string;
   email: string;
   phone: string;
@@ -87,7 +86,6 @@ export type AdminSection =
   | "district-admins";
 
 const emptyManual: ManualLandlordForm = {
-  business_name: "",
   full_name: "",
   email: "",
   phone: "",
@@ -461,7 +459,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
       await apiFetch("/landlords/manual", {
         method: "POST",
         body: JSON.stringify({
-          business_name: manual.business_name,
+          business_name: manual.full_name,
           full_name: manual.full_name,
           email: manual.email,
           phone: nullable(manual.phone),
@@ -677,12 +675,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                 </div>
 
                 <label>
-                  Business name
-                  <input required value={manual.business_name} onChange={(event) => updateManual("business_name", event.target.value)} />
-                </label>
-
-                <label>
-                  Owner full name
+                  Full names
                   <input required value={manual.full_name} onChange={(event) => updateManual("full_name", event.target.value)} />
                 </label>
 
@@ -735,9 +728,9 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                         <span>{request.email}</span>
                       </div>
 
-                      <strong>{request.business_name}</strong>
+                      <strong>{request.full_name}</strong>
                       <p>
-                        {request.full_name} - {request.phone ?? "No phone"}
+                        {request.phone ?? "No phone"}
                       </p>
                       <p>{request.message}</p>
                     </div>
@@ -1230,7 +1223,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                       <span>{landlord.system_landlord_number ?? "No system number"}</span>
                     </div>
 
-                    <strong>{landlord.business_name}</strong>
+                    <strong>{landlord.business_name ?? landlord.email}</strong>
                     <p>{landlord.address}</p>
                   </div>
 

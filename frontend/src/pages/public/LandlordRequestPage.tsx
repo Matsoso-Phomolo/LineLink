@@ -9,7 +9,6 @@ type PreferredResponseMethod =
   | "whatsapp";
 
 type LandlordRequestForm = {
-  business_name: string;
   full_name: string;
   email: string;
   phone: string;
@@ -26,7 +25,6 @@ type LandlordRequestPageProps = {
 };
 
 const initialForm: LandlordRequestForm = {
-  business_name: "",
   full_name: "",
   email: "",
   phone: "",
@@ -161,22 +159,6 @@ export function LandlordRequestPage({
 
             <h2>Join Rentalink</h2>
           </div>
-
-          <label>
-            Business / line-house name
-
-            <input
-              required
-              value={form.business_name}
-              onChange={(event) =>
-                updateField(
-                  "business_name",
-                  event.target.value
-                )
-              }
-              placeholder="Matsoso Ten House Holdings"
-            />
-          </label>
 
           <label>
             Full names
