@@ -15,6 +15,13 @@ type Occupancy = {
 
 const occupiedStatuses = new Set(["occupied", "partially_occupied", "full"]);
 
+function naturalRoomCompare(left: Room, right: Room) {
+  return left.room_number.localeCompare(right.room_number, undefined, {
+    numeric: true,
+    sensitivity: "base"
+  });
+}
+
 export function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [properties, setProperties] = useState<PropertyItem[]>([]);
@@ -54,7 +61,10 @@ export function RoomsPage() {
     loadData();
   }, []);
 
-  const visibleRooms = useMemo(() => rooms.filter((room) => status === "all" || room.status === status), [rooms, status]);
+  const visibleRooms = useMemo(
+    () => rooms.filter((room) => status === "all" || room.status === status).slice().sort(naturalRoomCompare),
+    [rooms, status]
+  );
   const propertyById = useMemo(() => Object.fromEntries(properties.map((property) => [property.id, property])), [properties]);
   const tenantById = useMemo(() => Object.fromEntries(tenants.map((tenant) => [tenant.id, tenant])), [tenants]);
   const activeOccupancyByRoom = useMemo(() => {
@@ -109,6 +119,23 @@ export function RoomsPage() {
     }
   }
 
+  async function updateRoomStatus(room: Room, nextStatus: "vacant" | "occupied" | "maintenance") {
+    setBusyId(room.id);
+    setNotice("");
+    try {
+      await apiFetch(`/rooms/${room.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus })
+      });
+      setNotice(`${room.room_number} marked ${nextStatus}.`);
+      await loadData();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not update room status");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   return (
     <section className="page-stack">
       <div className="page-header">
@@ -120,6 +147,7 @@ export function RoomsPage() {
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="all">All statuses</option>
           <option value="vacant">Vacant</option>
+          <option value="occupied">Occupied</option>
           <option value="partially_occupied">Partially occupied</option>
           <option value="full">Full</option>
           <option value="maintenance">Maintenance</option>
@@ -162,6 +190,7 @@ export function RoomsPage() {
               const tenant = occupancy ? tenantById[occupancy.tenant_id] : null;
               const listing = listingByRoom[room.id];
               const canPublish = room.status === "vacant" && !listing;
+              const hasActiveTenant = Boolean(occupancy);
               return (
                 <tr key={room.id}>
                   <td>
@@ -195,6 +224,15 @@ export function RoomsPage() {
                       </button>
                       <button type="button" disabled={!canPublish || busyId === room.id} onClick={() => publishVacantRoom(room)}>
                         Publish listing
+                      </button>
+                      <button type="button" disabled={room.status === "vacant" || hasActiveTenant || busyId === room.id} title={hasActiveTenant ? "End the active tenant or lease before marking vacant." : undefined} onClick={() => updateRoomStatus(room, "vacant")}>
+                        Mark Vacant
+                      </button>
+                      <button type="button" disabled={room.status === "occupied" || busyId === room.id} onClick={() => updateRoomStatus(room, "occupied")}>
+                        Mark Occupied
+                      </button>
+                      <button type="button" disabled={room.status === "maintenance" || busyId === room.id} onClick={() => updateRoomStatus(room, "maintenance")}>
+                        Mark Maintenance
                       </button>
                     </div>
                   </td>
