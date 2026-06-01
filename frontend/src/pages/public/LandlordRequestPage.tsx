@@ -1,6 +1,8 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../api/client";
+import { ErrorState, LoadingState } from "../../components/DataState";
+import { StatusPill } from "../../components/StatusPill";
 
 type PreferredResponseMethod =
   | "email"
@@ -17,6 +19,15 @@ type LandlordRequestForm = {
   response_contact_value: string;
   emergency_contact: string;
   message: string;
+};
+
+type District = {
+  id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  rollout_stage: string;
+  description: string | null;
 };
 
 type LandlordRequestPageProps = {
@@ -41,9 +52,30 @@ export function LandlordRequestPage({
 }: LandlordRequestPageProps = {}) {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
+  const [loadingDistricts, setLoadingDistricts] = useState(true);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function loadDistricts() {
+      setLoadingDistricts(true);
+      setError("");
+
+      try {
+        const districtItems = (await apiFetch("/districts/active")) as District[];
+        setDistricts(districtItems);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load active districts");
+      } finally {
+        setLoadingDistricts(false);
+      }
+    }
+
+    loadDistricts();
+  }, []);
 
   function updateField<K extends keyof LandlordRequestForm>(
     key: K,
@@ -60,15 +92,25 @@ export function LandlordRequestPage({
 
     setError("");
     setStatus("");
+
+    if (!selectedDistrict) {
+      setError("Select your district before submitting a landlord request.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       await apiFetch("/landlords/requests", {
         method: "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          district_id: selectedDistrict.id,
+        }),
       });
 
       setForm(initialForm);
+      setSelectedDistrict(null);
 
       setStatus(
         "Landlord request submitted successfully. Rentalink administrators will review your request and may send a verification form using your selected response method."
@@ -148,186 +190,247 @@ export function LandlordRequestPage({
           )}
         </div>
 
-        <form
-          className="auth-card application-form-card"
-          onSubmit={submit}
-        >
+        <div className="auth-card application-form-card">
           <div>
             <p className="eyebrow">
               Landlord request
             </p>
 
-            <h2>Join Rentalink</h2>
+            <h2>
+              {selectedDistrict ? "Join Rentalink" : "Select your district"}
+            </h2>
+            <p>
+              Select your district first so your request is routed to the correct Rentalink District Administration team.
+            </p>
           </div>
 
-          <label>
-            Full names
+          {loadingDistricts ? <LoadingState /> : null}
+          {!loadingDistricts && error && !selectedDistrict ? <ErrorState message={error} /> : null}
 
-            <input
-              required
-              value={form.full_name}
-              onChange={(event) =>
-                updateField(
-                  "full_name",
-                  event.target.value
-                )
-              }
-              placeholder="PHOMOLO MATSOSO"
-            />
-          </label>
+          {!loadingDistricts && !selectedDistrict ? (
+            <div className="panel compact-panel">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">District rollout</p>
+                  <h3>Choose active district</h3>
+                </div>
+                <StatusPill value={`${districts.length}_active`} />
+              </div>
 
-          <div className="form-grid">
-            <label>
-              Email
+              {districts.length > 0 ? (
+                <>
+                  <div className="amenities compact">
+                    {districts.map((district) => (
+                      <button
+                        className="chip-button"
+                        type="button"
+                        key={district.id}
+                        onClick={() => {
+                          setSelectedDistrict(district);
+                          setError("");
+                          setStatus("");
+                        }}
+                      >
+                        {district.name}
+                      </button>
+                    ))}
+                  </div>
 
-              <input
-                required
-                type="email"
-                value={form.email}
-                onChange={(event) =>
-                  updateField(
-                    "email",
-                    event.target.value
-                  )
-                }
-                placeholder="you@example.com"
-              />
-            </label>
+                  <div className="data-state compact-state">
+                    Only active districts are shown. Locked districts remain hidden until Rentalink officially rolls out there.
+                  </div>
+                </>
+              ) : (
+                <div className="data-state">No active districts are available yet. Please check again later.</div>
+              )}
+            </div>
+          ) : null}
 
-            <label>
-              Phone
+          {selectedDistrict ? (
+            <form onSubmit={submit}>
+              <div className="panel compact-panel">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">Selected district</p>
+                    <h3>{selectedDistrict.name}</h3>
+                  </div>
 
-              <input
-                required
-                value={form.phone}
-                onChange={(event) =>
-                  updateField(
-                    "phone",
-                    event.target.value
-                  )
-                }
-                placeholder="+266..."
-              />
-            </label>
-          </div>
+                  <button className="secondary-button" type="button" onClick={() => setSelectedDistrict(null)}>
+                    Change district
+                  </button>
+                </div>
+              </div>
 
-          <label>
-            Personal physical address
+              <label>
+                Full names
 
-            <input
-              required
-              value={form.address}
-              onChange={(event) =>
-                updateField(
-                  "address",
-                  event.target.value
-                )
-              }
-              placeholder="Roma, Maseru, Lesotho"
-            />
-          </label>
+                <input
+                  required
+                  value={form.full_name}
+                  onChange={(event) =>
+                    updateField(
+                      "full_name",
+                      event.target.value
+                    )
+                  }
+                  placeholder="PHOMOLO MATSOSO"
+                />
+              </label>
 
-          <div className="form-grid">
-            <label>
-              Preferred response method
-
-              <select
-                value={form.preferred_response_method}
-                onChange={(event) =>
-                  updateField(
-                    "preferred_response_method",
-                    event.target
-                      .value as PreferredResponseMethod
-                  )
-                }
-              >
-                <option value="email">
+              <div className="form-grid">
+                <label>
                   Email
-                </option>
 
-                <option value="phone_call">
-                  Phone call
-                </option>
+                  <input
+                    required
+                    type="email"
+                    value={form.email}
+                    onChange={(event) =>
+                      updateField(
+                        "email",
+                        event.target.value
+                      )
+                    }
+                    placeholder="you@example.com"
+                  />
+                </label>
 
-                <option value="sms">
-                  SMS
-                </option>
+                <label>
+                  Phone
 
-                <option value="whatsapp">
-                  WhatsApp
-                </option>
-              </select>
-            </label>
+                  <input
+                    required
+                    value={form.phone}
+                    onChange={(event) =>
+                      updateField(
+                        "phone",
+                        event.target.value
+                      )
+                    }
+                    placeholder="+266..."
+                  />
+                </label>
+              </div>
 
-            <label>
-              Response contact value
+              <label>
+                Personal physical address
 
-              <input
-                required
-                value={form.response_contact_value}
-                onChange={(event) =>
-                  updateField(
-                    "response_contact_value",
-                    event.target.value
-                  )
-                }
-                placeholder="Email or phone number"
-              />
-            </label>
-          </div>
+                <input
+                  required
+                  value={form.address}
+                  onChange={(event) =>
+                    updateField(
+                      "address",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Roma, Maseru, Lesotho"
+                />
+              </label>
 
-          <label>
-            Emergency contact
+              <div className="form-grid">
+                <label>
+                  Preferred response method
 
-            <input
-              value={form.emergency_contact}
-              onChange={(event) =>
-                updateField(
-                  "emergency_contact",
-                  event.target.value
-                )
-              }
-              placeholder="Name and phone number"
-            />
-          </label>
+                  <select
+                    value={form.preferred_response_method}
+                    onChange={(event) =>
+                      updateField(
+                        "preferred_response_method",
+                        event.target
+                          .value as PreferredResponseMethod
+                      )
+                    }
+                  >
+                    <option value="email">
+                      Email
+                    </option>
 
-          <label>
-            Message
+                    <option value="phone_call">
+                      Phone call
+                    </option>
 
-            <textarea
-              value={form.message}
-              onChange={(event) =>
-                updateField(
-                  "message",
-                  event.target.value
-                )
-              }
-              placeholder="Tell us about your rental operations and why you want to join Rentalink."
-            />
-          </label>
+                    <option value="sms">
+                      SMS
+                    </option>
 
-          {error ? (
-            <div className="form-error">
-              {error}
-            </div>
+                    <option value="whatsapp">
+                      WhatsApp
+                    </option>
+                  </select>
+                </label>
+
+                <label>
+                  Response contact value
+
+                  <input
+                    required
+                    value={form.response_contact_value}
+                    onChange={(event) =>
+                      updateField(
+                        "response_contact_value",
+                        event.target.value
+                      )
+                    }
+                    placeholder="Email or phone number"
+                  />
+                </label>
+              </div>
+
+              <label>
+                Emergency contact
+
+                <input
+                  value={form.emergency_contact}
+                  onChange={(event) =>
+                    updateField(
+                      "emergency_contact",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Name and phone number"
+                />
+              </label>
+
+              <label>
+                Message
+
+                <textarea
+                  value={form.message}
+                  onChange={(event) =>
+                    updateField(
+                      "message",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Tell us about your rental operations and why you want to join Rentalink."
+                />
+              </label>
+
+              {error ? (
+                <div className="form-error">
+                  {error}
+                </div>
+              ) : null}
+
+              {status ? (
+                <div className="form-success">
+                  {status}
+                </div>
+              ) : null}
+
+              <button
+                className="primary-button"
+                type="submit"
+                disabled={submitting}
+              >
+                {submitting
+                  ? "Submitting..."
+                  : "Submit landlord request"}
+              </button>
+            </form>
           ) : null}
-
-          {status ? (
-            <div className="form-success">
-              {status}
-            </div>
-          ) : null}
-
-          <button
-            className="primary-button"
-            type="submit"
-            disabled={submitting}
-          >
-            {submitting
-              ? "Submitting..."
-              : "Submit landlord request"}
-          </button>
-        </form>
+        </div>
       </section>
     </main>
   );

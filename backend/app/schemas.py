@@ -162,6 +162,7 @@ class LandlordRequestCreate(BaseModel):
     email: EmailStr
     phone: str | None = None
     address: str
+    district_id: uuid.UUID
     preferred_response_method: PreferredResponseMethod
     response_contact_value: str
     emergency_contact: str | None = None
@@ -241,6 +242,7 @@ class PropertySubscriptionCalculation(BaseModel):
 
 class LandlordRequestRead(LandlordRequestCreate, ORMModel):
     id: uuid.UUID
+    district_id: uuid.UUID | None = None
     status: LandlordRequestStatus
     admin_note: str | None
     landlord_id: uuid.UUID | None

@@ -381,6 +381,7 @@ class LandlordRequest(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), index=True)
     phone: Mapped[str | None] = mapped_column(String(40))
     address: Mapped[str | None] = mapped_column(Text)
+    district_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("districts.id"), nullable=True, index=True)
     national_id: Mapped[str | None] = mapped_column(String(120))
     emergency_contact: Mapped[str | None] = mapped_column(String(255))
     message: Mapped[str | None] = mapped_column(Text)
@@ -410,6 +411,7 @@ class LandlordRequest(Base, TimestampMixin):
         back_populates="landlord_request",
         cascade="all, delete-orphan",
     )
+    district: Mapped["District | None"] = relationship()
     verification: Mapped["LandlordVerification | None"] = relationship(
         back_populates="landlord_request",
         uselist=False,

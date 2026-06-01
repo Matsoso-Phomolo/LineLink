@@ -610,6 +610,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const filteredDistrictAdmins = districtAdmins.filter((admin) => !districtScoped || admin.district_id === effectiveDistrictId);
   const filteredRequests = requests.filter((request) => {
     if (!districtScoped) return true;
+    if (request.district_id === effectiveDistrictId) return true;
     const requestProperties = (request as any).properties ?? [];
     return requestProperties.some((property: any) => property.district_id === effectiveDistrictId);
   });

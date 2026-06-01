@@ -18,6 +18,7 @@ from app.dependencies import (
 from app.identity import first_name_password, first_name_username
 from app.models import (
     AuditAction,
+    District,
     Landlord,
     LandlordRequest,
     LandlordRequestProperty,
@@ -167,6 +168,7 @@ def landlord_request_select_sql(columns: set[str], where_clause: str = "") -> st
         "email",
         "phone" if "phone" in columns else "NULL as phone",
         "address" if "address" in columns else "NULL as address",
+        "district_id" if "district_id" in columns else "NULL as district_id",
         optional_columns["emergency_contact"] if "emergency_contact" in columns else fallback_columns["emergency_contact"],
         "message" if "message" in columns else "NULL as message",
         optional_columns["preferred_response_method"] if "preferred_response_method" in columns else fallback_columns["preferred_response_method"],
@@ -363,6 +365,7 @@ def serialize_landlord_request_row(
             "email": email,
             "phone": phone,
             "address": address or "Address pending verification",
+            "district_id": str(row["district_id"]) if row.get("district_id") else None,
             "preferred_response_method": response_method.value,
             "response_contact_value": response_contact_value,
             "emergency_contact": row.get("emergency_contact"),
@@ -608,6 +611,13 @@ def create_landlord_request(
             detail="Landlord request intake is temporarily unavailable.",
         )
 
+    district = db.get(District, payload.district_id)
+    if not district or not district.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select an active district before submitting a landlord request.",
+        )
+
     existing_sql = """
         select id
         from landlord_requests
@@ -622,6 +632,23 @@ def create_landlord_request(
     if existing:
         serialized = get_serialized_landlord_request(db, existing["id"])
         if serialized:
+            if not serialized.get("district_id") and "district_id" in columns:
+                db.execute(
+                    text(
+                        f"""
+                        update landlord_requests
+                        set district_id = :district_id{", updated_at = :updated_at" if "updated_at" in columns else ""}
+                        where id = :request_id
+                        """
+                    ),
+                    {
+                        "district_id": payload.district_id,
+                        "updated_at": datetime.now(timezone.utc),
+                        "request_id": existing["id"],
+                    },
+                )
+                db.commit()
+                serialized["district_id"] = str(payload.district_id)
             return serialized
 
     request_id = uuid.uuid4()
@@ -633,6 +660,7 @@ def create_landlord_request(
         "email": str(payload.email),
         "phone": payload.phone,
         "address": payload.address,
+        "district_id": payload.district_id,
         "preferred_response_method": payload.preferred_response_method.value,
         "response_contact_value": payload.response_contact_value,
         "emergency_contact": payload.emergency_contact,
@@ -700,6 +728,7 @@ def create_landlord_request(
         "email": str(payload.email),
         "phone": payload.phone,
         "address": payload.address,
+        "district_id": str(payload.district_id),
         "preferred_response_method": payload.preferred_response_method.value,
         "response_contact_value": payload.response_contact_value,
         "emergency_contact": payload.emergency_contact,
@@ -810,6 +839,11 @@ def list_landlord_requests(
 
         if serialized_request:
             if district_ids:
+                request_district_id = serialized_request.get("district_id")
+                if request_district_id and str(request_district_id) in district_ids:
+                    results.append(serialized_request)
+                    continue
+
                 properties = serialized_request.get("properties") or []
                 if not any(str(property_item.get("district_id")) in district_ids for property_item in properties):
                     continue
@@ -830,9 +864,19 @@ def assert_landlord_request_scope(
         )
 
     district_ids = {str(item) for item in get_district_admin_district_ids(db, current_user)}
+    request_district_id = serialized_request.get("district_id")
     properties = serialized_request.get("properties") or []
 
-    if not district_ids or not any(str(property_item.get("district_id")) in district_ids for property_item in properties):
+    if not district_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage landlord requests inside your district",
+        )
+
+    if request_district_id and str(request_district_id) in district_ids:
+        return
+
+    if not any(str(property_item.get("district_id")) in district_ids for property_item in properties):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only manage landlord requests inside your district",

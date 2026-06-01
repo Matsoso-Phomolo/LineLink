@@ -201,6 +201,7 @@ export type LandlordRequest = {
   email: string;
   phone?: string | null;
   address?: string | null;
+  district_id?: string | null;
   message?: string | null;
   status:
     | "pending"
