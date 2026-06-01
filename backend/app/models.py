@@ -37,7 +37,6 @@ class RoomStatus(str, enum.Enum):
     partially_occupied = "partially_occupied"
     full = "full"
     maintenance = "maintenance"
-    reserved = "reserved"
 
 
 class RentalMode(str, enum.Enum):

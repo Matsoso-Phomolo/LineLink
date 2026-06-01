@@ -58,7 +58,7 @@ def get_reservation_or_404(db: Session, reservation_id: uuid.UUID) -> RoomReserv
 
 
 def ensure_landlord_reservation_scope(db: Session, user: User, reservation: RoomReservation) -> None:
-    if user.role == UserRole.admin:
+    if user.role == UserRole.national_admin:
         return
     scoped = landlord_scope_filter(db, user, RoomReservation).filter(RoomReservation.id == reservation.id).first()
     if not scoped:
@@ -199,7 +199,7 @@ def cancel_room_reservation(reservation_id: uuid.UUID, db: Session = Depends(get
 
 
 @landlord_router.get("", response_model=list[RoomReservationRead])
-def landlord_reservations(db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
+def landlord_reservations(db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord, UserRole.caretaker))):
     expire_stale_reservations(db)
     query = landlord_scope_filter(db, user, RoomReservation).order_by(RoomReservation.created_at.desc())
     items = query.all()
@@ -208,7 +208,7 @@ def landlord_reservations(db: Session = Depends(get_db), user: User = Depends(re
 
 
 @landlord_router.post("/{reservation_id}/approve-payment", response_model=RoomReservationRead)
-def approve_reservation_payment(reservation_id: uuid.UUID, payload: RoomReservationDecision, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
+def approve_reservation_payment(reservation_id: uuid.UUID, payload: RoomReservationDecision, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord, UserRole.caretaker))):
     reservation = get_reservation_or_404(db, reservation_id)
     ensure_landlord_reservation_scope(db, user, reservation)
     if reservation.status != RoomReservationStatus.pending_landlord_review:
@@ -236,7 +236,7 @@ def approve_reservation_payment(reservation_id: uuid.UUID, payload: RoomReservat
 
 
 @landlord_router.post("/{reservation_id}/reject", response_model=RoomReservationRead)
-def reject_reservation(reservation_id: uuid.UUID, payload: RoomReservationDecision, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.admin, UserRole.landlord, UserRole.caretaker))):
+def reject_reservation(reservation_id: uuid.UUID, payload: RoomReservationDecision, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.national_admin, UserRole.landlord, UserRole.caretaker))):
     reservation = get_reservation_or_404(db, reservation_id)
     ensure_landlord_reservation_scope(db, user, reservation)
     if reservation.status in {RoomReservationStatus.confirmed, RoomReservationStatus.completed}:
@@ -257,5 +257,5 @@ def reject_reservation(reservation_id: uuid.UUID, payload: RoomReservationDecisi
 
 
 @admin_router.get("", response_model=list[RoomReservationRead])
-def admin_room_reservations(db: Session = Depends(get_db), _: User = Depends(require_roles(UserRole.admin))):
+def admin_room_reservations(db: Session = Depends(get_db), _: User = Depends(require_roles(UserRole.national_admin))):
     return [serialize_reservation(item) for item in db.query(RoomReservation).order_by(RoomReservation.created_at.desc()).limit(500).all()]
