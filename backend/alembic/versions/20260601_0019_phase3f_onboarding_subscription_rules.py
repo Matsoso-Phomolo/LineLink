@@ -1,4 +1,4 @@
-```python
+
 """phase3f onboarding subscription rules
 
 Revision ID: 20260601_0019
@@ -430,4 +430,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     pass
-```
