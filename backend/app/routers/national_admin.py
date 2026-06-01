@@ -3,6 +3,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.admin_ai_risk import build_ai_risk_center
@@ -106,7 +107,10 @@ def create_district_admin(
             detail="District not found",
         )
 
-    existing_user = db.query(User).filter(User.email == payload.email).first()
+    email = str(payload.email).strip().lower()
+    phone = payload.phone.strip() if payload.phone else None
+
+    existing_user = db.query(User).filter(User.email == email).first()
 
     if existing_user:
         raise HTTPException(
@@ -114,8 +118,8 @@ def create_district_admin(
             detail="A user with this email already exists",
         )
 
-    if payload.phone:
-        existing_phone = db.query(User).filter(User.phone == payload.phone).first()
+    if phone:
+        existing_phone = db.query(User).filter(User.phone == phone).first()
 
         if existing_phone:
             raise HTTPException(
@@ -125,26 +129,42 @@ def create_district_admin(
 
     district_admin = User(
         username=next_identifier(db, UserRole.district_admin),
-        email=payload.email,
-        phone=payload.phone,
-        full_name=payload.full_name,
+        email=email,
+        phone=phone,
+        full_name=payload.full_name.strip(),
         role=UserRole.district_admin,
         hashed_password=get_password_hash(payload.password),
         is_active=True,
         must_change_password=True,
     )
 
-    db.add(district_admin)
-    db.flush()
+    try:
+        db.add(district_admin)
+        db.flush()
 
-    assignment = DistrictAdminAssignment(
-        user_id=district_admin.id,
-        district_id=district.id,
-        is_active=True,
-    )
+        assignment = DistrictAdminAssignment(
+            user_id=district_admin.id,
+            district_id=district.id,
+            is_active=True,
+        )
 
-    db.add(assignment)
-    db.commit()
+        db.add(assignment)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.exception("District Admin creation failed because of duplicate data")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="District Admin could not be created because the email, phone, username, or district assignment already exists.",
+        ) from None
+    except Exception:
+        db.rollback()
+        logger.exception("District Admin creation failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="District Admin could not be created. Please try again or check backend logs.",
+        ) from None
+
     db.refresh(district_admin)
     db.refresh(assignment)
 

@@ -3,6 +3,7 @@ import { HashRouter } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { tokenStorage } from "./auth/tokenStorage";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import { PWAPrompt } from "./components/PWAPrompt";
 import { AppRoutes } from "./routes/AppRoutes";
 import "./styles/global.css";
 
@@ -21,6 +22,7 @@ try {
     <AppErrorBoundary>
       <HashRouter>
         <AuthProvider>
+          <PWAPrompt />
           <AppRoutes />
         </AuthProvider>
       </HashRouter>

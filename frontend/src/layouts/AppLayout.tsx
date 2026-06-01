@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { InstallAppButton } from "../components/InstallAppButton";
-import { PWAPrompt } from "../components/PWAPrompt";
 
 const landlordLinks = [
   { to: "/landlord", label: "Dashboard" },
@@ -142,7 +141,6 @@ export function AppLayout() {
       </aside>
 
       <main className="content-area">
-        <PWAPrompt />
         <Outlet />
       </main>
     </div>
