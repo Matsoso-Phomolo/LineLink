@@ -19,6 +19,8 @@ from app.identity import first_name_password, first_name_username
 from app.models import (
     AuditAction,
     District,
+    DistrictArea,
+    DistrictVillage,
     Landlord,
     LandlordRequest,
     LandlordRequestProperty,
@@ -36,6 +38,8 @@ from app.models import (
 from app.ownership import assert_landlord_access
 from app.schemas import (
     LandlordCreate,
+    DistrictManualLandlordCreate,
+    DistrictManualLandlordResult,
     LandlordManualCreate,
     LandlordOnboardingResult,
     LandlordRead,
@@ -1396,6 +1400,148 @@ def manually_create_landlord(
         request=None,
         landlord=landlord,
         temporary_password=password if not payload.password else None,
+    )
+
+
+@router.post(
+    "/manual-create",
+    response_model=DistrictManualLandlordResult,
+)
+def manually_create_landlord_with_property(
+    payload: DistrictManualLandlordCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.district_admin)),
+):
+    district_ids = get_district_admin_district_ids(db, current_user)
+
+    if not district_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No district assignment found. Contact National Admin.",
+        )
+
+    if len(district_ids) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Manual landlord creation currently requires one active district assignment.",
+        )
+
+    district_id = district_ids[0]
+    area = db.get(DistrictArea, payload.area_id)
+
+    if not area or area.district_id != district_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Selected area is outside your assigned district",
+        )
+
+    village = db.get(DistrictVillage, payload.village_id)
+
+    if not village or village.area_id != area.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Selected village is outside your assigned area",
+        )
+
+    password = first_name_password(payload.full_name)
+    landlord = create_landlord_account(
+        db,
+        full_name=payload.full_name,
+        business_name=payload.full_name,
+        email=str(payload.email),
+        phone=payload.phone,
+        address=payload.address,
+        password=password,
+    )
+
+    property_record = Property(
+        landlord_id=landlord.id,
+        district_id=district_id,
+        area_id=area.id,
+        name=payload.property_name,
+        description=payload.notes,
+        location_area=village.name,
+        address=payload.property_address,
+    )
+
+    db.add(property_record)
+    db.flush()
+
+    try:
+        generated_rooms = generate_room_numbers(
+            total_rooms=payload.total_rooms,
+            single_rooms=payload.single_rooms,
+            double_rooms=payload.double_rooms,
+            single_room_prefix=payload.single_room_prefix,
+            double_room_prefix=payload.double_room_prefix,
+            starting_room_number=payload.starting_room_number,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    for generated_room in generated_rooms:
+        db.add(
+            Room(
+                landlord_id=landlord.id,
+                property_id=property_record.id,
+                room_number=generated_room.room_number,
+                room_type=generated_room.room_type,
+                status="vacant",
+                rent_price=0,
+                deposit_amount=0,
+            )
+        )
+
+    amount, tier = calculate_property_subscription_amount(
+        db,
+        district_id=district_id,
+        total_rooms=payload.total_rooms,
+    )
+    db.add(
+        PropertySubscription(
+            landlord_id=landlord.id,
+            property_id=property_record.id,
+            total_rooms=payload.total_rooms,
+            monthly_amount=amount,
+            pricing_tier=tier,
+            status=SubscriptionStatus.active,
+            start_date=date.today(),
+            renewal_date=date.today() + timedelta(days=30),
+        )
+    )
+
+    log_action(
+        db,
+        AuditAction.district_admin_manual_landlord_created,
+        current_user,
+        landlord.id,
+        "Property",
+        property_record.id,
+        {
+            "district_admin_id": str(current_user.id),
+            "landlord_id": str(landlord.id),
+            "property_id": str(property_record.id),
+            "district_id": str(district_id),
+            "room_count": len(generated_rooms),
+        },
+    )
+
+    db.commit()
+    db.refresh(landlord)
+    db.refresh(property_record)
+
+    return DistrictManualLandlordResult(
+        landlord=landlord,
+        username=landlord.user.username or "",
+        temporary_password=password,
+        landlord_email=landlord.email or str(payload.email),
+        landlord_phone=landlord.contact_phone,
+        property_id=property_record.id,
+        property_name=property_record.name,
+        rooms_created=len(generated_rooms),
     )
 
 

@@ -207,6 +207,7 @@ export function AppRoutes() {
               <Route path="/district" element={<AdminDashboardPage section="districts" />} />
               <Route path="/district/areas" element={<AdminDashboardPage section="districts" />} />
               <Route path="/district/landlords" element={<AdminDashboardPage section="landlords" />} />
+              <Route path="/district/landlords/new" element={<AdminDashboardPage section="manual-landlord" />} />
               <Route path="/district/requests" element={<AdminDashboardPage section="requests" />} />
               <Route path="/district/risk" element={<AdminDashboardPage section="risk" />} />
               <Route path="/district/reminders" element={<AdminDashboardPage section="reminders" />} />

@@ -221,6 +221,7 @@ class AuditAction(str, enum.Enum):
     sign_lease = "SIGN_LEASE"
     verify_listing = "VERIFY_LISTING"
     create_damage_record = "CREATE_DAMAGE_RECORD"
+    district_admin_manual_landlord_created = "DISTRICT_ADMIN_MANUAL_LANDLORD_CREATED"
     login_success = "LOGIN_SUCCESS"
     login_failure = "LOGIN_FAILURE"
 

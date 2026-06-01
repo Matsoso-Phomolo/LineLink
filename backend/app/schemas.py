@@ -179,6 +179,50 @@ class LandlordManualCreate(BaseModel):
     password: str | None = Field(default=None, min_length=8)
 
 
+class DistrictManualLandlordCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    phone: str | None = None
+    address: str | None = None
+    emergency_contact: str | None = None
+    emergency_phone: str | None = None
+    preferred_response_method: PreferredResponseMethod = PreferredResponseMethod.email
+    response_contact_value: str | None = None
+    national_id: str | None = None
+    notes: str | None = None
+    property_name: str
+    area_id: uuid.UUID
+    village_id: uuid.UUID
+    property_address: str | None = None
+    total_rooms: int = Field(gt=0)
+    single_rooms: int = Field(ge=0)
+    double_rooms: int = Field(ge=0)
+    single_room_prefix: str = "A"
+    double_room_prefix: str = "B"
+    starting_room_number: int = 101
+
+    @model_validator(mode="after")
+    def validate_room_counts(self):
+        if self.single_rooms + self.double_rooms != self.total_rooms:
+            raise ValueError("single_rooms + double_rooms must equal total_rooms")
+        self.single_room_prefix = self.single_room_prefix.strip().upper()
+        self.double_room_prefix = self.double_room_prefix.strip().upper()
+        if self.single_room_prefix == self.double_room_prefix:
+            raise ValueError("single and double room prefixes must differ")
+        return self
+
+
+class DistrictManualLandlordResult(BaseModel):
+    landlord: LandlordRead
+    username: str
+    temporary_password: str
+    landlord_email: EmailStr
+    landlord_phone: str | None = None
+    property_id: uuid.UUID
+    property_name: str
+    rooms_created: int
+
+
 class LandlordRequestDecision(BaseModel):
     admin_note: str | None = None
     password: str | None = Field(default=None, min_length=8)

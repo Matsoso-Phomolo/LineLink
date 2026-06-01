@@ -12,6 +12,29 @@ type ManualLandlordForm = {
   address: string;
 };
 
+type DistrictManualLandlordForm = {
+  full_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  emergency_contact: string;
+  emergency_phone: string;
+  preferred_response_method: string;
+  response_contact_value: string;
+  national_id: string;
+  notes: string;
+  property_name: string;
+  area_id: string;
+  village_id: string;
+  property_address: string;
+  total_rooms: string;
+  single_rooms: string;
+  double_rooms: string;
+  single_room_prefix: string;
+  double_room_prefix: string;
+  starting_room_number: string;
+};
+
 type District = {
   id: string;
   name: string;
@@ -101,7 +124,8 @@ export type AdminSection =
   | "plans"
   | "landlords"
   | "districts"
-  | "district-admins";
+  | "district-admins"
+  | "manual-landlord";
 
 const emptyManual: ManualLandlordForm = {
   full_name: "",
@@ -124,6 +148,29 @@ const emptyAreaForm: AreaForm = {
   name: "",
   description: "",
   is_active: true
+};
+
+const emptyDistrictManualLandlord: DistrictManualLandlordForm = {
+  full_name: "",
+  email: "",
+  phone: "",
+  address: "",
+  emergency_contact: "",
+  emergency_phone: "",
+  preferred_response_method: "email",
+  response_contact_value: "",
+  national_id: "",
+  notes: "",
+  property_name: "",
+  area_id: "",
+  village_id: "",
+  property_address: "",
+  total_rooms: "1",
+  single_rooms: "1",
+  double_rooms: "0",
+  single_room_prefix: "A",
+  double_room_prefix: "B",
+  starting_room_number: "101"
 };
 
 const emptyVillageForm: VillageForm = {
@@ -174,6 +221,8 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const [subscriptionPermissions, setSubscriptionPermissions] = useState<DistrictAdminSubscriptionPermission[]>([]);
 
   const [manual, setManual] = useState<ManualLandlordForm>(emptyManual);
+  const [districtManual, setDistrictManual] = useState<DistrictManualLandlordForm>(emptyDistrictManualLandlord);
+  const [manualResult, setManualResult] = useState<any>(null);
   const [planForm, setPlanForm] = useState(emptyPlan);
   const [areaForm, setAreaForm] = useState<AreaForm>(emptyAreaForm);
   const [villageForm, setVillageForm] = useState<VillageForm>(emptyVillageForm);
@@ -213,6 +262,10 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
       if (!villageForm.area_id && areaItems.length > 0) {
         setVillageForm((current) => ({ ...current, area_id: areaItems[0].id }));
+      }
+
+      if (!districtManual.area_id && areaItems.length > 0) {
+        setDistrictManual((current) => ({ ...current, area_id: areaItems[0].id }));
       }
 
       if (!districtAdminForm.district_id && districtItems.length > 0) {
@@ -258,6 +311,15 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
   function updateManual<K extends keyof ManualLandlordForm>(key: K, value: ManualLandlordForm[K]) {
     setManual((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateDistrictManual<K extends keyof DistrictManualLandlordForm>(key: K, value: DistrictManualLandlordForm[K]) {
+    setDistrictManual((current) => {
+      if (key === "area_id") {
+        return { ...current, [key]: value, village_id: "" };
+      }
+      return { ...current, [key]: value };
+    });
   }
 
   function updateAreaForm<K extends keyof AreaForm>(key: K, value: AreaForm[K]) {
@@ -612,6 +674,54 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     }
   }
 
+  async function submitDistrictManualLandlord(event: FormEvent) {
+    event.preventDefault();
+    setNotice("");
+    setManualResult(null);
+    setBusyId("manual-landlord");
+
+    try {
+      const result = await apiFetch("/landlords/manual-create", {
+        method: "POST",
+        body: JSON.stringify({
+          full_name: districtManual.full_name,
+          email: districtManual.email,
+          phone: nullable(districtManual.phone),
+          address: nullable(districtManual.address),
+          emergency_contact: nullable(districtManual.emergency_contact),
+          emergency_phone: nullable(districtManual.emergency_phone),
+          preferred_response_method: districtManual.preferred_response_method,
+          response_contact_value: nullable(districtManual.response_contact_value),
+          national_id: nullable(districtManual.national_id),
+          notes: nullable(districtManual.notes),
+          property_name: districtManual.property_name,
+          area_id: districtManual.area_id,
+          village_id: districtManual.village_id,
+          property_address: nullable(districtManual.property_address),
+          total_rooms: Number(districtManual.total_rooms),
+          single_rooms: Number(districtManual.single_rooms),
+          double_rooms: Number(districtManual.double_rooms),
+          single_room_prefix: districtManual.single_room_prefix,
+          double_room_prefix: districtManual.double_room_prefix,
+          starting_room_number: Number(districtManual.starting_room_number)
+        })
+      });
+
+      setManualResult(result);
+      setDistrictManual((current) => ({
+        ...emptyDistrictManualLandlord,
+        area_id: current.area_id,
+        village_id: current.village_id
+      }));
+      setNotice("Landlord, property, and rooms created.");
+      await loadData();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not manually add landlord");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   async function decideRequest(request: LandlordRequest, action: "request-verification" | "reject") {
     setBusyId(request.id);
     setNotice("");
@@ -729,6 +839,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const selectedDistrict = isDistrictAdmin ? assignedDistrict : districts.find((district) => district.id === effectiveDistrictId);
   const districtAreas = selectedDistrict ? areas.filter((area) => area.district_id === selectedDistrict.id) : [];
   const manageableAreas = isDistrictAdmin ? districtAreas : areas;
+  const districtManualVillageOptions = villages.filter((village) => village.area_id === districtManual.area_id);
   const activeDistrictAreas = districtAreas.filter((area) => area.is_active);
   const activeDistrictRooms = rooms.filter((room) => room.status !== "maintenance");
   const verifiedDistrictProperties = properties.filter((property) => property.id);
@@ -858,6 +969,109 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   Generate landlord account
                 </button>
               </form>
+            </div>
+          ) : null}
+
+          {section === "manual-landlord" ? (
+            <div className="admin-grid single-admin-grid">
+              <form className="panel form-panel" onSubmit={submitDistrictManualLandlord}>
+                <div>
+                  <p className="eyebrow">District Admin</p>
+                  <h2>Add Landlord</h2>
+                  <p>{selectedDistrict ? `Creating inside ${selectedDistrict.name} only.` : "No district assignment found. Contact National Admin."}</p>
+                </div>
+
+                <div className="form-grid">
+                  <label>Full names<input required value={districtManual.full_name} onChange={(event) => updateDistrictManual("full_name", event.target.value)} /></label>
+                  <label>Email<input required type="email" value={districtManual.email} onChange={(event) => updateDistrictManual("email", event.target.value)} /></label>
+                </div>
+
+                <div className="form-grid">
+                  <label>Phone<input value={districtManual.phone} onChange={(event) => updateDistrictManual("phone", event.target.value)} /></label>
+                  <label>National ID optional<input value={districtManual.national_id} onChange={(event) => updateDistrictManual("national_id", event.target.value)} /></label>
+                </div>
+
+                <label>Personal physical address<input value={districtManual.address} onChange={(event) => updateDistrictManual("address", event.target.value)} /></label>
+
+                <div className="form-grid">
+                  <label>Emergency contact<input value={districtManual.emergency_contact} onChange={(event) => updateDistrictManual("emergency_contact", event.target.value)} /></label>
+                  <label>Emergency phone<input value={districtManual.emergency_phone} onChange={(event) => updateDistrictManual("emergency_phone", event.target.value)} /></label>
+                </div>
+
+                <div className="form-grid">
+                  <label>
+                    Preferred response method
+                    <select value={districtManual.preferred_response_method} onChange={(event) => updateDistrictManual("preferred_response_method", event.target.value)}>
+                      <option value="email">Email</option>
+                      <option value="phone_call">Phone call</option>
+                      <option value="sms">SMS</option>
+                      <option value="whatsapp">WhatsApp</option>
+                    </select>
+                  </label>
+                  <label>Response contact value<input value={districtManual.response_contact_value} onChange={(event) => updateDistrictManual("response_contact_value", event.target.value)} /></label>
+                </div>
+
+                <div>
+                  <p className="eyebrow">Property/location</p>
+                  <h2>Property and rooms</h2>
+                </div>
+
+                <label>Property name<input required value={districtManual.property_name} onChange={(event) => updateDistrictManual("property_name", event.target.value)} /></label>
+
+                <div className="form-grid">
+                  <label>
+                    Area
+                    <select required value={districtManual.area_id} onChange={(event) => updateDistrictManual("area_id", event.target.value)}>
+                      <option value="">Choose area</option>
+                      {manageableAreas.map((area) => (
+                        <option key={area.id} value={area.id}>{area.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Village/location
+                    <select required value={districtManual.village_id} onChange={(event) => updateDistrictManual("village_id", event.target.value)}>
+                      <option value="">Choose village</option>
+                      {districtManualVillageOptions.map((village) => (
+                        <option key={village.id} value={village.id}>{village.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label>Property physical address<input value={districtManual.property_address} onChange={(event) => updateDistrictManual("property_address", event.target.value)} /></label>
+
+                <div className="form-grid">
+                  <label>Total rooms<input required type="number" min="1" value={districtManual.total_rooms} onChange={(event) => updateDistrictManual("total_rooms", event.target.value)} /></label>
+                  <label>Single rooms<input required type="number" min="0" value={districtManual.single_rooms} onChange={(event) => updateDistrictManual("single_rooms", event.target.value)} /></label>
+                  <label>Double rooms<input required type="number" min="0" value={districtManual.double_rooms} onChange={(event) => updateDistrictManual("double_rooms", event.target.value)} /></label>
+                </div>
+
+                <div className="form-grid">
+                  <label>Single room prefix<input required value={districtManual.single_room_prefix} onChange={(event) => updateDistrictManual("single_room_prefix", event.target.value)} /></label>
+                  <label>Double room prefix<input required value={districtManual.double_room_prefix} onChange={(event) => updateDistrictManual("double_room_prefix", event.target.value)} /></label>
+                  <label>Starting room number<input required type="number" min="1" value={districtManual.starting_room_number} onChange={(event) => updateDistrictManual("starting_room_number", event.target.value)} /></label>
+                </div>
+
+                <label>Notes optional<textarea value={districtManual.notes} onChange={(event) => updateDistrictManual("notes", event.target.value)} /></label>
+
+                <button className="primary-button" type="submit" disabled={busyId === "manual-landlord" || !selectedDistrict}>
+                  {busyId === "manual-landlord" ? "Creating..." : "Generate account and rooms"}
+                </button>
+              </form>
+
+              {manualResult ? (
+                <section className="panel">
+                  <p className="eyebrow">Created</p>
+                  <h2>{manualResult.property_name}</h2>
+                  <div className="metric-grid compact-metrics">
+                    <Metric label="Rooms created" value={manualResult.rooms_created ?? 0} />
+                  </div>
+                  <div className="data-state compact-state">
+                    Username: {manualResult.username}. Temporary password: {manualResult.temporary_password}. Contact: {manualResult.landlord_email}{manualResult.landlord_phone ? ` / ${manualResult.landlord_phone}` : ""}.
+                  </div>
+                </section>
+              ) : null}
             </div>
           ) : null}
 
@@ -1560,6 +1774,7 @@ function adminSectionTitle(section: AdminSection) {
     reminders: "Payment reminders",
     plans: "Subscription plans",
     landlords: "Landlords",
+    "manual-landlord": "Add Landlord",
     districts: "Districts",
     "district-admins": "District Admins"
   };
@@ -1576,6 +1791,7 @@ function adminSectionDescription(section: AdminSection) {
     reminders: "Generate and review automated rent and subscription reminder logs.",
     plans: "Create and manage SaaS subscription plans for landlords.",
     landlords: "View active landlords and disable accounts when necessary.",
+    "manual-landlord": "Create an offline landlord account, property, and room inventory inside your assigned district.",
     districts: "Control districts, add areas, and manage rollout availability across Lesotho.",
     "district-admins": "Add, edit, disable, or delete District Admins after choosing their operating district."
   };

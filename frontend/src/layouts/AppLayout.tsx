@@ -48,6 +48,7 @@ const districtAdminLinks = [
   { to: "/district/landlord-requests", label: "Landlord Requests" },
   { to: "/district/landlord-verifications", label: "Verification Reviews" },
   { to: "/district/landlords", label: "District Landlords" },
+  { to: "/district/landlords/new", label: "Add Landlord" },
   { to: "/district/requests", label: "District Requests" },
   { to: "/district/areas", label: "Areas & Villages" },
   { to: "/district/reminders", label: "Payment Reminders" },
