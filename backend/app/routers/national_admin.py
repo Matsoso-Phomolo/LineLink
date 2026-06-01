@@ -3,6 +3,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -76,6 +77,54 @@ def run_platform_reminders(
     _: User = Depends(require_roles(UserRole.national_admin)),
 ):
     return run_reminders(db)
+
+
+@router.get("/subscription-analytics/districts")
+def subscription_analytics_by_district(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.national_admin)),
+):
+    rows = db.execute(
+        text(
+            """
+            select
+                d.id as district_id,
+                d.name as district_name,
+                count(distinct p.landlord_id) as total_landlords,
+                count(distinct case when ps.status::text = 'active' then p.landlord_id end) as paid_landlords,
+                count(distinct case when ps.id is null or ps.status::text <> 'active' then p.landlord_id end) as unpaid_landlords,
+                count(case when ps.status::text = 'active' then 1 end) as active_subscriptions,
+                count(case when ps.status::text = 'past_due' then 1 end) as pending_subscriptions,
+                count(case when ps.status::text = 'cancelled' then 1 end) as expired_subscriptions,
+                coalesce(sum(ps.monthly_amount), 0) as expected_amount,
+                coalesce((
+                    select sum(pt.amount)
+                    from payment_transactions pt
+                    join properties pp on pp.landlord_id = pt.landlord_id
+                    where pp.district_id = d.id
+                    and pt.payment_type = 'landlord_subscription'
+                    and pt.status::text = 'successful'
+                ), 0) as collected_amount
+            from districts d
+            left join properties p on p.district_id = d.id
+            left join property_subscriptions ps on ps.property_id = p.id
+            group by d.id, d.name
+            order by d.name asc
+            """
+        )
+    ).mappings().all()
+
+    districts = [dict(row) for row in rows]
+    return {
+        "districts": districts,
+        "totals": {
+            "total_landlords": sum(int(row["total_landlords"] or 0) for row in districts),
+            "total_paid_landlords": sum(int(row["paid_landlords"] or 0) for row in districts),
+            "total_unpaid_landlords": sum(int(row["unpaid_landlords"] or 0) for row in districts),
+            "total_expected_amount": sum(float(row["expected_amount"] or 0) for row in districts),
+            "total_collected_amount": sum(float(row["collected_amount"] or 0) for row in districts),
+        },
+    }
 
 
 @router.get("/ai-risk-center")

@@ -20,6 +20,7 @@ from app.routers import (
     dashboard,
     district_areas,
     district_risk,
+    district_subscriptions,
     districts,
     inspections,
     landlords,
@@ -175,6 +176,7 @@ app.include_router(tenant_financial.router)
 app.include_router(risk.router)
 app.include_router(portfolio_risk.router)
 app.include_router(district_risk.router)
+app.include_router(district_subscriptions.router)
 app.include_router(national_risk.router)
 
 

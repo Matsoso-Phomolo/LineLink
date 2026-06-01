@@ -1239,9 +1239,10 @@ class SubscriptionPlan(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     name: Mapped[str] = mapped_column(String(120), unique=True)
+    min_rooms: Mapped[int] = mapped_column(Integer, default=1)
     monthly_price: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     max_properties: Mapped[int] = mapped_column(Integer, default=1)
-    max_rooms: Mapped[int] = mapped_column(Integer, default=10)
+    max_rooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     features: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 

@@ -137,8 +137,8 @@ const emptyManual: ManualLandlordForm = {
 const emptyPlan = {
   name: "",
   monthly_price: "0",
-  max_properties: "1",
-  max_rooms: "10",
+  min_rooms: "1",
+  max_rooms: "",
   features: ""
 };
 
@@ -774,9 +774,10 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
         method: "POST",
         body: JSON.stringify({
           name: planForm.name,
+          min_rooms: Number(planForm.min_rooms),
           monthly_price: Number(planForm.monthly_price),
-          max_properties: Number(planForm.max_properties),
-          max_rooms: Number(planForm.max_rooms),
+          max_properties: 1,
+          max_rooms: planForm.max_rooms ? Number(planForm.max_rooms) : null,
           features: nullable(planForm.features),
           is_active: true
         })
@@ -1254,14 +1255,14 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                 </label>
 
                 <label>
-                  Max properties
-                  <input required inputMode="numeric" value={planForm.max_properties} onChange={(event) => setPlanForm((current) => ({ ...current, max_properties: event.target.value }))} />
+                  Min rooms
+                  <input required inputMode="numeric" value={planForm.min_rooms} onChange={(event) => setPlanForm((current) => ({ ...current, min_rooms: event.target.value }))} />
                 </label>
               </div>
 
               <label>
-                Max rooms
-                <input required inputMode="numeric" value={planForm.max_rooms} onChange={(event) => setPlanForm((current) => ({ ...current, max_rooms: event.target.value }))} />
+                Max rooms optional
+                <input inputMode="numeric" value={planForm.max_rooms} onChange={(event) => setPlanForm((current) => ({ ...current, max_rooms: event.target.value }))} placeholder="Leave blank for no limit" />
               </label>
 
               <label>
@@ -1279,7 +1280,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                     <div>
                       <strong>{plan.name}</strong>
                       <p>
-                        M{Number(plan.monthly_price).toLocaleString()} monthly - {plan.max_rooms} rooms
+                        M{Number(plan.monthly_price).toLocaleString()} monthly - {plan.min_rooms ?? 1} to {plan.max_rooms ?? "unlimited"} rooms
                       </p>
                     </div>
 

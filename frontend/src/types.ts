@@ -434,9 +434,10 @@ export type PaymentReceipt = {
 export type SubscriptionPlan = {
   id: string;
   name: string;
+  min_rooms?: number;
   monthly_price: number;
   max_properties: number;
-  max_rooms: number;
+  max_rooms?: number | null;
   features?: string | null;
   is_active: boolean;
   created_at: string;

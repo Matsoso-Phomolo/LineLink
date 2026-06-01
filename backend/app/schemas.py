@@ -1227,9 +1227,10 @@ class DamageRecordRead(DamageRecordCreate, ORMModel):
 
 class SubscriptionPlanCreate(BaseModel):
     name: str
+    min_rooms: int = Field(default=1, gt=0)
     monthly_price: float = 0
     max_properties: int = 1
-    max_rooms: int = 10
+    max_rooms: int | None = None
     features: str | None = None
     is_active: bool = True
 

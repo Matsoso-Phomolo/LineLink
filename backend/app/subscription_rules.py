@@ -7,9 +7,9 @@ from app.models import SubscriptionPricingRule
 
 
 DEFAULT_PRICING_RULES = (
-    ("rooms_1_to_15", 1, 15, Decimal("50.00")),
-    ("rooms_16_to_29", 16, 29, Decimal("75.00")),
-    ("rooms_30_plus", 30, None, Decimal("100.00")),
+    ("Starter Property Plan", 1, 15, Decimal("53.00")),
+    ("Growth Property Plan", 16, 29, Decimal("78.00")),
+    ("Enterprise Property Plan", 30, None, Decimal("103.00")),
 )
 
 
@@ -54,4 +54,4 @@ def calculate_property_subscription_amount(
         if _matches(total_rooms, min_rooms, max_rooms):
             return amount, tier_name
 
-    return Decimal("100.00"), "rooms_30_plus"
+    return Decimal("103.00"), "Enterprise Property Plan"
