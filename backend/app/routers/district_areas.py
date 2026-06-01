@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import require_roles
+from app.dependencies import get_optional_current_user, require_roles
 from app.models import District, DistrictAdminAssignment, DistrictArea, User, UserRole
 from app.schemas import DistrictAreaCreate, DistrictAreaResponse, DistrictAreaUpdate
 
@@ -60,7 +60,20 @@ def user_can_manage_district(db: Session, user: User, district_id: uuid.UUID) ->
 @router.get("", response_model=list[DistrictAreaResponse])
 def list_district_areas(
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
 ) -> list[DistrictArea]:
+    if current_user and is_district_admin(current_user):
+        return (
+            db.query(DistrictArea)
+            .join(DistrictAdminAssignment, DistrictAdminAssignment.district_id == DistrictArea.district_id)
+            .filter(
+                DistrictAdminAssignment.user_id == current_user.id,
+                DistrictAdminAssignment.is_active.is_(True),
+            )
+            .order_by(DistrictArea.name.asc())
+            .all()
+        )
+
     return (
         db.query(DistrictArea)
         .order_by(DistrictArea.name.asc())
@@ -71,7 +84,21 @@ def list_district_areas(
 @router.get("/active", response_model=list[DistrictAreaResponse])
 def list_active_district_areas(
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
 ) -> list[DistrictArea]:
+    if current_user and is_district_admin(current_user):
+        return (
+            db.query(DistrictArea)
+            .join(DistrictAdminAssignment, DistrictAdminAssignment.district_id == DistrictArea.district_id)
+            .filter(
+                DistrictAdminAssignment.user_id == current_user.id,
+                DistrictAdminAssignment.is_active.is_(True),
+                DistrictArea.is_active.is_(True),
+            )
+            .order_by(DistrictArea.name.asc())
+            .all()
+        )
+
     return (
         db.query(DistrictArea)
         .filter(DistrictArea.is_active.is_(True))
@@ -84,7 +111,14 @@ def list_active_district_areas(
 def list_areas_for_district(
     district_id: uuid.UUID,
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
 ) -> list[DistrictArea]:
+    if current_user and is_district_admin(current_user) and not user_can_manage_district(db, current_user, district_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="District is outside your assigned scope",
+        )
+
     return (
         db.query(DistrictArea)
         .filter(DistrictArea.district_id == district_id)
@@ -97,7 +131,14 @@ def list_areas_for_district(
 def list_active_areas_for_district(
     district_id: uuid.UUID,
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
 ) -> list[DistrictArea]:
+    if current_user and is_district_admin(current_user) and not user_can_manage_district(db, current_user, district_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="District is outside your assigned scope",
+        )
+
     return (
         db.query(DistrictArea)
         .filter(

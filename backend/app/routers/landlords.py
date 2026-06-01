@@ -798,6 +798,8 @@ def list_landlord_requests(
     district_ids = set()
     if is_district_admin(current_user):
         district_ids = {str(item) for item in get_district_admin_district_ids(db, current_user)}
+        if not district_ids:
+            return []
 
     for row in request_rows:
         serialized_request = serialize_landlord_request_row(

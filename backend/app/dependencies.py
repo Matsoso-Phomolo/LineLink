@@ -17,6 +17,7 @@ from app.models import (
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def get_current_user(
@@ -46,6 +47,31 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Inactive or missing user",
         )
+
+    return user
+
+
+def get_optional_current_user(
+    token: str | None = Depends(optional_oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not token:
+        return None
+
+    payload = decode_token(token)
+
+    if not payload or not payload.get("sub"):
+        return None
+
+    try:
+        user_id = uuid.UUID(str(payload["sub"]))
+    except (TypeError, ValueError):
+        return None
+
+    user = db.get(User, user_id)
+
+    if not user or not user.is_active:
+        return None
 
     return user
 

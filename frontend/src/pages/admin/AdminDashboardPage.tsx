@@ -3,7 +3,7 @@ import { apiFetch } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
-import type { Landlord, LandlordRequest, Listing, SubscriptionPlan } from "../../types";
+import type { Landlord, LandlordRequest, Listing, PropertyItem, Room, SubscriptionPlan, Tenant } from "../../types";
 
 type ManualLandlordForm = {
   full_name: string;
@@ -131,6 +131,9 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [requests, setRequests] = useState<LandlordRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [riskCenter, setRiskCenter] = useState<any>(null);
   const [reminderLogs, setReminderLogs] = useState<any[]>([]);
@@ -180,12 +183,18 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
         setDistrictAdminForm((current) => ({ ...current, district_id: districtItems[0].id }));
       }
 
-      const [listingItems, planItems] = await Promise.all([
+      const [listingItems, propertyItems, roomItems, tenantItems, planItems] = await Promise.all([
         loadOptional<Listing[]>("/listings/mine", []),
+        canLoadLandlordOperations ? loadOptional<PropertyItem[]>("/properties", []) : Promise.resolve([]),
+        canLoadLandlordOperations ? loadOptional<Room[]>("/rooms", []) : Promise.resolve([]),
+        canLoadLandlordOperations ? loadOptional<Tenant[]>("/tenants", []) : Promise.resolve([]),
         loadOptional<SubscriptionPlan[]>("/subscriptions/plans", [])
       ]);
 
       setListings(listingItems);
+      setProperties(propertyItems);
+      setRooms(roomItems);
+      setTenants(tenantItems);
       setPlans(planItems);
       setSubscriptionPermissions(
         await loadOptional<DistrictAdminSubscriptionPermission[]>("/subscriptions/district-permissions", [])
@@ -462,7 +471,8 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
           full_name: manual.full_name,
           email: manual.email,
           phone: nullable(manual.phone),
-          address: nullable(manual.address)
+          address: nullable(manual.address),
+          district_id: assignedDistrict?.id ?? null
         })
       })) as { temporary_password?: string | null; landlord?: Landlord | null };
 
@@ -588,13 +598,20 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const lockedDistricts = districts.filter((district) => !district.is_active).length;
   const activeAreas = areas.filter((area) => area.is_active).length;
   const lockedAreas = areas.filter((area) => !area.is_active).length;
-  const districtScoped = selectedDistrictId !== "all";
-  const selectedDistrict = districts.find((district) => district.id === selectedDistrictId);
-  const filteredDistrictAdmins = districtAdmins.filter((admin) => !districtScoped || admin.district_id === selectedDistrictId);
+  const isDistrictAdmin = user?.role === "district_admin";
+  const assignedDistrict = districts[0] ?? null;
+  const effectiveDistrictId = isDistrictAdmin ? assignedDistrict?.id ?? "none" : selectedDistrictId;
+  const districtScoped = isDistrictAdmin || effectiveDistrictId !== "all";
+  const selectedDistrict = isDistrictAdmin ? assignedDistrict : districts.find((district) => district.id === effectiveDistrictId);
+  const districtAreas = selectedDistrict ? areas.filter((area) => area.district_id === selectedDistrict.id) : [];
+  const activeDistrictAreas = districtAreas.filter((area) => area.is_active);
+  const activeDistrictRooms = rooms.filter((room) => room.status !== "maintenance");
+  const verifiedDistrictProperties = properties.filter((property) => property.id);
+  const filteredDistrictAdmins = districtAdmins.filter((admin) => !districtScoped || admin.district_id === effectiveDistrictId);
   const filteredRequests = requests.filter((request) => {
     if (!districtScoped) return true;
     const requestProperties = (request as any).properties ?? [];
-    return requestProperties.some((property: any) => property.district_id === selectedDistrictId);
+    return requestProperties.some((property: any) => property.district_id === effectiveDistrictId);
   });
   const filteredLandlords = landlords.filter((landlord) => {
     if (!districtScoped) return true;
@@ -602,12 +619,12 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     const landlordText = `${landlord.business_name ?? ""} ${(landlord as any).name ?? ""} ${landlord.address ?? ""} ${(landlord as any).location_area ?? ""}`.toLowerCase();
 
     return (
-      (landlord as any).district_id === selectedDistrictId ||
-      (landlord as any).primary_district_id === selectedDistrictId ||
+      (landlord as any).district_id === effectiveDistrictId ||
+      (landlord as any).primary_district_id === effectiveDistrictId ||
       (districtName === "maseru" && (landlordText.includes("maseru") || landlordText.includes("roma")))
     );
   });
-  const showDistrictSelector = section !== "districts" && section !== "gateway";
+  const showDistrictSelector = !isDistrictAdmin && section !== "districts" && section !== "gateway";
   const headerStat = section === "district-admins"
     ? {
         value: filteredDistrictAdmins.length,
@@ -936,6 +953,54 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
           ) : null}
 
           {section === "districts" ? (
+            isDistrictAdmin ? (
+              <div className="panel">
+                {!assignedDistrict ? (
+                  <div className="data-state">No district assignment found. Contact National Admin.</div>
+                ) : (
+                  <>
+                    <div className="section-heading">
+                      <div>
+                        <p className="eyebrow">{assignedDistrict.name} District Admin</p>
+                        <h2>My District: {assignedDistrict.name}</h2>
+                        <p>{assignedDistrict.description ?? "District operations for your assigned scope only."}</p>
+                      </div>
+                      <StatusPill value={assignedDistrict.is_active ? "active" : "locked"} />
+                    </div>
+
+                    <div className="metric-grid compact-metrics">
+                      <Metric label="Active areas" value={activeDistrictAreas.length} />
+                      <Metric label="District landlords" value={landlords.length} />
+                      <Metric label="Pending landlord requests" value={requests.filter((request) => request.status === "pending").length} />
+                      <Metric label="Verified properties" value={verifiedDistrictProperties.length} />
+                      <Metric label="Active rooms" value={activeDistrictRooms.length} />
+                      <Metric label="District tenants" value={tenants.length} />
+                    </div>
+
+                    <div className="list-stack compact-list">
+                      <article className="row-item rich">
+                        <div>
+                          <div className="card-topline">
+                            <StatusPill value={assignedDistrict.is_active ? "active" : "locked"} />
+                            <span>{districtAreas.length} areas / villages</span>
+                          </div>
+                          <strong>{assignedDistrict.name}</strong>
+                          <div className="amenities compact">
+                            {districtAreas.length === 0 ? <span>No areas yet</span> : null}
+                            {districtAreas.map((area) => (
+                              <span className="area-admin-chip" key={area.id}>
+                                <strong>{area.name}</strong>
+                                <StatusPill value={area.is_active ? "active" : "locked"} />
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </article>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
             <div className="panel">
               <div className="section-heading">
                 <div>
@@ -1098,6 +1163,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                 Districts and areas are backed by the production database. Only the selected district management view is shown here.
               </div>
             </div>
+            )
           ) : null}
 
           {section === "district-admins" ? (
