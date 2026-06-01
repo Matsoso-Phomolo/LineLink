@@ -35,11 +35,31 @@ type DistrictArea = {
   updated_at?: string | null;
 };
 
+type DistrictVillage = {
+  id: string;
+  area_id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  description: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
 type AreaForm = {
   id: string;
   district_id: string;
   name: string;
   description: string;
+  is_active: boolean;
+};
+
+type VillageForm = {
+  id: string;
+  area_id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
 };
 
 type DistrictAdmin = {
@@ -102,7 +122,16 @@ const emptyAreaForm: AreaForm = {
   id: "",
   district_id: "",
   name: "",
-  description: ""
+  description: "",
+  is_active: true
+};
+
+const emptyVillageForm: VillageForm = {
+  id: "",
+  area_id: "",
+  name: "",
+  description: "",
+  is_active: true
 };
 
 const emptyDistrictAdminForm: DistrictAdminForm = {
@@ -140,12 +169,14 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const [paymentHealth, setPaymentHealth] = useState<any>(null);
   const [districts, setDistricts] = useState<District[]>([]);
   const [areas, setAreas] = useState<DistrictArea[]>([]);
+  const [villages, setVillages] = useState<DistrictVillage[]>([]);
   const [districtAdmins, setDistrictAdmins] = useState<DistrictAdmin[]>([]);
   const [subscriptionPermissions, setSubscriptionPermissions] = useState<DistrictAdminSubscriptionPermission[]>([]);
 
   const [manual, setManual] = useState<ManualLandlordForm>(emptyManual);
   const [planForm, setPlanForm] = useState(emptyPlan);
   const [areaForm, setAreaForm] = useState<AreaForm>(emptyAreaForm);
+  const [villageForm, setVillageForm] = useState<VillageForm>(emptyVillageForm);
   const [districtAdminForm, setDistrictAdminForm] = useState<DistrictAdminForm>(emptyDistrictAdminForm);
 
   const [loading, setLoading] = useState(true);
@@ -174,9 +205,14 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
       setDistricts(districtItems);
       setAreas(areaItems);
       setDistrictAdmins(districtAdminItems);
+      setVillages(await loadOptional<DistrictVillage[]>("/district-areas/villages", []));
 
       if (!areaForm.district_id && districtItems.length > 0) {
         setAreaForm((current) => ({ ...current, district_id: districtItems[0].id }));
+      }
+
+      if (!villageForm.area_id && areaItems.length > 0) {
+        setVillageForm((current) => ({ ...current, area_id: areaItems[0].id }));
       }
 
       if (!districtAdminForm.district_id && districtItems.length > 0) {
@@ -226,6 +262,10 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
   function updateAreaForm<K extends keyof AreaForm>(key: K, value: AreaForm[K]) {
     setAreaForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateVillageForm<K extends keyof VillageForm>(key: K, value: VillageForm[K]) {
+    setVillageForm((current) => ({ ...current, [key]: value }));
   }
 
   function updateDistrictAdminForm<K extends keyof DistrictAdminForm>(key: K, value: DistrictAdminForm[K]) {
@@ -397,12 +437,15 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
           district_id: areaForm.district_id,
           name: areaForm.name,
           description: nullable(areaForm.description),
-          ...(areaForm.id ? {} : { is_active: true })
+          is_active: areaForm.is_active
         })
       })) as DistrictArea;
 
       setAreas((current) => areaForm.id ? current.map((item) => (item.id === savedArea.id ? savedArea : item)) : [...current, savedArea]);
       setAreaForm((current) => ({ ...emptyAreaForm, district_id: current.district_id }));
+      if (!villageForm.area_id) {
+        setVillageForm((current) => ({ ...current, area_id: savedArea.id }));
+      }
       setDistrictView("areas");
       setNotice(`${savedArea.name} ${areaForm.id ? "updated" : "added"} successfully.`);
     } catch (err) {
@@ -417,9 +460,90 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
       id: area.id,
       district_id: area.district_id,
       name: area.name,
-      description: area.description ?? ""
+      description: area.description ?? "",
+      is_active: area.is_active
     });
     setDistrictView("add-area");
+  }
+
+  async function submitVillage(event: FormEvent) {
+    event.preventDefault();
+    setBusyId("add-village");
+    setNotice("");
+
+    try {
+      const savedVillage = (await apiFetch(
+        villageForm.id ? `/district-areas/villages/${villageForm.id}` : `/district-areas/${villageForm.area_id}/villages`,
+        {
+          method: villageForm.id ? "PATCH" : "POST",
+          body: JSON.stringify({
+            name: villageForm.name,
+            description: nullable(villageForm.description),
+            is_active: villageForm.is_active
+          })
+        }
+      )) as DistrictVillage;
+
+      setVillages((current) =>
+        villageForm.id
+          ? current.map((item) => (item.id === savedVillage.id ? savedVillage : item))
+          : [...current, savedVillage]
+      );
+      setVillageForm((current) => ({ ...emptyVillageForm, area_id: current.area_id }));
+      setNotice(`${savedVillage.name} ${villageForm.id ? "updated" : "added"} successfully.`);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not save village");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  function editVillage(village: DistrictVillage) {
+    setVillageForm({
+      id: village.id,
+      area_id: village.area_id,
+      name: village.name,
+      description: village.description ?? "",
+      is_active: village.is_active
+    });
+    setDistrictView("areas");
+  }
+
+  async function deleteVillage(village: DistrictVillage) {
+    if (!window.confirm(`Delete ${village.name}? This should only be used before real listings depend on it.`)) return;
+    setBusyId(village.id);
+    setNotice("");
+
+    try {
+      await apiFetch(`/district-areas/villages/${village.id}`, { method: "DELETE" });
+      setVillages((current) => current.filter((item) => item.id !== village.id));
+      setNotice(`${village.name} deleted.`);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not delete village");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function toggleVillage(village: DistrictVillage) {
+    setBusyId(village.id);
+    setNotice("");
+
+    try {
+      const updatedVillage = (await apiFetch(`/district-areas/villages/${village.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          is_active: !village.is_active
+        })
+      })) as DistrictVillage;
+
+      setVillages((current) => current.map((item) => (item.id === updatedVillage.id ? updatedVillage : item)));
+      setNotice(`${updatedVillage.name} is now ${updatedVillage.is_active ? "active" : "locked"}.`);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not update village");
+    } finally {
+      setBusyId("");
+    }
   }
 
   async function deleteArea(area: DistrictArea) {
@@ -604,6 +728,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const districtScoped = isDistrictAdmin || effectiveDistrictId !== "all";
   const selectedDistrict = isDistrictAdmin ? assignedDistrict : districts.find((district) => district.id === effectiveDistrictId);
   const districtAreas = selectedDistrict ? areas.filter((area) => area.district_id === selectedDistrict.id) : [];
+  const manageableAreas = isDistrictAdmin ? districtAreas : areas;
   const activeDistrictAreas = districtAreas.filter((area) => area.is_active);
   const activeDistrictRooms = rooms.filter((room) => room.status !== "maintenance");
   const verifiedDistrictProperties = properties.filter((property) => property.id);
@@ -1039,14 +1164,26 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
               {districtView === "districts" ? (
                 <>
                   <p>
-                    Rentalink is currently available in Roma village under Maseru district. District Admins can activate or lock areas and villages as rollout expands.
+                    {isDistrictAdmin
+                      ? "Manage rollout visibility for your assigned district only."
+                      : "Rentalink is currently available in Roma village under Maseru district. District Admins can activate or lock areas and villages as rollout expands."}
                   </p>
 
                   <div className="metric-grid compact-metrics">
-                    <Metric label="Active districts" value={activeDistricts} />
-                    <Metric label="Locked districts" value={lockedDistricts} />
-                    <Metric label="Active areas" value={activeAreas} />
-                    <Metric label="Locked areas" value={lockedAreas} />
+                    {isDistrictAdmin ? (
+                      <>
+                        <Metric label="Assigned districts" value={districts.length} />
+                        <Metric label="Active areas" value={activeDistrictAreas.length} />
+                        <Metric label="Locked areas" value={districtAreas.length - activeDistrictAreas.length} />
+                      </>
+                    ) : (
+                      <>
+                        <Metric label="Active districts" value={activeDistricts} />
+                        <Metric label="Locked districts" value={lockedDistricts} />
+                        <Metric label="Active areas" value={activeAreas} />
+                        <Metric label="Locked areas" value={lockedAreas} />
+                      </>
+                    )}
                   </div>
 
                   <div className="list-stack compact-list">
@@ -1081,13 +1218,17 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
                   <label>
                     Choose District
-                    <select required value={areaForm.district_id} onChange={(event) => updateAreaForm("district_id", event.target.value)}>
-                      {districts.map((district) => (
-                        <option key={district.id} value={district.id}>
-                          {district.name}
-                        </option>
-                      ))}
-                    </select>
+                    {isDistrictAdmin ? (
+                      <input value={selectedDistrict?.name ?? "No district assignment found"} readOnly />
+                    ) : (
+                      <select required value={areaForm.district_id} onChange={(event) => updateAreaForm("district_id", event.target.value)}>
+                        {districts.map((district) => (
+                          <option key={district.id} value={district.id}>
+                            {district.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </label>
 
                   <label>
@@ -1098,6 +1239,14 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   <label>
                     Description
                     <textarea placeholder="Optional area description" value={areaForm.description} onChange={(event) => updateAreaForm("description", event.target.value)} />
+                  </label>
+
+                  <label>
+                    Status
+                    <select value={areaForm.is_active ? "active" : "locked"} onChange={(event) => updateAreaForm("is_active", event.target.value === "active")}>
+                      <option value="active">Active</option>
+                      <option value="locked">Locked</option>
+                    </select>
                   </label>
 
                   <button className="primary-button" type="submit" disabled={busyId === "add-area"}>
@@ -1116,48 +1265,128 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
               ) : null}
 
               {districtView === "areas" ? (
-                <div className="list-stack compact-list">
-                  {districts.map((district) => {
-                    const districtAreas = areas.filter((area) => area.district_id === district.id);
+                <>
+                  <form className="panel form-panel" onSubmit={submitVillage}>
+                    <div>
+                      <p className="eyebrow">District villages</p>
+                      <h2>{villageForm.id ? "Edit village" : "Add village"}</h2>
+                    </div>
 
-                    return (
-                      <article className="row-item rich" key={district.id}>
-                        <div>
-                          <div className="card-topline">
-                            <StatusPill value={district.is_active ? "active" : "locked"} />
-                            <span>{districtAreas.length} areas / villages</span>
+                    <label>
+                      Area
+                      <select required value={villageForm.area_id} onChange={(event) => updateVillageForm("area_id", event.target.value)}>
+                        {manageableAreas.map((area) => (
+                          <option key={area.id} value={area.id}>
+                            {area.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      Village / location name
+                      <input required placeholder="Example: Ha-Ntja" value={villageForm.name} onChange={(event) => updateVillageForm("name", event.target.value)} />
+                    </label>
+
+                    <label>
+                      Description
+                      <textarea placeholder="Optional village description" value={villageForm.description} onChange={(event) => updateVillageForm("description", event.target.value)} />
+                    </label>
+
+                    <label>
+                      Status
+                      <select value={villageForm.is_active ? "active" : "locked"} onChange={(event) => updateVillageForm("is_active", event.target.value === "active")}>
+                        <option value="active">Active</option>
+                        <option value="locked">Locked</option>
+                      </select>
+                    </label>
+
+                    <div className="review-actions">
+                      <button className="primary-button" type="submit" disabled={busyId === "add-village" || !villageForm.area_id}>
+                        {busyId === "add-village" ? "Saving..." : villageForm.id ? "Save village" : "Add village"}
+                      </button>
+                      {villageForm.id ? (
+                        <button type="button" onClick={() => setVillageForm((current) => ({ ...emptyVillageForm, area_id: current.area_id }))}>
+                          Cancel edit
+                        </button>
+                      ) : null}
+                    </div>
+                  </form>
+
+                  <div className="list-stack compact-list">
+                    {districts.map((district) => {
+                      const districtAreas = areas.filter((area) => area.district_id === district.id);
+
+                      return (
+                        <article className="row-item rich" key={district.id}>
+                          <div>
+                            <div className="card-topline">
+                              <StatusPill value={district.is_active ? "active" : "locked"} />
+                              <span>{districtAreas.length} areas</span>
+                            </div>
+
+                            <strong>{district.name}</strong>
+
+                            <div className="list-stack compact-list">
+                              {districtAreas.length === 0 ? <div className="data-state">No areas yet</div> : null}
+
+                              {districtAreas.map((area) => {
+                                const areaVillages = villages.filter((village) => village.area_id === area.id);
+
+                                return (
+                                  <div className="data-state compact-state" key={area.id}>
+                                    <div className="section-heading">
+                                      <div>
+                                        <strong>{area.name}</strong>
+                                        <p>{areaVillages.length} villages / locations</p>
+                                      </div>
+                                      <div className="review-actions">
+                                        <button
+                                          type="button"
+                                          className={`status-toggle ${area.is_active ? "active" : "locked"}`}
+                                          disabled={busyId === area.id}
+                                          onClick={() => toggleArea(area)}
+                                        >
+                                          {area.is_active ? "Active" : "Locked"}
+                                        </button>
+                                        <button type="button" onClick={() => editArea(area)}>
+                                          Edit Area
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="amenities compact">
+                                      {areaVillages.length === 0 ? <span>No villages yet</span> : null}
+                                      {areaVillages.map((village) => (
+                                        <span className="area-admin-chip" key={village.id}>
+                                          <strong>{village.name}</strong>
+                                          <button
+                                            type="button"
+                                            className={`status-toggle ${village.is_active ? "active" : "locked"}`}
+                                            disabled={busyId === village.id}
+                                            onClick={() => toggleVillage(village)}
+                                          >
+                                            {village.is_active ? "Active" : "Locked"}
+                                          </button>
+                                          <button type="button" onClick={() => editVillage(village)}>
+                                            Edit
+                                          </button>
+                                          <button type="button" disabled={busyId === village.id} onClick={() => deleteVillage(village)}>
+                                            Delete
+                                          </button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-
-                          <strong>{district.name}</strong>
-
-                          <div className="amenities compact">
-                            {districtAreas.length === 0 ? <span>No areas yet</span> : null}
-
-                            {districtAreas.map((area) => (
-                              <span className="area-admin-chip" key={area.id}>
-                                <strong>{area.name}</strong>
-                                <button
-                                  type="button"
-                                  className={`status-toggle ${area.is_active ? "active" : "locked"}`}
-                                  disabled={busyId === area.id}
-                                  onClick={() => toggleArea(area)}
-                                >
-                                  {area.is_active ? "Active" : "Locked"}
-                                </button>
-                                <button type="button" onClick={() => editArea(area)}>
-                                  Edit
-                                </button>
-                                <button type="button" disabled={busyId === area.id} onClick={() => deleteArea(area)}>
-                                  Delete
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
               ) : null}
 
               <div className="data-state">

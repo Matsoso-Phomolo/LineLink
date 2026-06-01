@@ -1022,6 +1022,29 @@ class DistrictAreaResponse(ORMModel):
     updated_at: datetime
 
 
+class DistrictVillageCreate(BaseModel):
+    name: str
+    description: str | None = None
+    is_active: bool = True
+
+
+class DistrictVillageUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    is_active: bool | None = None
+
+
+class DistrictVillageResponse(ORMModel):
+    id: uuid.UUID
+    area_id: uuid.UUID
+    name: str
+    slug: str
+    is_active: bool
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class PropertyCategoryCreate(BaseModel):
     name: str
     description: str | None = None

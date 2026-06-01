@@ -315,8 +315,22 @@ class DistrictArea(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text)
 
     district: Mapped[District] = relationship(back_populates="areas")
+    villages: Mapped[list["DistrictVillage"]] = relationship(back_populates="area")
 
     __table_args__ = (UniqueConstraint("district_id", "slug", name="uq_district_area_district_slug"),)
+
+
+class DistrictVillage(Base, TimestampMixin):
+    __tablename__ = "district_villages"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    area_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("district_areas.id"), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    slug: Mapped[str] = mapped_column(String(220), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+
+    area: Mapped[DistrictArea] = relationship(back_populates="villages")
 
 
 class DistrictAdminAssignment(Base, TimestampMixin):
