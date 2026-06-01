@@ -13,6 +13,8 @@ type LandlordRequest = {
   message: string | null;
   status: string;
   admin_note: string | null;
+  verification_url?: string | null;
+  verification_token?: string | null;
   created_at: string;
 };
 
@@ -68,7 +70,7 @@ export function LandlordRequestsPage() {
     setStatus("");
 
     try {
-      await apiFetch(
+      const result = (await apiFetch(
         `/landlords/requests/${selectedRequest.id}/request-verification`,
         {
           method: "POST",
@@ -76,10 +78,12 @@ export function LandlordRequestsPage() {
             admin_note: adminNote,
           }),
         }
-      );
+      )) as LandlordRequest;
 
       setStatus(
-        "Verification requested. The landlord can now receive the verification form link."
+        result.verification_url
+          ? `Verification requested. Form link: ${result.verification_url}`
+          : "Verification requested. The landlord can now receive the verification form link."
       );
 
       setAdminNote("");

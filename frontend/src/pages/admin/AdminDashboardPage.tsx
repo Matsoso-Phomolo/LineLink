@@ -57,6 +57,13 @@ type DistrictAdmin = {
   district_name: string;
 };
 
+type DistrictAdminSubscriptionPermission = {
+  id: string;
+  district_admin_user_id: string;
+  district_id: string;
+  can_manage_subscriptions: boolean;
+};
+
 type DistrictAdminForm = {
   id: string;
   full_name: string;
@@ -137,6 +144,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
   const [districts, setDistricts] = useState<District[]>([]);
   const [areas, setAreas] = useState<DistrictArea[]>([]);
   const [districtAdmins, setDistrictAdmins] = useState<DistrictAdmin[]>([]);
+  const [subscriptionPermissions, setSubscriptionPermissions] = useState<DistrictAdminSubscriptionPermission[]>([]);
 
   const [manual, setManual] = useState<ManualLandlordForm>(emptyManual);
   const [planForm, setPlanForm] = useState(emptyPlan);
@@ -184,6 +192,9 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
 
       setListings(listingItems);
       setPlans(planItems);
+      setSubscriptionPermissions(
+        await loadOptional<DistrictAdminSubscriptionPermission[]>("/subscriptions/district-permissions", [])
+      );
 
       const [riskItems, reminderItems, healthItems] = await Promise.all([
         loadOptional<any>("/admin/ai-risk-center", null),
@@ -287,6 +298,39 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
       setNotice(`${admin.full_name} is now ${admin.is_active ? "disabled" : "active"}.`);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not update district admin");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function toggleSubscriptionPermission(admin: DistrictAdmin) {
+    const currentPermission = subscriptionPermissions.find(
+      (permission) =>
+        permission.district_admin_user_id === admin.id &&
+        permission.district_id === admin.district_id
+    );
+    const nextValue = !currentPermission?.can_manage_subscriptions;
+
+    setBusyId(`subscription-permission-${admin.id}`);
+    setNotice("");
+
+    try {
+      await apiFetch("/subscriptions/district-permissions", {
+        method: "POST",
+        body: JSON.stringify({
+          district_admin_user_id: admin.id,
+          can_manage_subscriptions: nextValue
+        })
+      });
+
+      setSubscriptionPermissions(
+        await loadOptional<DistrictAdminSubscriptionPermission[]>("/subscriptions/district-permissions", [])
+      );
+      setNotice(
+        `${admin.full_name} subscription pricing permission is now ${nextValue ? "Activated" : "Locked"}.`
+      );
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not update subscription permission");
     } finally {
       setBusyId("");
     }
@@ -434,7 +478,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
     }
   }
 
-  async function decideRequest(request: LandlordRequest, action: "approve" | "reject") {
+  async function decideRequest(request: LandlordRequest, action: "request-verification" | "reject") {
     setBusyId(request.id);
     setNotice("");
 
@@ -442,14 +486,16 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
       const result = (await apiFetch(`/landlords/requests/${request.id}/${action}`, {
         method: "POST",
         body: JSON.stringify({
-          admin_note: action === "approve" ? "Approved by admin." : "Rejected by admin."
+          admin_note: action === "request-verification" ? "Verification information requested." : "Rejected by admin."
         })
-      })) as { temporary_password?: string | null };
+      })) as { verification_url?: string | null };
 
       setNotice(
-        action === "approve" && result.temporary_password
-          ? `Landlord approved. Temporary password: ${result.temporary_password}`
-          : `Request ${action}d.`
+        action === "request-verification" && result.verification_url
+          ? `Verification requested. Link: ${result.verification_url}`
+          : action === "request-verification"
+          ? "Verification requested."
+          : "Request rejected."
       );
 
       await loadData();
@@ -697,8 +743,8 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                     </div>
 
                     <div className="review-actions">
-                      <button type="button" disabled={busyId === request.id || request.status !== "pending"} onClick={() => decideRequest(request, "approve")}>
-                        Approve
+                      <button type="button" disabled={busyId === request.id || request.status !== "pending"} onClick={() => decideRequest(request, "request-verification")}>
+                        Request verification
                       </button>
 
                       <button type="button" disabled={busyId === request.id || request.status !== "pending"} onClick={() => decideRequest(request, "reject")}>
@@ -1122,6 +1168,18 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                       <div>
                         <div className="card-topline">
                           <StatusPill value={admin.is_active ? "active" : "disabled"} />
+                          <StatusPill
+                            value={
+                              subscriptionPermissions.some(
+                                (permission) =>
+                                  permission.district_admin_user_id === admin.id &&
+                                  permission.district_id === admin.district_id &&
+                                  permission.can_manage_subscriptions
+                              )
+                                ? "subscription activated"
+                                : "subscription locked"
+                            }
+                          />
                           <span>{admin.username ?? "No identifier"}</span>
                         </div>
 
@@ -1134,6 +1192,20 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                         <button type="button" onClick={() => editDistrictAdmin(admin)}>Edit</button>
                         <button type="button" disabled={busyId === admin.id} onClick={() => toggleDistrictAdmin(admin)}>
                           {admin.is_active ? "Disable" : "Enable"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === `subscription-permission-${admin.id}`}
+                          onClick={() => toggleSubscriptionPermission(admin)}
+                        >
+                          {subscriptionPermissions.some(
+                            (permission) =>
+                              permission.district_admin_user_id === admin.id &&
+                              permission.district_id === admin.district_id &&
+                              permission.can_manage_subscriptions
+                          )
+                            ? "Lock subscription"
+                            : "Activate subscription"}
                         </button>
                         <button type="button" disabled={busyId === admin.id} onClick={() => deleteDistrictAdmin(admin)}>
                           Delete

@@ -1,5 +1,5 @@
-import uuid
 from datetime import date
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from app.database import get_db
 from app.dependencies import (
     get_actor_landlord_id,
     get_current_user,
+    get_district_admin_district_ids,
     require_roles,
 )
 from app.models import (
@@ -15,7 +16,9 @@ from app.models import (
     PaymentMethod,
     PaymentTransaction,
     PaymentTransactionStatus,
+    DistrictAdminSubscriptionPermission,
     SubscriptionPlan,
+    SubscriptionPricingRule,
     SubscriptionStatus,
     User,
     UserRole,
@@ -30,9 +33,183 @@ from app.schemas import (
     SubscriptionPayRequest,
     SubscriptionPlanCreate,
     SubscriptionPlanRead,
+    SubscriptionPricingRuleRead,
+    SubscriptionPricingRuleUpsert,
+    DistrictSubscriptionPermissionUpdate,
 )
+from app.subscription_rules import default_subscription_rules
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
+
+
+def assert_subscription_pricing_permission(
+    db: Session,
+    user: User,
+    district_id: uuid.UUID | None,
+) -> None:
+    if user.role == UserRole.national_admin:
+        return
+
+    if user.role != UserRole.district_admin or not district_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only National Admin can manage national subscription pricing.",
+        )
+
+    district_ids = set(get_district_admin_district_ids(db, user))
+    if district_id not in district_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="District Admin can only manage pricing in their assigned district.",
+        )
+
+    permission = (
+        db.query(DistrictAdminSubscriptionPermission)
+        .filter(
+            DistrictAdminSubscriptionPermission.district_admin_user_id == user.id,
+            DistrictAdminSubscriptionPermission.district_id == district_id,
+            DistrictAdminSubscriptionPermission.can_manage_subscriptions.is_(True),
+        )
+        .first()
+    )
+
+    if not permission:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Subscription pricing is locked by National Admin for this district.",
+        )
+
+
+@router.get("/pricing-rules", response_model=list[SubscriptionPricingRuleRead])
+def list_pricing_rules(
+    district_id: uuid.UUID | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
+):
+    query = db.query(SubscriptionPricingRule)
+
+    if user.role == UserRole.district_admin:
+        district_ids = set(get_district_admin_district_ids(db, user))
+        if district_id:
+            if district_id not in district_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="District is outside your assigned scope.",
+                )
+            query = query.filter(SubscriptionPricingRule.district_id == district_id)
+        else:
+            query = query.filter(SubscriptionPricingRule.district_id.in_(district_ids))
+    elif district_id:
+        query = query.filter(SubscriptionPricingRule.district_id == district_id)
+
+    return query.order_by(SubscriptionPricingRule.district_id.nullsfirst(), SubscriptionPricingRule.min_rooms.asc()).all()
+
+
+@router.post("/pricing-rules", response_model=SubscriptionPricingRuleRead)
+def upsert_pricing_rule(
+    payload: SubscriptionPricingRuleUpsert,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
+):
+    assert_subscription_pricing_permission(db, user, payload.district_id)
+
+    rule = (
+        db.query(SubscriptionPricingRule)
+        .filter(
+            SubscriptionPricingRule.district_id == payload.district_id,
+            SubscriptionPricingRule.tier_name == payload.tier_name,
+        )
+        .first()
+    )
+
+    if not rule:
+        rule = SubscriptionPricingRule(
+            district_id=payload.district_id,
+            tier_name=payload.tier_name,
+            created_by_user_id=user.id,
+        )
+        db.add(rule)
+
+    rule.min_rooms = payload.min_rooms
+    rule.max_rooms = payload.max_rooms
+    rule.monthly_amount = payload.monthly_amount
+    rule.is_active = payload.is_active
+    rule.updated_by_user_id = user.id
+
+    db.commit()
+    db.refresh(rule)
+    return rule
+
+
+@router.get("/pricing-defaults")
+def get_pricing_defaults():
+    return default_subscription_rules()
+
+
+@router.post("/district-permissions")
+def set_district_subscription_permission(
+    payload: DistrictSubscriptionPermissionUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.national_admin)),
+):
+    district_admin = db.get(User, payload.district_admin_user_id)
+    if not district_admin or district_admin.role != UserRole.district_admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="District Admin user not found.",
+        )
+
+    district_ids = set(get_district_admin_district_ids(db, district_admin))
+    if not district_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="District Admin assignment not found.",
+        )
+
+    permission_records = []
+    for district_id in district_ids:
+        permission = (
+            db.query(DistrictAdminSubscriptionPermission)
+            .filter(
+                DistrictAdminSubscriptionPermission.district_admin_user_id == payload.district_admin_user_id,
+                DistrictAdminSubscriptionPermission.district_id == district_id,
+            )
+            .first()
+        )
+        if not permission:
+            permission = DistrictAdminSubscriptionPermission(
+                district_admin_user_id=payload.district_admin_user_id,
+                district_id=district_id,
+                granted_by_user_id=user.id,
+            )
+            db.add(permission)
+
+        permission.can_manage_subscriptions = payload.can_manage_subscriptions
+        permission.granted_by_user_id = user.id
+        permission_records.append(permission)
+
+    db.commit()
+    return {
+        "district_admin_user_id": str(payload.district_admin_user_id),
+        "can_manage_subscriptions": payload.can_manage_subscriptions,
+        "districts_updated": len(permission_records),
+    }
+
+
+@router.get("/district-permissions")
+def list_district_subscription_permissions(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.national_admin, UserRole.district_admin)),
+):
+    return [
+        {
+            "id": str(item.id),
+            "district_admin_user_id": str(item.district_admin_user_id),
+            "district_id": str(item.district_id),
+            "can_manage_subscriptions": item.can_manage_subscriptions,
+        }
+        for item in db.query(DistrictAdminSubscriptionPermission).all()
+    ]
 
 
 def subscription_in_scope(

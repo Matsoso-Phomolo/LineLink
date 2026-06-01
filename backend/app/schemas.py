@@ -137,6 +137,12 @@ class LandlordRequestPropertyCreate(BaseModel):
         if self.single_rooms + self.double_rooms != self.total_rooms:
             raise ValueError("single_rooms + double_rooms must equal total_rooms")
 
+        self.single_room_prefix = self.single_room_prefix.strip().upper()
+        self.double_room_prefix = self.double_room_prefix.strip().upper()
+
+        if not self.single_room_prefix or not self.double_room_prefix:
+            raise ValueError("single and double room prefixes are required")
+
         if self.single_room_prefix == self.double_room_prefix:
             raise ValueError("single and double room prefixes must differ")
 
@@ -176,6 +182,7 @@ class LandlordRequestDecision(BaseModel):
 
 
 class LandlordVerificationCreate(BaseModel):
+    email: EmailStr
     national_id: str
     selfie_path: str | None = None
     utility_bill_path: str | None = None
@@ -201,6 +208,28 @@ class DistrictSubscriptionPermissionUpdate(BaseModel):
     can_manage_subscriptions: bool
 
 
+class SubscriptionPricingRuleUpsert(BaseModel):
+    district_id: uuid.UUID | None = None
+    tier_name: str
+    min_rooms: int = Field(gt=0)
+    max_rooms: int | None = Field(default=None, gt=0)
+    monthly_amount: float = Field(ge=0)
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.max_rooms is not None and self.max_rooms < self.min_rooms:
+            raise ValueError("max_rooms must be greater than or equal to min_rooms")
+        return self
+
+
+class SubscriptionPricingRuleRead(SubscriptionPricingRuleUpsert, ORMModel):
+    id: uuid.UUID
+    created_by_user_id: uuid.UUID | None = None
+    updated_by_user_id: uuid.UUID | None = None
+    created_at: datetime
+
+
 class PropertySubscriptionCalculation(BaseModel):
     property_id: uuid.UUID
     total_rooms: int
@@ -215,6 +244,13 @@ class LandlordRequestRead(LandlordRequestCreate, ORMModel):
     landlord_id: uuid.UUID | None
     approved_by_user_id: uuid.UUID | None
     approved_at: datetime | None
+    verification_token: str | None = None
+    verification_token_expires_at: datetime | None = None
+    verification_url: str | None = None
+    ai_recommendation: str | None = None
+    ai_confidence_score: float | None = None
+    ai_summary: str | None = None
+    ai_risk_flags: str | None = None
     created_at: datetime
     properties: list[LandlordRequestPropertyRead] = Field(default_factory=list)
 

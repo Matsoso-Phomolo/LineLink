@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_password_hash
 from app.audit import log_action
+from app.config import get_settings
 from app.database import get_db
 from app.dependencies import (
     get_district_admin_district_ids,
@@ -31,6 +32,7 @@ from app.models import (
     SubscriptionStatus,
     User,
     UserRole,
+    VerificationAIRecommendation,
 )
 from app.schemas import (
     LandlordCreate,
@@ -143,6 +145,8 @@ def landlord_request_select_sql(columns: set[str], where_clause: str = "") -> st
         "approved_by_user_id": "approved_by_user_id",
         "approved_at": "approved_at",
         "created_at": "created_at",
+        "verification_token": "verification_token",
+        "verification_token_expires_at": "verification_token_expires_at",
     }
     fallback_columns = {
         "business_name": "full_name as business_name",
@@ -154,6 +158,8 @@ def landlord_request_select_sql(columns: set[str], where_clause: str = "") -> st
         "approved_by_user_id": "NULL as approved_by_user_id",
         "approved_at": "NULL as approved_at",
         "created_at": "CURRENT_TIMESTAMP as created_at",
+        "verification_token": "NULL as verification_token",
+        "verification_token_expires_at": "NULL as verification_token_expires_at",
     }
     select_parts = [
         "id",
@@ -171,6 +177,8 @@ def landlord_request_select_sql(columns: set[str], where_clause: str = "") -> st
         optional_columns["landlord_id"] if "landlord_id" in columns else fallback_columns["landlord_id"],
         optional_columns["approved_by_user_id"] if "approved_by_user_id" in columns else fallback_columns["approved_by_user_id"],
         optional_columns["approved_at"] if "approved_at" in columns else fallback_columns["approved_at"],
+        optional_columns["verification_token"] if "verification_token" in columns else fallback_columns["verification_token"],
+        optional_columns["verification_token_expires_at"] if "verification_token_expires_at" in columns else fallback_columns["verification_token_expires_at"],
         optional_columns["created_at"] if "created_at" in columns else fallback_columns["created_at"],
     ]
 
@@ -206,7 +214,60 @@ def get_serialized_landlord_request(
     if not row:
         return None
 
-    return serialize_landlord_request_row(dict(row), {})
+    property_rows = [
+        dict(property_row)
+        for property_row in db.execute(
+            text(
+                """
+                select *
+                from landlord_request_properties
+                where landlord_request_id = :request_id
+                order by created_at asc
+                """
+            ),
+            {"request_id": request_id},
+        )
+        .mappings()
+        .all()
+    ]
+    properties = [
+        property_item
+        for property_item in (
+            serialize_landlord_request_property(property_row)
+            for property_row in property_rows
+        )
+        if property_item
+    ]
+    verification = (
+        db.query(LandlordVerification)
+        .filter(LandlordVerification.landlord_request_id == request_id)
+        .first()
+    )
+    verification_data = (
+        {
+            "landlord_request_id": str(verification.landlord_request_id),
+            "ai_recommendation": (
+                verification.ai_recommendation.value
+                if verification.ai_recommendation
+                else None
+            ),
+            "ai_confidence_score": (
+                float(verification.ai_confidence_score)
+                if verification.ai_confidence_score is not None
+                else None
+            ),
+            "ai_summary": verification.ai_summary,
+            "ai_risk_flags": verification.ai_risk_flags,
+        }
+        if verification
+        else None
+    )
+
+    return serialize_landlord_request_row(
+        dict(row),
+        {str(request_id): properties},
+        {str(request_id): verification_data} if verification_data else {},
+    )
 
 
 def serialize_landlord_request_property(row: dict[str, object]) -> dict[str, object] | None:
@@ -274,6 +335,7 @@ def serialize_landlord_request_property(row: dict[str, object]) -> dict[str, obj
 def serialize_landlord_request_row(
     row: dict[str, object],
     properties_by_request_id: dict[str, list[dict[str, object]]],
+    verification_by_request_id: dict[str, dict[str, object]] | None = None,
 ) -> dict[str, object] | None:
     request_id = row.get("id")
 
@@ -315,9 +377,22 @@ def serialize_landlord_request_row(
                 else None
             ),
             "approved_at": row.get("approved_at"),
+            "verification_token": row.get("verification_token"),
+            "verification_token_expires_at": row.get("verification_token_expires_at"),
             "created_at": row.get("created_at") or datetime.now(timezone.utc),
             "properties": properties_by_request_id.get(str(request_id), []),
         }
+
+        verification = (verification_by_request_id or {}).get(str(request_id))
+        if verification:
+            serialized.update(
+                {
+                    "ai_recommendation": verification.get("ai_recommendation"),
+                    "ai_confidence_score": verification.get("ai_confidence_score"),
+                    "ai_summary": verification.get("ai_summary"),
+                    "ai_risk_flags": verification.get("ai_risk_flags"),
+                }
+            )
 
         logger.info(
             "Serialized landlord request row",
@@ -354,6 +429,74 @@ def generated_password() -> str:
     return f"LL-{secrets.token_urlsafe(10)}aA1!"
 
 
+def get_request_by_verification_token(db: Session, token: str) -> LandlordRequest:
+    request = (
+        db.query(LandlordRequest)
+        .filter(LandlordRequest.verification_token == token)
+        .first()
+    )
+
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verification link is invalid.",
+        )
+
+    if request.verification_token_expires_at:
+        expires_at = request.verification_token_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail="Verification link has expired. Please request a new link.",
+            )
+
+    return request
+
+
+def analyze_landlord_verification(
+    verification: LandlordVerification,
+    properties: list[LandlordRequestProperty],
+) -> tuple[VerificationAIRecommendation, float, list[str], str]:
+    risk_flags: list[str] = []
+
+    if not verification.selfie_path:
+        risk_flags.append("missing_selfie")
+    if not verification.utility_bill_path:
+        risk_flags.append("missing_utility_bill")
+    if not verification.ownership_document_path:
+        risk_flags.append("missing_ownership_document")
+    if not properties:
+        risk_flags.append("no_properties_submitted")
+
+    for property_item in properties:
+        if property_item.single_rooms + property_item.double_rooms != property_item.total_rooms:
+            risk_flags.append(f"{property_item.property_name}: room_count_mismatch")
+        if property_item.single_room_prefix.strip().lower() == property_item.double_room_prefix.strip().lower():
+            risk_flags.append(f"{property_item.property_name}: duplicate_room_prefix")
+        if not property_item.address:
+            risk_flags.append(f"{property_item.property_name}: missing_property_address")
+        if property_item.single_rooms and not property_item.single_room_rent:
+            risk_flags.append(f"{property_item.property_name}: missing_single_room_rent")
+        if property_item.double_rooms and not property_item.double_room_rent:
+            risk_flags.append(f"{property_item.property_name}: missing_double_room_rent")
+
+    confidence = max(0.25, 1 - (len(risk_flags) * 0.12))
+
+    if not risk_flags:
+        recommendation = VerificationAIRecommendation.approve
+        summary = "Verification appears complete. Identity, ownership, and property room data are ready for admin approval."
+    elif len(risk_flags) <= 2:
+        recommendation = VerificationAIRecommendation.manual_review
+        summary = "Verification is usable but has a small number of gaps that admin should review."
+    else:
+        recommendation = VerificationAIRecommendation.reject
+        summary = "Verification has several missing or inconsistent fields. Admin should reject or request resubmission."
+
+    return recommendation, round(confidence, 2), risk_flags, summary
+
+
 def ensure_landlord_numbers(db: Session) -> None:
     changed = False
 
@@ -376,6 +519,7 @@ def create_landlord_account(
     db: Session,
     *,
     full_name: str,
+    business_name: str | None = None,
     email: str,
     phone: str | None,
     address: str | None,
@@ -416,7 +560,7 @@ def create_landlord_account(
     ).first()
 
     if landlord:
-        landlord.business_name = full_name
+        landlord.business_name = business_name or full_name
         landlord.contact_phone = phone
         landlord.email = email
         landlord.address = address
@@ -431,7 +575,7 @@ def create_landlord_account(
 
     landlord = Landlord(
         user_id=user.id,
-        business_name=full_name,
+        business_name=business_name or full_name,
         contact_phone=phone,
         email=email,
         address=address,
@@ -625,6 +769,31 @@ def list_landlord_requests(
                 serialized_property
             )
 
+    verification_by_request_id: dict[str, dict[str, object]] = {}
+    try:
+        verification_rows = db.query(LandlordVerification).all()
+        verification_by_request_id = {
+            str(row.landlord_request_id): {
+                "landlord_request_id": str(row.landlord_request_id),
+                "ai_recommendation": (
+                    row.ai_recommendation.value
+                    if row.ai_recommendation
+                    else None
+                ),
+                "ai_confidence_score": (
+                    float(row.ai_confidence_score)
+                    if row.ai_confidence_score is not None
+                    else None
+                ),
+                "ai_summary": row.ai_summary,
+                "ai_risk_flags": row.ai_risk_flags,
+            }
+            for row in verification_rows
+            if row.landlord_request_id
+        }
+    except Exception:
+        logger.exception("Failed to load landlord verification AI rows")
+
     results: list[dict[str, object]] = []
     district_ids = set()
     if is_district_admin(current_user):
@@ -634,6 +803,7 @@ def list_landlord_requests(
         serialized_request = serialize_landlord_request_row(
             row,
             properties_by_request_id,
+            verification_by_request_id,
         )
 
         if serialized_request:
@@ -759,9 +929,11 @@ def request_landlord_verification(
         assignments.append("admin_note = :admin_note")
         params["admin_note"] = payload.admin_note
 
+    verification_token = secrets.token_urlsafe(48)
+
     if "verification_token" in columns:
         assignments.append("verification_token = :verification_token")
-        params["verification_token"] = secrets.token_urlsafe(48)
+        params["verification_token"] = verification_token
 
     if "verification_token_expires_at" in columns:
         assignments.append("verification_token_expires_at = :verification_token_expires_at")
@@ -785,11 +957,53 @@ def request_landlord_verification(
     )
     db.commit()
 
-    return get_serialized_landlord_request(db, request_id) or {
+    result = get_serialized_landlord_request(db, request_id) or {
         **serialized,
         "status": LandlordRequestStatus.verification_requested.value,
         "admin_note": payload.admin_note,
     }
+    if "verification_token" in columns:
+        result["verification_token"] = verification_token
+        result["verification_url"] = f"{get_settings().public_base_url.rstrip('/')}/#/landlord-verification/{verification_token}"
+    return result
+
+
+@router.get(
+    "/requests/verification-token/{token}",
+    response_model=LandlordRequestRead,
+)
+def get_landlord_verification_by_token(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    request = get_request_by_verification_token(db, token)
+
+    if request.status != LandlordRequestStatus.verification_requested:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This verification link is not accepting submissions.",
+        )
+
+    serialized = get_serialized_landlord_request(db, request.id)
+    if not serialized:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Landlord request not found",
+        )
+    return serialized
+
+
+@router.post(
+    "/requests/verification-token/{token}/submit",
+    response_model=LandlordRequestRead,
+)
+def submit_landlord_verification_by_token(
+    token: str,
+    payload: LandlordVerificationCreate,
+    db: Session = Depends(get_db),
+):
+    request = get_request_by_verification_token(db, token)
+    return submit_landlord_verification(request.id, payload, db)
 
 
 @router.post(
@@ -813,6 +1027,18 @@ def submit_landlord_verification(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Verification was not requested for this landlord",
+        )
+
+    if str(payload.email).strip().lower() != request.email.strip().lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This verification link can only be used by the requested landlord email.",
+        )
+
+    if not payload.properties:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one property must be submitted for verification.",
         )
 
     existing_verification = (
@@ -844,6 +1070,7 @@ def submit_landlord_verification(
         LandlordRequestProperty.landlord_request_id == request.id
     ).delete()
 
+    submitted_properties: list[LandlordRequestProperty] = []
     for property_payload in payload.properties:
         property_record = LandlordRequestProperty(
             landlord_request_id=request.id,
@@ -864,15 +1091,23 @@ def submit_landlord_verification(
         )
 
         db.add(property_record)
+        submitted_properties.append(property_record)
 
-    request.status = (
-        LandlordRequestStatus.verification_submitted
+    recommendation, confidence, risk_flags, summary = analyze_landlord_verification(
+        verification,
+        submitted_properties,
     )
+    verification.ai_recommendation = recommendation
+    verification.ai_confidence_score = confidence
+    verification.ai_risk_flags = "\n".join(risk_flags)
+    verification.ai_summary = summary
+
+    request.status = LandlordRequestStatus.ai_reviewed
 
     db.commit()
     db.refresh(request)
 
-    return request
+    return get_serialized_landlord_request(db, request.id) or request
 
 
 @router.post(
@@ -940,12 +1175,13 @@ def approve_landlord_verification(
     if serialized:
         assert_landlord_request_scope(db, admin, serialized)
 
-    if request.status != (
-        LandlordRequestStatus.verification_submitted
-    ):
+    if request.status not in [
+        LandlordRequestStatus.verification_submitted,
+        LandlordRequestStatus.ai_reviewed,
+    ]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Verification must be submitted before approval",
+            detail="Verification must be submitted and AI-reviewed before approval",
         )
 
     request_properties = (
@@ -967,6 +1203,7 @@ def approve_landlord_verification(
     landlord = create_landlord_account(
         db,
         full_name=request.full_name,
+        business_name=request.business_name,
         email=request.email,
         phone=request.phone,
         address=request.address,
@@ -987,14 +1224,20 @@ def approve_landlord_verification(
         db.add(property_record)
         db.flush()
 
-        generated_rooms = generate_room_numbers(
-            total_rooms=request_property.total_rooms,
-            single_rooms=request_property.single_rooms,
-            double_rooms=request_property.double_rooms,
-            single_room_prefix=request_property.single_room_prefix,
-            double_room_prefix=request_property.double_room_prefix,
-            starting_room_number=request_property.starting_room_number,
-        )
+        try:
+            generated_rooms = generate_room_numbers(
+                total_rooms=request_property.total_rooms,
+                single_rooms=request_property.single_rooms,
+                double_rooms=request_property.double_rooms,
+                single_room_prefix=request_property.single_room_prefix,
+                double_room_prefix=request_property.double_room_prefix,
+                starting_room_number=request_property.starting_room_number,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
 
         for generated_room in generated_rooms:
             if generated_room.room_type == "single":
@@ -1080,6 +1323,7 @@ def manually_create_landlord(
     landlord = create_landlord_account(
         db,
         full_name=payload.full_name,
+        business_name=payload.business_name,
         email=str(payload.email),
         phone=payload.phone,
         address=payload.address,

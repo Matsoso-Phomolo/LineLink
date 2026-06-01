@@ -25,6 +25,10 @@ type VerificationRequest = {
   status: string;
   national_id: string | null;
   admin_note: string | null;
+  ai_recommendation?: string | null;
+  ai_confidence_score?: number | null;
+  ai_summary?: string | null;
+  ai_risk_flags?: string | null;
   created_at: string;
   properties: PropertyVerification[];
 };
@@ -48,7 +52,8 @@ export function LandlordVerificationReviewPage() {
 
       const verificationRequests = data.filter(
         (request: VerificationRequest) =>
-          request.status === "verification_submitted"
+          request.status === "verification_submitted" ||
+          request.status === "ai_reviewed"
       );
 
       setRequests(verificationRequests);
@@ -259,6 +264,36 @@ export function LandlordVerificationReviewPage() {
                   </h2>
                 </div>
               </div>
+
+              <section className="panel nested-panel">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">AI verification assistant</p>
+                    <h3>
+                      {selectedRequest.ai_recommendation
+                        ? selectedRequest.ai_recommendation.replace("_", " ")
+                        : "Awaiting review"}
+                    </h3>
+                  </div>
+                  {selectedRequest.ai_confidence_score != null ? (
+                    <span className="status-pill">
+                      {Math.round(Number(selectedRequest.ai_confidence_score) * 100)}%
+                      confidence
+                    </span>
+                  ) : null}
+                </div>
+
+                <p>
+                  {selectedRequest.ai_summary ||
+                    "The assistant will summarize completeness, risk, and recommended action after verification is submitted."}
+                </p>
+
+                {selectedRequest.ai_risk_flags ? (
+                  <pre className="code-note">
+                    {selectedRequest.ai_risk_flags}
+                  </pre>
+                ) : null}
+              </section>
 
               <div className="stack-list">
                 {selectedRequest.properties.map(

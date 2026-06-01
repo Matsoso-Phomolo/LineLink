@@ -111,6 +111,12 @@ def create_tenant_account(
             detail="No landlord context available",
         )
 
+    if not payload.room_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant accounts must be linked to one verified property room.",
+        )
+
     email = (
         str(payload.email)
         if payload.email

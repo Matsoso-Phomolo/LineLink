@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { apiFetch } from "../../api/client";
 
 type PropertyForm = {
@@ -19,6 +20,7 @@ type PropertyForm = {
 };
 
 type VerificationForm = {
+  email: string;
   national_id: string;
   selfie_path: string;
   utility_bill_path: string;
@@ -45,6 +47,7 @@ const emptyProperty = (): PropertyForm => ({
 });
 
 const initialVerification: VerificationForm = {
+  email: "",
   national_id: "",
   selfie_path: "",
   utility_bill_path: "",
@@ -53,16 +56,116 @@ const initialVerification: VerificationForm = {
   additional_notes: "",
 };
 
+const romaVillageOptions = [
+  "Hatabutle",
+  "Mafikeng",
+  "Thoteng",
+  "Ten-House",
+  "Liphehleng",
+  "Liphakoeng",
+  "Ha-Ntja",
+  "Keiting",
+  "Mangopeng",
+];
+
+type VerificationTokenRequest = {
+  id: string;
+  full_name: string;
+  email: string;
+  status: string;
+};
+
+type District = {
+  id: string;
+  name: string;
+};
+
+type DistrictArea = {
+  id: string;
+  district_id: string;
+  name: string;
+};
+
 export function LandlordVerificationPage() {
+  const { token } = useParams();
   const [requestId, setRequestId] = useState("");
   const [form, setForm] = useState(initialVerification);
   const [properties, setProperties] = useState<PropertyForm[]>([
     emptyProperty(),
   ]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [areas, setAreas] = useState<DistrictArea[]>([]);
+  const [tokenRequest, setTokenRequest] =
+    useState<VerificationTokenRequest | null>(null);
 
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loadingToken, setLoadingToken] = useState(Boolean(token));
+
+  useEffect(() => {
+    let ignore = false;
+
+    Promise.all([
+      apiFetch("/districts/active") as Promise<District[]>,
+      apiFetch("/district-areas") as Promise<DistrictArea[]>,
+    ])
+      .then(([districtItems, areaItems]) => {
+        if (ignore) return;
+        setDistricts(districtItems);
+        setAreas(areaItems);
+        setProperties((current) =>
+          current.map((property) => ({
+            ...property,
+            district_id: property.district_id || districtItems[0]?.id || "",
+            area_id:
+              property.area_id ||
+              areaItems.find(
+                (area) => area.district_id === (property.district_id || districtItems[0]?.id)
+              )?.id ||
+              "",
+          }))
+        );
+      })
+      .catch(() => {
+        // Keep manual inputs usable if rollout metadata cannot load.
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
+    let ignore = false;
+    setLoadingToken(true);
+    setError("");
+
+    apiFetch(`/landlords/requests/verification-token/${token}`)
+      .then((request: VerificationTokenRequest) => {
+        if (ignore) return;
+        setTokenRequest(request);
+        setRequestId(request.id);
+        setForm((current) => ({ ...current, email: request.email }));
+      })
+      .catch((err) => {
+        if (ignore) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to open verification link"
+        );
+      })
+      .finally(() => {
+        if (!ignore) setLoadingToken(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [token]);
 
   function updateForm<K extends keyof VerificationForm>(
     key: K,
@@ -79,6 +182,21 @@ export function LandlordVerificationPage() {
     setProperties((current) =>
       current.map((property, currentIndex) =>
         currentIndex === index ? { ...property, [key]: value } : property
+      )
+    );
+  }
+
+  function updatePropertyDistrict(index: number, districtId: string) {
+    const firstArea = areas.find((area) => area.district_id === districtId);
+    setProperties((current) =>
+      current.map((property, currentIndex) =>
+        currentIndex === index
+          ? {
+              ...property,
+              district_id: districtId,
+              area_id: firstArea?.id || "",
+            }
+          : property
       )
     );
   }
@@ -133,7 +251,7 @@ export function LandlordVerificationPage() {
       return;
     }
 
-    if (!requestId.trim()) {
+    if (!token && !requestId.trim()) {
       setError("Landlord request ID is required.");
       return;
     }
@@ -141,7 +259,11 @@ export function LandlordVerificationPage() {
     setSubmitting(true);
 
     try {
-      await apiFetch(`/landlords/requests/${requestId}/submit-verification`, {
+      const endpoint = token
+        ? `/landlords/requests/verification-token/${token}/submit`
+        : `/landlords/requests/${requestId}/submit-verification`;
+
+      await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify({
           ...form,
@@ -219,13 +341,33 @@ export function LandlordVerificationPage() {
             <h2>Identity details</h2>
           </div>
 
+          {loadingToken ? (
+            <div className="privacy-note">Opening secure verification link...</div>
+          ) : tokenRequest ? (
+            <div className="privacy-note">
+              Secure link opened for <strong>{tokenRequest.full_name}</strong>{" "}
+              using <strong>{tokenRequest.email}</strong>.
+            </div>
+          ) : (
+            <label>
+              Landlord request ID
+              <input
+                required={!token}
+                value={requestId}
+                onChange={(event) => setRequestId(event.target.value)}
+                placeholder="Paste request ID from admin verification message"
+              />
+            </label>
+          )}
+
           <label>
-            Landlord request ID
+            Email used for landlord request
             <input
               required
-              value={requestId}
-              onChange={(event) => setRequestId(event.target.value)}
-              placeholder="Paste request ID from admin verification message"
+              readOnly={Boolean(tokenRequest)}
+              value={form.email}
+              onChange={(event) => updateForm("email", event.target.value)}
+              placeholder="landlord@example.com"
             />
           </label>
 
@@ -334,27 +476,63 @@ export function LandlordVerificationPage() {
 
               <div className="form-grid">
                 <label>
-                  District ID
-                  <input
-                    required
-                    value={property.district_id}
-                    onChange={(event) =>
-                      updateProperty(index, "district_id", event.target.value)
-                    }
-                    placeholder="District UUID"
-                  />
+                  District
+                  {districts.length > 0 ? (
+                    <select
+                      required
+                      value={property.district_id}
+                      onChange={(event) =>
+                        updatePropertyDistrict(index, event.target.value)
+                      }
+                    >
+                      <option value="">Choose district</option>
+                      {districts.map((district) => (
+                        <option key={district.id} value={district.id}>
+                          {district.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      required
+                      value={property.district_id}
+                      onChange={(event) =>
+                        updateProperty(index, "district_id", event.target.value)
+                      }
+                      placeholder="District UUID"
+                    />
+                  )}
                 </label>
 
                 <label>
-                  Area ID
-                  <input
+                  Area
+                  {areas.length > 0 ? (
+                    <select
+                      required
+                      value={property.area_id}
+                      onChange={(event) =>
+                        updateProperty(index, "area_id", event.target.value)
+                      }
+                    >
+                      <option value="">Choose area</option>
+                      {areas
+                        .filter((area) => area.district_id === property.district_id)
+                        .map((area) => (
+                          <option key={area.id} value={area.id}>
+                            {area.name}
+                          </option>
+                        ))}
+                    </select>
+                  ) : (
+                    <input
                     required
                     value={property.area_id}
                     onChange={(event) =>
                       updateProperty(index, "area_id", event.target.value)
                     }
                     placeholder="Area UUID"
-                  />
+                    />
+                  )}
                 </label>
               </div>
 
@@ -373,6 +551,25 @@ export function LandlordVerificationPage() {
                   placeholder="Ten-House"
                 />
               </label>
+
+              <div className="chip-row" aria-label="Roma village shortcuts">
+                {romaVillageOptions.map((village) => (
+                  <button
+                    key={village}
+                    type="button"
+                    className={
+                      property.village_location === village
+                        ? "chip active"
+                        : "chip"
+                    }
+                    onClick={() =>
+                      updateProperty(index, "village_location", village)
+                    }
+                  >
+                    {village}
+                  </button>
+                ))}
+              </div>
 
               <label>
                 Property physical address

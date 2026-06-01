@@ -173,6 +173,7 @@ export function AppRoutes() {
         <Route path="/apply/:token" element={<ApplicationFormPage />} />
         <Route path="/landlord-request" element={<LandlordRequestPage />} />
         <Route path="/landlord-verification" element={<LandlordVerificationPage />} />
+        <Route path="/landlord-verification/:token" element={<LandlordVerificationPage />} />
         <Route path="/" element={<HomeRedirect />} />
 
         <Route element={<ProtectedRoute />}>

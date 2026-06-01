@@ -411,6 +411,11 @@ class LandlordRequestProperty(Base, TimestampMixin):
     address: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     total_rooms: Mapped[int] = mapped_column(Integer)
+    single_rooms: Mapped[int] = mapped_column(Integer, default=0)
+    double_rooms: Mapped[int] = mapped_column(Integer, default=0)
+    single_room_prefix: Mapped[str] = mapped_column(String(20), default="A")
+    double_room_prefix: Mapped[str] = mapped_column(String(20), default="B")
+    starting_room_number: Mapped[int] = mapped_column(Integer, default=101)
     single_room_rent: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
 
     double_room_rent: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
