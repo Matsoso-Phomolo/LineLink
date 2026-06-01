@@ -40,6 +40,7 @@ from app.routers import (
     reminders,
     rent_dues,
     risk,
+    room_reservations,
     rooms,
     subscriptions,
     support,
@@ -132,6 +133,12 @@ app.include_router(transfers.router)
 app.include_router(listings.router)
 app.include_router(public_listings.router)
 app.include_router(public_listings.form_router)
+app.include_router(room_reservations.router)
+app.include_router(room_reservations.landlord_router)
+app.include_router(room_reservations.admin_router)
+app.include_router(room_reservations.router, prefix="/api")
+app.include_router(room_reservations.landlord_router, prefix="/api")
+app.include_router(room_reservations.admin_router, prefix="/api")
 app.include_router(tenant_accounts.router)
 app.include_router(tenant_portal.router)
 app.include_router(support.router)

@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.audit import log_action
@@ -23,6 +24,7 @@ from app.models import (
     PaymentSubmissionStatus,
     PaymentTransaction,
     PaymentTransactionStatus,
+    PaymentType,
     RentDue,
     SubscriptionStatus,
     Tenant,
@@ -36,6 +38,7 @@ from app.payment_providers.ecocash import EcoCashProvider
 from app.payment_providers.mpesa import MpesaProvider
 from app.payment_providers.mopay import MoPayProvider
 from app.rent_logic import refresh_due_status
+from app.reservation_logic import complete_room_reservation_payment
 from app.schemas import (
     PaymentCallbackPayload,
     PaymentInitiateRequest,
@@ -71,10 +74,34 @@ def next_receipt_number(db: Session) -> str:
         sequence += 1
 
 
-def find_transaction(
-    db: Session,
-    payload: PaymentCallbackPayload,
-) -> PaymentTransaction | None:
+def make_receipt_pdf(receipt: PaymentReceipt) -> bytes:
+    lines = [
+        "Rentalink payment receipt",
+        f"Receipt: {receipt.receipt_number}",
+        f"Type: {receipt.receipt_type}",
+        f"Amount: M{float(receipt.amount):,.2f}",
+        f"Method: {receipt.method.value}",
+        f"Reference: {receipt.transaction_reference or 'Pending'}",
+        f"Issued: {receipt.issued_at}",
+    ]
+    text = "\\n".join(lines).replace("(", "[").replace(")", "]")
+    stream = f"BT /F1 14 Tf 72 760 Td ({text}) Tj ET"
+    content = stream.encode("latin-1", errors="replace")
+    return (
+        b"%PDF-1.4\n"
+        b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+        b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
+        b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj\n"
+        b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n"
+        + f"5 0 obj << /Length {len(content)} >> stream\n".encode("latin-1")
+        + content
+        + b"\nendstream endobj\n"
+        b"xref\n0 6\n0000000000 65535 f \n"
+        b"trailer << /Root 1 0 R /Size 6 >>\nstartxref\n0\n%%EOF"
+    )
+
+
+def find_transaction(db: Session, payload: PaymentCallbackPayload) -> PaymentTransaction | None:
     query = db.query(PaymentTransaction)
 
     if payload.checkout_request_id:
@@ -170,8 +197,11 @@ def complete_successful_transaction(
     if payload.provider_reference:
         transaction.provider_reference = payload.provider_reference
 
-    if transaction.payment_type == "landlord_subscription":
+    if transaction.payment_type == PaymentType.landlord_subscription.value:
         complete_successful_subscription_transaction(db, transaction, payload)
+        return
+    if transaction.payment_type == PaymentType.room_reservation.value:
+        complete_room_reservation_payment(db, transaction, next_receipt_number(db))
         return
 
     due = db.get(RentDue, transaction.rent_due_id) if transaction.rent_due_id else None
@@ -371,6 +401,7 @@ def initiate_payment(
         landlord_id=tenant.landlord_id,
         tenant_id=tenant.id,
         rent_due_id=due.id,
+        payment_type=PaymentType.rent_payment.value,
         amount=payload.amount,
         method=payload.method,
         payer_phone=payload.payer_phone,
@@ -477,6 +508,40 @@ def get_transaction(
     return transaction
 
 
+@router.get("/transactions/{transaction_id}/receipt")
+def download_transaction_receipt(
+    transaction_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(
+        require_roles(
+            UserRole.national_admin,
+            UserRole.landlord,
+            UserRole.caretaker,
+            UserRole.tenant,
+        )
+    ),
+):
+    transaction = get_transaction(transaction_id, db, user)
+    receipt_query = db.query(PaymentReceipt)
+    if transaction.payment_submission_id:
+        receipt_query = receipt_query.filter(PaymentReceipt.payment_submission_id == transaction.payment_submission_id)
+    elif transaction.room_reservation_id:
+        receipt_query = receipt_query.filter(PaymentReceipt.room_reservation_id == transaction.room_reservation_id)
+    elif transaction.subscription_id:
+        receipt_query = receipt_query.filter(PaymentReceipt.subscription_id == transaction.subscription_id)
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found for transaction")
+    receipt = receipt_query.order_by(PaymentReceipt.issued_at.desc()).first()
+    if not receipt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not generated yet")
+    pdf_bytes = make_receipt_pdf(receipt)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{receipt.receipt_number}.pdf"'},
+    )
+
+
 @router.get("/receipts")
 def list_receipts(
     db: Session = Depends(get_db),
@@ -537,7 +602,14 @@ def gateway_health(
         "last_webhook_received": last.processed_at if last else None,
         "failed_webhook_count": db.query(PaymentTransaction)
         .filter(
-            PaymentTransaction.payment_type.in_(["rent", "landlord_subscription"]),
+            PaymentTransaction.payment_type.in_(
+                [
+                    "rent",
+                    "rent_payment",
+                    "landlord_subscription",
+                    "room_reservation",
+                ]
+            ),
             PaymentTransaction.status == PaymentTransactionStatus.failed,
         )
         .count(),

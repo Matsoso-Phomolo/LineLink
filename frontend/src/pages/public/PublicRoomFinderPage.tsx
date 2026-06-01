@@ -3,7 +3,7 @@ import { apiFetch } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { ErrorState, LoadingState } from "../../components/DataState";
 import { StatusPill } from "../../components/StatusPill";
-import type { Listing } from "../../types";
+import type { Listing, RoomReservation } from "../../types";
 
 type PublicRoomFinderPageProps = {
   returnTo?: string;
@@ -106,6 +106,7 @@ export function PublicRoomFinderPage({
 
   const [application, setApplication] = useState<ApplicationForm>(emptyApplication);
   const [formMessage, setFormMessage] = useState("");
+  const [reservationLink, setReservationLink] = useState("");
   const [submitting, setSubmitting] = useState("");
 
   useEffect(() => {
@@ -239,21 +240,22 @@ export function PublicRoomFinderPage({
 
     setSubmitting("application");
     setFormMessage("");
-
+    setReservationLink("");
     try {
-      await apiFetch(`/public/listings/${selectedListing.id}/requests`, {
+      const reservation = await apiFetch("/room-reservations/request", {
         method: "POST",
         body: JSON.stringify({
+          listing_id: selectedListing.id,
           full_name: application.full_name,
           phone: application.phone,
           email: toNullable(application.email),
           preferred_response_method: application.preferred_response_method,
           message: toNullable(application.message)
         })
-      });
-
+      }) as RoomReservation;
       setApplication(emptyApplication);
-      setFormMessage("Your request has been submitted. The landlord/caretaker will respond using your selected contact method.");
+      setFormMessage(`Your request has been submitted. The landlord/caretaker will respond using your selected contact method. Reservation code: ${reservation.reservation_code}.`);
+      setReservationLink(`#/reservation/${reservation.id}`);
     } catch (err) {
       setFormMessage(err instanceof Error ? err.message : "Application could not be submitted");
     } finally {
@@ -489,7 +491,7 @@ export function PublicRoomFinderPage({
                 <article className="listing-card" key={listing.id}>
                   <div>
                     <div className="card-topline">
-                      <StatusPill value="vacant" />
+                      <StatusPill value="available" />
                       <StatusPill value="available_now" />
                       <StatusPill value="public" />
                       <span>{listing.distance_from_nul ?? "Near NUL"}</span>
@@ -527,7 +529,7 @@ export function PublicRoomFinderPage({
                     {listing.contact_phone ? <a className="text-button" href={`https://wa.me/${listing.contact_phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">WhatsApp</a> : null}
 
                     <button className="secondary-button" type="button" onClick={() => setSelectedListingId(listing.id)}>
-                      Interested / Request Room
+                      Request Room
                     </button>
                   </footer>
                 </article>
@@ -547,7 +549,7 @@ export function PublicRoomFinderPage({
             </button>
 
             <div className="card-topline">
-              <StatusPill value="vacant" />
+              <StatusPill value="available" />
               <StatusPill value="available_now" />
               <StatusPill value="public" />
               <span>{selectedListing.property_name ?? "Line-house"} - {selectedListing.location_area}</span>
@@ -578,8 +580,8 @@ export function PublicRoomFinderPage({
           <form className="panel form-panel request-panel" onSubmit={submitApplication}>
             <div>
               <p className="eyebrow">Private room request</p>
-              <h2>Interested in this room?</h2>
-              <p>Send basic details first. The landlord or caretaker can then send you a secure application form link.</p>
+              <h2>Request this room</h2>
+              <p>Send basic details first. The landlord or caretaker reviews your request before any deposit payment is allowed.</p>
               <p className="privacy-note">Your information is private and only visible to the landlord/caretaker of this listing.</p>
             </div>
 
@@ -598,10 +600,9 @@ export function PublicRoomFinderPage({
             <label>Message<textarea value={application.message} onChange={(event) => updateApplication("message", event.target.value)} /></label>
 
             <button className="primary-button" disabled={submitting === "application"} type="submit">
-              {submitting === "application" ? "Submitting..." : "Interested / Request Room"}
+              {submitting === "application" ? "Submitting..." : "Request Room"}
             </button>
-
-            {formMessage ? <div className="data-state">{formMessage}</div> : null}
+            {formMessage ? <div className="data-state">{formMessage}{reservationLink ? <><br /><a href={reservationLink}>View request status</a></> : null}</div> : null}
           </form>
         </div>
       ) : null}

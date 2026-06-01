@@ -29,6 +29,12 @@ const PublicRoomFinderPage = lazy(() =>
   }))
 );
 
+const ReservationStatusPage = lazy(() =>
+  import("../pages/public/ReservationStatusPage").then((module) => ({
+    default: module.ReservationStatusPage,
+  }))
+);
+
 const ApplicationFormPage = lazy(() =>
   import("../pages/public/ApplicationFormPage").then((module) => ({
     default: module.ApplicationFormPage,
@@ -92,6 +98,12 @@ const LeasesPage = lazy(() =>
 const RoomRequestsPage = lazy(() =>
   import("../pages/landlord/RoomRequestsPage").then((module) => ({
     default: module.RoomRequestsPage,
+  }))
+);
+
+const ReservationsPage = lazy(() =>
+  import("../pages/landlord/ReservationsPage").then((module) => ({
+    default: module.ReservationsPage,
   }))
 );
 
@@ -170,6 +182,7 @@ export function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/rooms" element={<PublicRoomFinderPage />} />
+        <Route path="/reservation/:reservationId" element={<ReservationStatusPage />} />
         <Route path="/apply/:token" element={<ApplicationFormPage />} />
         <Route path="/landlord-request" element={<LandlordRequestPage />} />
         <Route path="/landlord-verification" element={<LandlordVerificationPage />} />
@@ -237,6 +250,7 @@ export function AppRoutes() {
               <Route path="/landlord/listings" element={<ListingsPage />} />
               <Route path="/landlord/leases" element={<LeasesPage />} />
               <Route path="/landlord/requests" element={<RoomRequestsPage />} />
+              <Route path="/landlord/reservations" element={<ReservationsPage />} />
               <Route path="/landlord/payments" element={<PaymentSubmissionsPage />} />
               <Route path="/landlord/support" element={<SupportTicketsPage />} />
             </Route>

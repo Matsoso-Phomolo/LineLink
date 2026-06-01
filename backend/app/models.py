@@ -32,6 +32,7 @@ class UserRole(str, enum.Enum):
 class RoomStatus(str, enum.Enum):
     available = "available"
     vacant = "vacant"
+    reserved = "reserved"
     occupied = "occupied"
     partially_occupied = "partially_occupied"
     full = "full"
@@ -110,6 +111,12 @@ class PaymentTransactionStatus(str, enum.Enum):
     pending_verification = "pending_verification"
 
 
+class PaymentType(str, enum.Enum):
+    rent_payment = "rent_payment"
+    landlord_subscription = "landlord_subscription"
+    room_reservation = "room_reservation"
+
+
 class ListingStatus(str, enum.Enum):
     draft = "draft"
     published = "published"
@@ -157,6 +164,17 @@ class RequestResponseStatus(str, enum.Enum):
     sent = "sent"
     failed = "failed"
     scaffolded = "scaffolded"
+
+
+class RoomReservationStatus(str, enum.Enum):
+    pending_landlord_review = "pending_landlord_review"
+    approved_for_payment = "approved_for_payment"
+    payment_pending = "payment_pending"
+    confirmed = "confirmed"
+    rejected = "rejected"
+    expired = "expired"
+    cancelled = "cancelled"
+    completed = "completed"
 
 
 class CallTaskStatus(str, enum.Enum):
@@ -720,6 +738,7 @@ class PaymentReceipt(Base, TimestampMixin):
     room_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rooms.id"), nullable=True, index=True)
     payment_submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("payment_submissions.id"), unique=True, nullable=True, index=True)
     subscription_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("landlord_subscriptions.id"), nullable=True, index=True)
+    room_reservation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("room_reservations.id"), nullable=True, index=True)
     receipt_type: Mapped[str] = mapped_column(String(40), default="rent", index=True)
     receipt_number: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
@@ -738,8 +757,9 @@ class PaymentTransaction(Base, TimestampMixin):
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
     rent_due_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rent_dues.id"), nullable=True, index=True)
     subscription_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("landlord_subscriptions.id"), nullable=True, index=True)
+    room_reservation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("room_reservations.id"), nullable=True, index=True)
     payment_submission_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("payment_submissions.id"), nullable=True, index=True)
-    payment_type: Mapped[str] = mapped_column(String(60), default="rent", index=True)
+    payment_type: Mapped[str] = mapped_column(String(60), default=PaymentType.rent_payment.value, index=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
     method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod, name="payment_method"), index=True)
     payer_phone: Mapped[str | None] = mapped_column(String(40))
@@ -756,6 +776,33 @@ class PaymentTransaction(Base, TimestampMixin):
     failure_reason: Mapped[str | None] = mapped_column(Text)
     raw_callback_json: Mapped[str | None] = mapped_column(Text)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RoomReservation(Base, TimestampMixin):
+    __tablename__ = "room_reservations"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    room_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rooms.id"), index=True)
+    property_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("properties.id"), index=True)
+    room_seeker_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    landlord_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("landlords.id"), index=True)
+    application_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenant_applications.id"), nullable=True, index=True)
+    payment_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("payment_transactions.id"), nullable=True, index=True)
+    reservation_code: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    status: Mapped[RoomReservationStatus] = mapped_column(
+        Enum(RoomReservationStatus, name="room_reservation_status"),
+        default=RoomReservationStatus.pending_landlord_review,
+        index=True,
+    )
+    reservation_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    reservation_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    full_name: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(40))
+    email: Mapped[str | None] = mapped_column(String(255))
+    message: Mapped[str | None] = mapped_column(Text)
+
+    room: Mapped["Room"] = relationship(viewonly=True)
+    property: Mapped["Property"] = relationship(viewonly=True)
 
 
 class TwoFactorChallenge(Base, TimestampMixin):

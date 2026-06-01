@@ -24,6 +24,7 @@ from app.models import (
     PreferredResponseMethod,
     RequestResponseStatus,
     RentDueStatus,
+    RoomReservationStatus,
     RoomStatus,
     RoomType,
     RuleVisibility,
@@ -558,6 +559,7 @@ class PaymentReceiptRead(ORMModel):
     room_id: uuid.UUID | None = None
     payment_submission_id: uuid.UUID | None = None
     subscription_id: uuid.UUID | None = None
+    room_reservation_id: uuid.UUID | None = None
     receipt_type: str = "rent"
     receipt_number: str
     amount: float
@@ -582,7 +584,8 @@ class PaymentInitiateResponse(ORMModel):
     rent_due_id: uuid.UUID | None = None
     tenant_id: uuid.UUID | None = None
     subscription_id: uuid.UUID | None = None
-    payment_type: str = "rent"
+    room_reservation_id: uuid.UUID | None = None
+    payment_type: str = "rent_payment"
     amount: float
     method: PaymentMethod
     payer_phone: str | None = None
@@ -632,6 +635,48 @@ class SubscriptionPayRequest(BaseModel):
     method: PaymentMethod
     payer_phone: str | None = None
     idempotency_key: str | None = None
+
+
+class RoomReservationRequestCreate(BaseModel):
+    listing_id: uuid.UUID
+    full_name: str
+    phone: str
+    email: EmailStr | None = None
+    preferred_response_method: PreferredResponseMethod = PreferredResponseMethod.whatsapp
+    message: str | None = None
+
+
+class RoomReservationPayRequest(BaseModel):
+    amount: float | None = None
+    method: PaymentMethod
+    payer_phone: str | None = None
+    idempotency_key: str | None = None
+
+
+class RoomReservationDecision(BaseModel):
+    note: str | None = None
+
+
+class RoomReservationRead(ORMModel):
+    id: uuid.UUID
+    room_id: uuid.UUID
+    property_id: uuid.UUID
+    room_seeker_id: uuid.UUID | None = None
+    landlord_id: uuid.UUID
+    application_id: uuid.UUID | None = None
+    payment_id: uuid.UUID | None = None
+    reservation_code: str
+    status: RoomReservationStatus
+    reservation_amount: float
+    reservation_expiry: datetime | None = None
+    full_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    message: str | None = None
+    created_at: datetime
+    updated_at: datetime | None = None
+    room_number: str | None = None
+    property_name: str | None = None
 
 
 class ListingBase(BaseModel):

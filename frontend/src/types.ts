@@ -330,6 +330,36 @@ export type PaymentTransaction = {
   created_at: string;
 };
 
+export type RoomReservation = {
+  id: string;
+  room_id: string;
+  property_id: string;
+  room_seeker_id?: string | null;
+  landlord_id: string;
+  application_id?: string | null;
+  payment_id?: string | null;
+  reservation_code: string;
+  status:
+    | "pending_landlord_review"
+    | "approved_for_payment"
+    | "payment_pending"
+    | "confirmed"
+    | "rejected"
+    | "expired"
+    | "cancelled"
+    | "completed";
+  reservation_amount: number;
+  reservation_expiry?: string | null;
+  full_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  message?: string | null;
+  room_number?: string | null;
+  property_name?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+};
+
 export type SupportTicket = {
   id: string;
   tenant_id: string;
