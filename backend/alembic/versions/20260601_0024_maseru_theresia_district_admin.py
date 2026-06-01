@@ -125,7 +125,7 @@ def upgrade() -> None:
 
                 select id into theresia_id
                 from users
-                where lower(email) = 'motebang@gmail.com'
+                where lower(email) in ('theresia@gmail.com', 'motebang@gmail.com')
                    or username = 'theresia'
                    or lower(full_name) = 'theresia kalaka'
                 order by created_at asc
@@ -153,7 +153,7 @@ def upgrade() -> None:
                     values (
                         theresia_id,
                         'theresia',
-                        'motebang@gmail.com',
+                        'theresia@gmail.com',
                         '63523544',
                         'THERESIA KALAKA',
                         '{THERESIA_HASH}',
@@ -170,7 +170,7 @@ def upgrade() -> None:
                     update users
                     set
                         username = 'theresia',
-                        email = 'motebang@gmail.com',
+                        email = 'theresia@gmail.com',
                         phone = '63523544',
                         full_name = 'THERESIA KALAKA',
                         hashed_password = '{THERESIA_HASH}',
@@ -181,26 +181,36 @@ def upgrade() -> None:
                     where id = theresia_id;
                 end if;
 
-                insert into district_admin_assignments (
-                    id,
-                    user_id,
-                    district_id,
-                    is_active,
-                    created_at,
-                    updated_at
-                )
-                values (
-                    '{THERESIA_ASSIGNMENT_ID}'::uuid,
-                    theresia_id,
-                    maseru_id,
-                    true,
-                    now(),
-                    now()
-                )
-                on conflict (user_id, district_id) do update
-                set
-                    is_active = true,
-                    updated_at = now();
+                if exists (
+                    select 1
+                    from district_admin_assignments
+                    where user_id = theresia_id
+                      and district_id = maseru_id
+                ) then
+                    update district_admin_assignments
+                    set
+                        is_active = true,
+                        updated_at = now()
+                    where user_id = theresia_id
+                      and district_id = maseru_id;
+                else
+                    insert into district_admin_assignments (
+                        id,
+                        user_id,
+                        district_id,
+                        is_active,
+                        created_at,
+                        updated_at
+                    )
+                    values (
+                        '{THERESIA_ASSIGNMENT_ID}'::uuid,
+                        theresia_id,
+                        maseru_id,
+                        true,
+                        now(),
+                        now()
+                    );
+                end if;
             end $$;
             """
         )
