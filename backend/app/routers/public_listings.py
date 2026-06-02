@@ -23,6 +23,7 @@ from app.models import (
     ViewingRequest,
 )
 from app.room_status import VACANT_ROOM_STATUSES
+from app.tenant_categories import GENDER_PREFERENCES, normalize_gender_preference
 from app.schemas import (
     ListingRead,
     PublicApplicationSubmit,
@@ -76,6 +77,7 @@ def public_listings(
     water_available: bool | None = None,
     electricity_available: bool | None = None,
     furnished: bool | None = None,
+    gender_preference: str | None = None,
     verified_only: bool = False,
     db: Session = Depends(get_db),
 ):
@@ -86,10 +88,10 @@ def public_listings(
     ]
     params: dict[str, object] = {
         "published_status": ListingStatus.published.value,
+        "verified_status": ListingVerificationStatus.verified.value,
     }
 
     if verified_only:
-        params["verified_status"] = ListingVerificationStatus.verified.value
         clauses.append("rl.verification_status::text = :verified_status")
 
     if district_id:
@@ -146,6 +148,17 @@ def public_listings(
     if furnished is not None:
         clauses.append("rl.furnished = :furnished")
         params["furnished"] = furnished
+
+    if gender_preference:
+        normalized_gender = normalize_gender_preference(gender_preference)
+        if normalized_gender not in GENDER_PREFERENCES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Gender preference must be Any, Male, or Female.",
+            )
+        if normalized_gender != "any":
+            clauses.append("coalesce(rl.gender_preference, 'any') in ('any', :gender_preference)")
+            params["gender_preference"] = normalized_gender
 
     sql = text(
         f"""

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models import PaymentTransaction, PaymentTransactionStatus
+from app.models import ApplicationStatus, PaymentTransaction, PaymentTransactionStatus, TenantApplication
 from app.reminders import run_reminders
 from app.reservation_logic import clear_expired_rejection_messages, expire_stale_reservations
 
@@ -25,12 +25,23 @@ def run_operational_maintenance_jobs(db: Session) -> dict[str, int]:
         )
         .update({PaymentTransaction.status: PaymentTransactionStatus.timeout}, synchronize_session=False)
     )
+    cleaned_rejected_applications = (
+        db.query(TenantApplication)
+        .filter(
+            TenantApplication.status == ApplicationStatus.rejected,
+            TenantApplication.rejection_expires_at.is_not(None),
+            TenantApplication.rejection_expires_at <= now,
+            TenantApplication.deleted_at.is_(None),
+        )
+        .update({TenantApplication.deleted_at: now}, synchronize_session=False)
+    )
     reminder_result = run_reminders(db)
     db.commit()
     return {
         "expired_reservations": expired_reservations,
         "expired_rejection_messages": expired_rejection_messages,
         "timed_out_payments": timed_out_payments,
+        "cleaned_rejected_applications": cleaned_rejected_applications,
         "tenant_rent_reminders": int(reminder_result.get("tenant_rent_reminders", 0)),
         "subscription_reminders": int(reminder_result.get("subscription_reminders", 0)),
     }

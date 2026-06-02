@@ -1,4 +1,14 @@
-export type TenantCategory = "student" | "worker" | "family" | "other";
+export type TenantCategory =
+  | "student"
+  | "worker"
+  | "family"
+  | "business"
+  | "visitor_short_stay"
+  | "ngo_organization"
+  | "foreigner_international"
+  | "shared_occupancy"
+  | "couple"
+  | "other";
 
 export type TenantProfileForm = {
   tenant_category: TenantCategory;
@@ -22,30 +32,75 @@ type TenantProfileFieldsProps<T extends TenantProfileForm> = {
   update: <K extends keyof T>(key: K, value: T[K]) => void;
 };
 
-const subtypeOptions = {
+export const tenantCategoryOptions: Array<[TenantCategory, string]> = [
+  ["student", "Student"],
+  ["worker", "Worker"],
+  ["family", "Family"],
+  ["business", "Business"],
+  ["visitor_short_stay", "Visitor / Short Stay"],
+  ["ngo_organization", "NGO / Organization"],
+  ["foreigner_international", "Foreigner / International"],
+  ["shared_occupancy", "Shared Occupancy"],
+  ["couple", "Couple"],
+  ["other", "Other"]
+];
+
+export const subtypeOptions = {
   student: [
-    ["high_school", "High school"],
-    ["tertiary", "Tertiary"],
-    ["vocational", "Vocational"],
-    ["other_student", "Other student"]
+    ["nul_student", "NUL Student"],
+    ["limkokwing_student", "Limkokwing Student"],
+    ["tvet_student", "TVET Student"],
+    ["college_student", "College Student"],
+    ["other_student", "Other Student"]
   ],
   worker: [
     ["employed", "Employed"],
+    ["government_worker", "Government Worker"],
+    ["private_company_worker", "Private Company Worker"],
     ["self_employed", "Self-employed"],
     ["remote_worker", "Remote worker"],
-    ["contract_worker", "Contract worker"]
+    ["other_worker", "Other Worker"]
   ],
   family: [
+    ["small_family", "Small Family"],
     ["single_parent", "Single parent"],
-    ["couple", "Couple"],
-    ["couple_with_children", "Couple with children"],
-    ["extended_family", "Extended family"]
+    ["large_family", "Large Family"],
+    ["other_family", "Other Family"]
+  ],
+  business: [
+    ["office_staff", "Office Staff"],
+    ["shop_workers", "Shop Workers"],
+    ["construction_team", "Construction Team"],
+    ["other_business", "Other Business"]
+  ],
+  visitor_short_stay: [
+    ["daily", "Daily"],
+    ["weekly", "Weekly"],
+    ["monthly", "Monthly"]
+  ],
+  ngo_organization: [
+    ["ngo_staff", "NGO Staff"],
+    ["church_organization", "Church Organization"],
+    ["project_team", "Project Team"],
+    ["other_organization", "Other Organization"]
+  ],
+  foreigner_international: [
+    ["international_student", "International Student"],
+    ["international_worker", "International Worker"],
+    ["visitor", "Visitor"],
+    ["other_international", "Other International"]
+  ],
+  shared_occupancy: [
+    ["2_people_sharing", "2 People Sharing"],
+    ["3_people_sharing", "3 People Sharing"],
+    ["group_sharing", "Group Sharing"]
+  ],
+  couple: [
+    ["married_couple", "Married Couple"],
+    ["partners", "Partners"],
+    ["other_couple", "Other Couple"]
   ],
   other: [
-    ["unemployed", "Unemployed"],
-    ["retired", "Retired"],
-    ["visitor", "Visitor"],
-    ["community_worker", "Community worker"],
     ["other", "Other"]
   ]
 } satisfies Record<TenantCategory, string[][]>;
@@ -73,10 +128,9 @@ export function TenantProfileFields<T extends TenantProfileForm>({
         <label>
           Tenant category
           <select value={form.tenant_category} onChange={(event) => updateCategory(event.target.value as TenantCategory)}>
-            <option value="student">Student</option>
-            <option value="worker">Worker</option>
-            <option value="family">Family</option>
-            <option value="other">Other</option>
+            {tenantCategoryOptions.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
         </label>
 
@@ -124,7 +178,7 @@ export function TenantProfileFields<T extends TenantProfileForm>({
         </>
       ) : null}
 
-      {form.tenant_category === "other" ? (
+      {["business", "visitor_short_stay", "ngo_organization", "foreigner_international", "shared_occupancy", "couple", "other"].includes(form.tenant_category) ? (
         <>
           <div className="form-grid">
             <label>Funding source optional<input value={form.funding_source} onChange={(event) => update("funding_source", event.target.value as T["funding_source"])} /></label>

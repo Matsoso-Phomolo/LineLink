@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.models import (
     AllowedTenantType,
@@ -33,6 +33,11 @@ from app.models import (
     TenantVerificationStatus,
     UserRole,
     ViewingRequestStatus,
+)
+from app.tenant_categories import (
+    GENDER_PREFERENCES,
+    normalize_gender_preference,
+    validate_tenant_category_detail,
 )
 
 
@@ -439,6 +444,16 @@ class TenantBase(BaseModel):
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
 
+    @field_validator("gender", mode="before")
+    @classmethod
+    def validate_gender(cls, value: object):
+        if value is None:
+            return None
+        normalized = normalize_gender_preference(str(value))
+        if normalized not in GENDER_PREFERENCES:
+            raise ValueError("Gender must be Any, Male, or Female.")
+        return normalized
+
     @model_validator(mode="after")
     def normalize_profile(self):
         if not self.tenant_category:
@@ -447,6 +462,10 @@ class TenantBase(BaseModel):
             self.tenant_category = self.tenant_category.strip().lower()
         if self.tenant_subtype:
             self.tenant_subtype = self.tenant_subtype.strip().lower()
+        self.tenant_category, self.tenant_subtype = validate_tenant_category_detail(
+            self.tenant_category,
+            self.tenant_subtype,
+        )
         if self.tenant_category != "student" and self.tenant_type == TenantType.student:
             self.tenant_type = TenantType.non_student
         if self.tenant_category == "student":
@@ -505,6 +524,16 @@ class TenantUpdate(BaseModel):
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
 
+    @field_validator("gender", mode="before")
+    @classmethod
+    def validate_gender(cls, value: object):
+        if value is None:
+            return None
+        normalized = normalize_gender_preference(str(value))
+        if normalized not in GENDER_PREFERENCES:
+            raise ValueError("Gender must be Any, Male, or Female.")
+        return normalized
+
     @model_validator(mode="after")
     def normalize_profile(self):
         if self.tenant_category:
@@ -519,6 +548,10 @@ class TenantUpdate(BaseModel):
             self.tenant_category = "student" if self.tenant_type == TenantType.student else "worker"
         if self.tenant_subtype:
             self.tenant_subtype = self.tenant_subtype.strip().lower()
+        self.tenant_category, self.tenant_subtype = validate_tenant_category_detail(
+            self.tenant_category,
+            self.tenant_subtype,
+        )
         return self
 
 
@@ -731,13 +764,13 @@ class RoomReservationRead(ORMModel):
 class ListingBase(BaseModel):
     property_id: uuid.UUID
     room_id: uuid.UUID
-    title: str
+    title: str = Field(min_length=1)
     description: str | None = None
-    rent_price: float
-    deposit_amount: float = 0
+    rent_price: float = Field(gt=0)
+    deposit_amount: float = Field(default=0, ge=0)
     room_type: RoomType
     room_size: str | None = None
-    location_area: str
+    location_area: str = Field(min_length=1)
     allowed_tenant_type: AllowedTenantType = AllowedTenantType.both
     available_from: date | None = None
     distance_from_nul: str | None = None
@@ -748,7 +781,7 @@ class ListingBase(BaseModel):
     furnished: bool = False
     parking_available: bool = False
     pets_allowed: bool = False
-    gender_preference: str | None = None
+    gender_preference: str = "any"
     security_features: str | None = None
     house_rules: str | None = None
     status: ListingStatus = ListingStatus.draft
@@ -757,10 +790,35 @@ class ListingBase(BaseModel):
     verification_status: ListingVerificationStatus = ListingVerificationStatus.unverified
     verification_note: str | None = None
 
+    @field_validator("title", "location_area", mode="before")
+    @classmethod
+    def strip_required_text(cls, value: object):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def normalize_description(cls, value: object):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+    @field_validator("gender_preference", mode="before")
+    @classmethod
+    def validate_gender_preference(cls, value: object):
+        normalized = normalize_gender_preference(str(value or "any"))
+        if normalized not in GENDER_PREFERENCES:
+            raise ValueError("Gender preference must be Any, Male, or Female.")
+        return normalized
+
 
 class ListingCreate(ListingBase):
-    district_id: uuid.UUID
-    area_id: uuid.UUID
+    district_id: uuid.UUID | None = None
+    area_id: uuid.UUID | None = None
 
 
 class ListingUpdate(BaseModel):
@@ -792,6 +850,16 @@ class ListingUpdate(BaseModel):
     is_verified: bool | None = None
     verification_status: ListingVerificationStatus | None = None
     verification_note: str | None = None
+
+    @field_validator("gender_preference", mode="before")
+    @classmethod
+    def validate_gender_preference(cls, value: object):
+        if value is None:
+            return None
+        normalized = normalize_gender_preference(str(value))
+        if normalized not in GENDER_PREFERENCES:
+            raise ValueError("Gender preference must be Any, Male, or Female.")
+        return normalized
 
 
 class ListingRead(ListingBase, ORMModel):
@@ -857,6 +925,16 @@ class TenantApplicationCreate(BaseModel):
     document_path: str | None = None
     message: str | None = None
 
+    @field_validator("gender", mode="before")
+    @classmethod
+    def validate_gender(cls, value: object):
+        if value is None:
+            return None
+        normalized = normalize_gender_preference(str(value))
+        if normalized not in GENDER_PREFERENCES:
+            raise ValueError("Gender must be Any, Male, or Female.")
+        return normalized
+
     @model_validator(mode="after")
     def normalize_profile(self):
         if not self.tenant_category:
@@ -865,6 +943,10 @@ class TenantApplicationCreate(BaseModel):
             self.tenant_category = self.tenant_category.strip().lower()
         if self.tenant_subtype:
             self.tenant_subtype = self.tenant_subtype.strip().lower()
+        self.tenant_category, self.tenant_subtype = validate_tenant_category_detail(
+            self.tenant_category,
+            self.tenant_subtype,
+        )
         if self.tenant_category == "student":
             self.tenant_type = TenantType.student
             if self.institution_name and not self.institution:
@@ -903,6 +985,9 @@ class TenantApplicationRead(TenantApplicationCreate, ORMModel):
     token_expires_at: datetime | None = None
     form_sent_at: datetime | None = None
     submitted_at: datetime | None = None
+    rejected_at: datetime | None = None
+    rejection_expires_at: datetime | None = None
+    deleted_at: datetime | None = None
     created_at: datetime
 
 

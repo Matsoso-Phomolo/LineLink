@@ -1364,7 +1364,7 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                   className={`chip-button ${districtView === "add-area" ? "active" : ""}`}
                   onClick={() => setDistrictView("add-area")}
                 >
-                  Add Area
+                  Add Area/Village
                 </button>
 
                 <button
@@ -1425,71 +1425,71 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
               ) : null}
 
               {districtView === "add-area" ? (
-                <form className="panel form-panel" onSubmit={submitArea}>
-                  <div>
-                    <p className="eyebrow">District areas</p>
-                  <h2>{areaForm.id ? "Edit area or village" : "Add area or village"}</h2>
-                  </div>
-
-                  <label>
-                    Choose District
-                    {isDistrictAdmin ? (
-                      <input value={selectedDistrict?.name ?? "No district assignment found"} readOnly />
-                    ) : (
-                      <select required value={areaForm.district_id} onChange={(event) => updateAreaForm("district_id", event.target.value)}>
-                        {districts.map((district) => (
-                          <option key={district.id} value={district.id}>
-                            {district.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </label>
-
-                  <label>
-                    Area / village name
-                    <input required placeholder="Example: Roma, Ha-Matala, Lithabaneng" value={areaForm.name} onChange={(event) => updateAreaForm("name", event.target.value)} />
-                  </label>
-
-                  <label>
-                    Description
-                    <textarea placeholder="Optional area description" value={areaForm.description} onChange={(event) => updateAreaForm("description", event.target.value)} />
-                  </label>
-
-                  <label>
-                    Status
-                    <select value={areaForm.is_active ? "active" : "locked"} onChange={(event) => updateAreaForm("is_active", event.target.value === "active")}>
-                      <option value="active">Active</option>
-                      <option value="locked">Locked</option>
-                    </select>
-                  </label>
-
-                  <button className="primary-button" type="submit" disabled={busyId === "add-area"}>
-                    {busyId === "add-area" ? "Saving..." : areaForm.id ? "Save area / village" : "Add area / village"}
-                  </button>
-
-                  {areaForm.id ? (
-                    <button
-                      type="button"
-                      onClick={() => setAreaForm((current) => ({ ...emptyAreaForm, district_id: current.district_id }))}
-                    >
-                      Cancel edit
-                    </button>
-                  ) : null}
-                </form>
-              ) : null}
-
-              {districtView === "areas" ? (
-                <>
-                  <form className="panel form-panel" onSubmit={submitVillage}>
+                <div className="admin-grid">
+                  <form className="panel form-panel" onSubmit={submitArea}>
                     <div>
-                      <p className="eyebrow">District villages</p>
-                      <h2>{villageForm.id ? "Edit village" : "Add village"}</h2>
+                      <p className="eyebrow">Add Area</p>
+                      <h2>{areaForm.id ? "Edit area" : "Add area"}</h2>
+                      <p>Areas are created inside the assigned district only.</p>
                     </div>
 
                     <label>
-                      Area
+                      District
+                      {isDistrictAdmin ? (
+                        <input value={selectedDistrict?.name ?? "No district assignment found"} readOnly />
+                      ) : (
+                        <select required value={areaForm.district_id} onChange={(event) => updateAreaForm("district_id", event.target.value)}>
+                          {districts.map((district) => (
+                            <option key={district.id} value={district.id}>
+                              {district.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </label>
+
+                    <label>
+                      Area name
+                      <input required placeholder="Example: Roma, Ha-Matala, Lithabaneng" value={areaForm.name} onChange={(event) => updateAreaForm("name", event.target.value)} />
+                    </label>
+
+                    <label>
+                      Description
+                      <textarea placeholder="Optional area description" value={areaForm.description} onChange={(event) => updateAreaForm("description", event.target.value)} />
+                    </label>
+
+                    <label>
+                      Status
+                      <select value={areaForm.is_active ? "active" : "locked"} onChange={(event) => updateAreaForm("is_active", event.target.value === "active")}>
+                        <option value="active">Active</option>
+                        <option value="locked">Locked</option>
+                      </select>
+                    </label>
+
+                    <div className="review-actions">
+                      <button className="primary-button" type="submit" disabled={busyId === "add-area"}>
+                        {busyId === "add-area" ? "Saving..." : areaForm.id ? "Save area" : "Add area"}
+                      </button>
+
+                      {areaForm.id ? (
+                        <button type="button" onClick={() => setAreaForm((current) => ({ ...emptyAreaForm, district_id: current.district_id }))}>
+                          Cancel edit
+                        </button>
+                      ) : null}
+                    </div>
+                  </form>
+
+                  <form className="panel form-panel" onSubmit={submitVillage}>
+                    <div>
+                      <p className="eyebrow">Add Village</p>
+                      <h2>{villageForm.id ? "Edit village" : "Add village"}</h2>
+                      <p>Select one of the existing areas in this district, then add the village/location under it.</p>
+                    </div>
+
+                    <label>
+                      Existing area
                       <select required value={villageForm.area_id} onChange={(event) => updateVillageForm("area_id", event.target.value)}>
+                        <option value="">Choose area</option>
                         {manageableAreas.map((area) => (
                           <option key={area.id} value={area.id}>
                             {area.name}
@@ -1527,7 +1527,11 @@ export function AdminDashboardPage({ section = "onboarding" }: { section?: Admin
                       ) : null}
                     </div>
                   </form>
+                </div>
+              ) : null}
 
+              {districtView === "areas" ? (
+                <>
                   <div className="list-stack compact-list">
                     {districts.map((district) => {
                       const districtAreas = areas.filter((area) => area.district_id === district.id);

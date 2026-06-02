@@ -25,7 +25,7 @@ type TenantForm = TenantProfileForm & {
 
 const emptyTenant: TenantForm = {
   full_name: "",
-  gender: "",
+  gender: "any",
   phone: "",
   email: "",
   national_id: "",
@@ -132,7 +132,7 @@ export function TenantsPage({ mode = "list" }: TenantsPageProps) {
       national_id: tenant.national_id ?? "",
       passport_number: tenant.passport_number ?? "",
       tenant_category: (tenant.tenant_category as TenantCategory) ?? (tenant.tenant_type === "student" ? "student" : "worker"),
-      tenant_subtype: tenant.tenant_subtype ?? (tenant.tenant_type === "student" ? "tertiary" : "employed"),
+      tenant_subtype: tenant.tenant_subtype ?? (tenant.tenant_type === "student" ? "nul_student" : "employed"),
       institution_name: tenant.institution_name ?? "",
       student_id: (tenant as any).student_number ?? "",
       sponsor_or_guardian_name: tenant.sponsor_or_guardian_name ?? "",
@@ -281,7 +281,11 @@ export function TenantsPage({ mode = "list" }: TenantsPageProps) {
             <div><p className="eyebrow">{form.id ? "Edit tenant" : "Create tenant"}</p><h2>{form.id ? form.full_name : "Register tenant account"}</h2></div>
             <div className="form-grid">
               <label>Full names<input required value={form.full_name} onChange={(event) => update("full_name", event.target.value)} /></label>
-              <label>Gender<input value={form.gender} onChange={(event) => update("gender", event.target.value)} /></label>
+              <label>Gender<select value={form.gender} onChange={(event) => update("gender", event.target.value)}>
+                <option value="any">Any</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select></label>
             </div>
             <div className="form-grid">
               <label>Phone<input required value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>

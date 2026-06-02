@@ -77,6 +77,7 @@ export type Listing = {
   room_size?: string | null;
   location_area: string;
   allowed_tenant_type: "student" | "non_student" | "both";
+  available_from?: string | null;
   distance_from_nul?: string | null;
   contact_phone?: string | null;
   water_available: boolean;
@@ -85,7 +86,7 @@ export type Listing = {
   furnished: boolean;
   parking_available: boolean;
   pets_allowed: boolean;
-  gender_preference?: string | null;
+  gender_preference?: "any" | "male" | "female" | string | null;
   security_features?: string | null;
   house_rules?: string | null;
   status: "draft" | "published" | "rented" | "archived";
@@ -114,7 +115,7 @@ export type TenantApplication = {
   national_id?: string | null;
   passport_number?: string | null;
   tenant_type: "student" | "non_student";
-  tenant_category?: "student" | "worker" | "family" | "other" | null;
+  tenant_category?: "student" | "worker" | "family" | "business" | "visitor_short_stay" | "ngo_organization" | "foreigner_international" | "shared_occupancy" | "couple" | "other" | null;
   tenant_subtype?: string | null;
   student_number?: string | null;
   institution?: string | null;
@@ -247,7 +248,7 @@ export type Tenant = {
   user_id?: string | null;
   landlord_id: string;
   tenant_type: "student" | "non_student";
-  tenant_category?: "student" | "worker" | "family" | "other" | null;
+  tenant_category?: "student" | "worker" | "family" | "business" | "visitor_short_stay" | "ngo_organization" | "foreigner_international" | "shared_occupancy" | "couple" | "other" | null;
   tenant_subtype?: string | null;
   full_name: string;
   gender?: string | null;

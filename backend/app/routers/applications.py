@@ -43,6 +43,7 @@ def application_in_scope(
     application = (
         scoped_query(db, user, TenantApplication)
         .filter(TenantApplication.id == application_id)
+        .filter(TenantApplication.deleted_at.is_(None))
         .first()
     )
 
@@ -71,6 +72,12 @@ def list_applications(
 ):
     return (
         scoped_query(db, user, TenantApplication)
+        .filter(TenantApplication.deleted_at.is_(None))
+        .filter(
+            (TenantApplication.status != ApplicationStatus.rejected)
+            | (TenantApplication.rejection_expires_at.is_(None))
+            | (TenantApplication.rejection_expires_at > datetime.now(timezone.utc))
+        )
         .order_by(TenantApplication.created_at.desc())
         .all()
     )
@@ -198,6 +205,8 @@ def reject_application(
 
     application.status = ApplicationStatus.rejected
     application.landlord_note = payload.landlord_note
+    application.rejected_at = datetime.now(timezone.utc)
+    application.rejection_expires_at = application.rejected_at + timedelta(minutes=60)
 
     if application.preferred_response_method:
         message = (

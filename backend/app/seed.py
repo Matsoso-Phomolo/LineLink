@@ -458,7 +458,7 @@ def seed_tenant(
     tenant.email = TENANT_EMAIL
     tenant.tenant_type = TenantType.student
     tenant.tenant_category = "student"
-    tenant.tenant_subtype = "tertiary"
+    tenant.tenant_subtype = "nul_student"
     tenant.student_number = "20240001"
     tenant.institution = "National University of Lesotho"
     tenant.institution_name = "National University of Lesotho"

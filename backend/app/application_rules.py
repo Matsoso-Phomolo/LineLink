@@ -5,6 +5,7 @@ from app.models import AllowedTenantType, RoomListing, TenantType
 
 
 class ApplicationTenantDetails(Protocol):
+    gender: str | None
     tenant_type: TenantType
     tenant_category: str | None
     tenant_subtype: str | None
@@ -24,6 +25,14 @@ def validate_application_against_listing(
     category = (payload.tenant_category or payload.tenant_type.value).strip().lower()
     subtype = (payload.tenant_subtype or "").strip().lower()
     is_student = category == "student"
+    applicant_gender = (payload.gender or "any").strip().lower()
+    listing_gender = (listing.gender_preference or "any").strip().lower()
+
+    if listing_gender in {"male", "female"} and applicant_gender != listing_gender:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"This room is available for {listing_gender} tenants only.",
+        )
 
     if (
         listing.allowed_tenant_type == AllowedTenantType.student
@@ -90,6 +99,7 @@ def validate_application_record_against_listing(
 
     payload = Payload()
     payload.tenant_type = tenant_type
+    payload.gender = None
     payload.tenant_category = tenant_category
     payload.tenant_subtype = tenant_subtype
     payload.institution = institution

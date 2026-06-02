@@ -100,6 +100,7 @@ export function PublicRoomFinderPage({
   const [minRent, setMinRent] = useState("");
   const [maxRent, setMaxRent] = useState("");
   const [distance, setDistance] = useState("");
+  const [genderPreference, setGenderPreference] = useState<"any" | "male" | "female">("any");
   const [mustHaveWater, setMustHaveWater] = useState(false);
   const [mustHaveElectricity, setMustHaveElectricity] = useState(false);
   const [mustBeFurnished, setMustBeFurnished] = useState(false);
@@ -147,6 +148,7 @@ export function PublicRoomFinderPage({
     setMinRent("");
     setMaxRent("");
     setDistance("");
+    setGenderPreference("any");
     setMustHaveWater(false);
     setMustHaveElectricity(false);
     setMustBeFurnished(false);
@@ -207,6 +209,8 @@ export function PublicRoomFinderPage({
       const matchesMinRent = !rentFloor || Number(listing.rent_price) >= rentFloor;
       const matchesRent = !rentLimit || Number(listing.rent_price) <= rentLimit;
       const matchesDistance = !distanceTerm || (listing.distance_from_nul ?? "").toLowerCase().includes(distanceTerm);
+      const listingGender = (listing.gender_preference ?? "any").toLowerCase();
+      const matchesGender = genderPreference === "any" || listingGender === "any" || listingGender === genderPreference;
       const matchesWater = !mustHaveWater || listing.water_available;
       const matchesElectricity = !mustHaveElectricity || listing.electricity_available;
       const matchesFurnished = !mustBeFurnished || listing.furnished;
@@ -220,12 +224,13 @@ export function PublicRoomFinderPage({
         matchesMinRent &&
         matchesRent &&
         matchesDistance &&
+        matchesGender &&
         matchesWater &&
         matchesElectricity &&
         matchesFurnished
       );
     });
-  }, [distance, listings, maxRent, minRent, mustBeFurnished, mustHaveElectricity, mustHaveWater, query, selectedArea, selectedVillage, size, type]);
+  }, [distance, genderPreference, listings, maxRent, minRent, mustBeFurnished, mustHaveElectricity, mustHaveWater, query, selectedArea, selectedVillage, size, type]);
 
   const selectedListing = listings.find((listing) => listing.id === selectedListingId) ?? null;
 
@@ -470,6 +475,11 @@ export function PublicRoomFinderPage({
               <input placeholder="Min rent" inputMode="numeric" value={minRent} onChange={(event) => setMinRent(event.target.value)} />
               <input placeholder="Max rent" inputMode="numeric" value={maxRent} onChange={(event) => setMaxRent(event.target.value)} />
               <input placeholder="Distance from NUL" value={distance} onChange={(event) => setDistance(event.target.value)} />
+              <select value={genderPreference} onChange={(event) => setGenderPreference(event.target.value as "any" | "male" | "female")}>
+                <option value="any">Any gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
 
               <label className="inline-check">
                 <input type="checkbox" checked={mustHaveWater} onChange={(event) => setMustHaveWater(event.target.checked)} /> Water
@@ -512,6 +522,7 @@ export function PublicRoomFinderPage({
                     <div><dt>Rent</dt><dd>{money(listing.rent_price)}</dd></div>
                     <div><dt>Deposit</dt><dd>{money(listing.deposit_amount)}</dd></div>
                     <div><dt>Tenant</dt><dd>{listing.allowed_tenant_type.replace("_", " ")}</dd></div>
+                    <div><dt>Gender</dt><dd>{(listing.gender_preference ?? "any").replace("_", " ")}</dd></div>
                     <div><dt>Area</dt><dd>{listing.location_area}</dd></div>
                   </dl>
 

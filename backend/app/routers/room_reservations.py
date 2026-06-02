@@ -57,6 +57,15 @@ def get_reservation_or_404(db: Session, reservation_id: uuid.UUID) -> RoomReserv
     return reservation
 
 
+def active_reservation_filter(query):
+    now = datetime.now(timezone.utc)
+    return query.filter(
+        (RoomReservation.status != RoomReservationStatus.rejected)
+        | (RoomReservation.rejection_expires_at.is_(None))
+        | (RoomReservation.rejection_expires_at > now)
+    )
+
+
 def ensure_landlord_reservation_scope(db: Session, user: User, reservation: RoomReservation) -> None:
     scoped = landlord_scope_filter(db, user, RoomReservation).filter(RoomReservation.id == reservation.id).first()
     if not scoped:
@@ -129,7 +138,9 @@ def request_room_reservation(payload: RoomReservationRequestCreate, db: Session 
 
 @router.get("/my-reservations", response_model=list[RoomReservationRead])
 def my_reservations(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    items = db.query(RoomReservation).filter(RoomReservation.room_seeker_id == user.id).order_by(RoomReservation.created_at.desc()).all()
+    items = active_reservation_filter(
+        db.query(RoomReservation).filter(RoomReservation.room_seeker_id == user.id)
+    ).order_by(RoomReservation.created_at.desc()).all()
     return [serialize_reservation(item) for item in items]
 
 
@@ -137,6 +148,12 @@ def my_reservations(db: Session = Depends(get_db), user: User = Depends(get_curr
 def get_public_reservation_status(reservation_id: uuid.UUID, db: Session = Depends(get_db)):
     expire_stale_reservations(db)
     reservation = get_reservation_or_404(db, reservation_id)
+    if (
+        reservation.status == RoomReservationStatus.rejected
+        and reservation.rejection_expires_at
+        and reservation.rejection_expires_at <= datetime.now(timezone.utc)
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room reservation not found")
     db.commit()
     db.refresh(reservation)
     return serialize_reservation(reservation)
@@ -199,7 +216,7 @@ def cancel_room_reservation(reservation_id: uuid.UUID, db: Session = Depends(get
 @landlord_router.get("", response_model=list[RoomReservationRead])
 def landlord_reservations(db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.landlord, UserRole.caretaker))):
     expire_stale_reservations(db)
-    query = landlord_scope_filter(db, user, RoomReservation).order_by(RoomReservation.created_at.desc())
+    query = active_reservation_filter(landlord_scope_filter(db, user, RoomReservation)).order_by(RoomReservation.created_at.desc())
     items = query.all()
     db.commit()
     return [serialize_reservation(item) for item in items]
@@ -248,6 +265,8 @@ def reject_reservation(reservation_id: uuid.UUID, payload: RoomReservationDecisi
         if application:
             application.status = ApplicationStatus.rejected
             application.landlord_note = payload.note
+            application.rejected_at = datetime.now(timezone.utc)
+            application.rejection_expires_at = application.rejected_at + timedelta(minutes=60)
     log_action(db, AuditAction.update_room_listing, user, reservation.landlord_id, "RoomReservation", reservation.id)
     db.commit()
     db.refresh(reservation)
@@ -256,5 +275,5 @@ def reject_reservation(reservation_id: uuid.UUID, payload: RoomReservationDecisi
 
 @admin_router.get("", response_model=list[RoomReservationRead])
 def admin_room_reservations(db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.district_admin))):
-    items = landlord_scope_filter(db, user, RoomReservation).order_by(RoomReservation.created_at.desc()).limit(500).all()
+    items = active_reservation_filter(landlord_scope_filter(db, user, RoomReservation)).order_by(RoomReservation.created_at.desc()).limit(500).all()
     return [serialize_reservation(item) for item in items]

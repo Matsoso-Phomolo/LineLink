@@ -955,6 +955,9 @@ class TenantApplication(Base, TimestampMixin):
     token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     form_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    rejection_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class RequestResponseLog(Base, TimestampMixin):

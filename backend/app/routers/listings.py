@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import text
@@ -104,6 +105,18 @@ def normalize_allowed_tenant_type(raw_type: object) -> str:
     return value if value in {"student", "non_student", "both"} else "both"
 
 
+def active_listing_query(db: Session, room_id: uuid.UUID):
+    return db.query(RoomListing).filter(
+        RoomListing.room_id == room_id,
+        RoomListing.status.in_(
+            [
+                ListingStatus.draft,
+                ListingStatus.published,
+            ]
+        ),
+    )
+
+
 def normalize_listing_room_type(raw_type: object) -> str:
     value = str(raw_type or "").strip().lower()
     return value if value in {"single", "double", "multiple"} else "single"
@@ -183,38 +196,44 @@ def create_listing(
             detail="Room does not belong to the selected property",
         )
 
-    validate_district_area(db, payload.district_id, payload.area_id)
+    payload_values = payload.model_dump()
+    payload_values["district_id"] = payload.district_id or prop.district_id
+    payload_values["area_id"] = payload.area_id or prop.area_id
 
-    if prop.district_id and payload.district_id != prop.district_id:
+    validate_district_area(db, payload_values["district_id"], payload_values["area_id"])
+
+    if prop.district_id and payload_values["district_id"] != prop.district_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Listing district must match property district.",
         )
 
-    if prop.area_id and payload.area_id != prop.area_id:
+    if prop.area_id and payload_values["area_id"] != prop.area_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Listing area must match property area.",
         )
 
-    listing = (
-        db.query(RoomListing)
-        .filter(
-            RoomListing.room_id == room.id,
-            RoomListing.status != ListingStatus.rented,
+    if not is_vacant_room_status(room.status):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only vacant rooms can be published as public listings.",
         )
+
+    listing = (
+        active_listing_query(db, room.id)
         .order_by(RoomListing.created_at.desc())
         .first()
     )
 
     if listing:
-        for key, value in payload.model_dump().items():
+        for key, value in payload_values.items():
             setattr(listing, key, value)
 
         listing.landlord_id = prop.landlord_id
     else:
         listing = RoomListing(
-            **payload.model_dump(),
+            **payload_values,
             landlord_id=prop.landlord_id,
         )
         db.add(listing)
@@ -228,10 +247,6 @@ def create_listing(
     if listing.is_public and listing.status == ListingStatus.published:
         listing.verification_status = ListingVerificationStatus.verified
         listing.is_verified = True
-
-    if room.status == RoomStatus.occupied:
-        listing.status = ListingStatus.rented
-        listing.is_public = False
 
     log_action(
         db,
@@ -365,6 +380,23 @@ def update_listing(
             detail="Listing area must match property area.",
         )
 
+    if values.get("status") == ListingStatus.published or values.get("is_public") is True:
+        if not is_vacant_room_status(room.status):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only vacant rooms can be published as public listings.",
+            )
+        duplicate = (
+            active_listing_query(db, room.id)
+            .filter(RoomListing.id != listing.id)
+            .first()
+        )
+        if duplicate:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This room already has an active listing.",
+            )
+
     for key, value in values.items():
         setattr(listing, key, value)
 
@@ -405,6 +437,15 @@ def archive_listing(
 
     listing.status = ListingStatus.archived
     listing.is_public = False
+
+    log_action(
+        db,
+        AuditAction.update_room_listing,
+        user,
+        listing.landlord_id,
+        "RoomListing",
+        listing.id,
+    )
 
     db.commit()
     db.refresh(listing)
@@ -525,6 +566,12 @@ def listing_applications(
     return (
         db.query(TenantApplication)
         .filter(TenantApplication.listing_id == listing.id)
+        .filter(TenantApplication.deleted_at.is_(None))
+        .filter(
+            (TenantApplication.status != ApplicationStatus.rejected)
+            | (TenantApplication.rejection_expires_at.is_(None))
+            | (TenantApplication.rejection_expires_at > datetime.now(timezone.utc))
+        )
         .order_by(TenantApplication.created_at.desc())
         .all()
     )
@@ -579,6 +626,8 @@ def reject_application(
 
     application.status = ApplicationStatus.rejected
     application.landlord_note = payload.landlord_note
+    application.rejected_at = datetime.now(timezone.utc)
+    application.rejection_expires_at = application.rejected_at + timedelta(minutes=60)
 
     db.commit()
     db.refresh(application)

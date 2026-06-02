@@ -10,7 +10,21 @@ async function responseError(response: Response) {
     const parsed = JSON.parse(text) as { detail?: unknown; message?: unknown };
     const detail = parsed.detail ?? parsed.message;
     if (typeof detail === "string") return new Error(detail);
-    if (Array.isArray(detail)) return new Error("Please check the form fields and try again.");
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const entry = item as { loc?: unknown; msg?: unknown };
+          const loc = Array.isArray(entry.loc)
+            ? entry.loc.filter((part) => part !== "body").join(".")
+            : "";
+          const msg = typeof entry.msg === "string" ? entry.msg : "";
+          if (!msg) return null;
+          return loc ? `${loc}: ${msg}` : msg;
+        })
+        .filter(Boolean);
+      return new Error(messages.length > 0 ? messages.join("\n") : "Please check the form fields and try again.");
+    }
   } catch {
     if (text.trim()) return new Error(text);
   }

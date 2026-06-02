@@ -22,14 +22,14 @@ type FullApplicationForm = TenantProfileForm & {
 
 const emptyForm: FullApplicationForm = {
   full_name: "",
-  gender: "",
+  gender: "any",
   phone: "",
   alternative_phone: "",
   email: "",
   national_id: "",
   passport_number: "",
   tenant_category: "student",
-  tenant_subtype: "tertiary",
+  tenant_subtype: "nul_student",
   institution_name: "",
   student_id: "",
   sponsor_or_guardian_name: "",
@@ -75,7 +75,7 @@ export function ApplicationFormPage() {
           national_id: item.national_id ?? "",
           passport_number: item.passport_number ?? "",
           tenant_category: (item.tenant_category as TenantCategory) ?? (item.tenant_type === "student" ? "student" : "worker"),
-          tenant_subtype: item.tenant_subtype ?? (item.tenant_type === "student" ? "tertiary" : "employed"),
+          tenant_subtype: item.tenant_subtype ?? (item.tenant_type === "student" ? "nul_student" : "employed"),
           institution_name: item.institution_name ?? item.institution ?? "",
           student_id: item.student_number ?? "",
           sponsor_or_guardian_name: item.sponsor_or_guardian_name ?? "",
@@ -190,7 +190,11 @@ export function ApplicationFormPage() {
               <h2>Personal details</h2>
               <label>Full names<input required value={form.full_name} onChange={(event) => update("full_name", event.target.value)} /></label>
               <div className="form-grid">
-                <label>Gender<input value={form.gender} onChange={(event) => update("gender", event.target.value)} /></label>
+                <label>Gender<select value={form.gender} onChange={(event) => update("gender", event.target.value)}>
+                  <option value="any">Any</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select></label>
                 <label>Phone<input required value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
               </div>
               <div className="form-grid">
