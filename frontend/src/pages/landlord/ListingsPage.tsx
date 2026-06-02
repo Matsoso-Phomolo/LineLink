@@ -177,7 +177,7 @@ export function ListingsPage() {
     () => rooms.filter((room) => {
       if (form.property_id && room.property_id !== form.property_id) return false;
       if (room.id === form.room_id) return true;
-      return room.status === "vacant" && !listedRoomIds.has(room.id);
+      return (room.available_occupancy_slots ?? 0) > 0 && room.status !== "maintenance" && !listedRoomIds.has(room.id);
     }),
     [form.property_id, form.room_id, listedRoomIds, rooms]
   );
@@ -189,7 +189,7 @@ export function ListingsPage() {
 
   function chooseProperty(propertyId: string) {
     const property = propertyById[propertyId];
-    const firstRoom = rooms.find((room) => room.property_id === propertyId && room.status === "vacant" && !listedRoomIds.has(room.id));
+    const firstRoom = rooms.find((room) => room.property_id === propertyId && (room.available_occupancy_slots ?? 0) > 0 && room.status !== "maintenance" && !listedRoomIds.has(room.id));
     setForm((current) => ({
       ...current,
       property_id: propertyId,
@@ -232,8 +232,8 @@ export function ListingsPage() {
       errors.available_from = "Available from date is invalid.";
     }
     const selectedRoom = roomById[form.room_id];
-    if (!form.id && selectedRoom && selectedRoom.status !== "vacant") {
-      errors.room_id = `${selectedRoom.room_number} is ${selectedRoom.status.replace("_", " ")}. Only vacant rooms can be listed.`;
+    if (!form.id && selectedRoom && ((selectedRoom.available_occupancy_slots ?? 0) <= 0 || selectedRoom.status === "maintenance")) {
+      errors.room_id = `${selectedRoom.room_number} has no available tenant slots.`;
     }
     if (!form.id && selectedRoom && listedRoomIds.has(selectedRoom.id)) {
       errors.room_id = `${selectedRoom.room_number} already has an active listing.`;
@@ -426,7 +426,7 @@ export function ListingsPage() {
               <option value="">Choose vacant room</option>
               {availableRooms.map((room) => (
                 <option key={room.id} value={room.id}>
-                  {room.room_number} - M{Number(room.rent_price).toLocaleString()} {listedRoomIds.has(room.id) ? "(Listed)" : ""}
+                  {room.room_number} - M{Number(room.rent_price).toLocaleString()} {room.occupancy_mode === "shared_independent" ? `(${room.available_occupancy_slots ?? 0} shared slot${(room.available_occupancy_slots ?? 0) === 1 ? "" : "s"} left)` : ""} {listedRoomIds.has(room.id) ? "(Listed)" : ""}
                 </option>
               ))}
             </select><FieldError name="room_id" /></label>

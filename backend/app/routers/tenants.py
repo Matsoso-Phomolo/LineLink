@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from app.models import (
     Occupancy,
     OccupancyStatus,
     OnboardingChecklist,
+    Room,
     RoomListing,
     RoomStatus,
     Tenant,
@@ -41,6 +42,7 @@ from app.schemas import (
     TenantRead,
     TenantUpdate,
 )
+from app.services.tenant_capacity import end_occupancy, room_available_slots, sync_room_capacity_status, validate_room_can_accept_tenant
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -118,11 +120,7 @@ def create_tenant_account(
 
     room = get_room_in_scope(db, user, payload.room_id)
 
-    if room.status == RoomStatus.occupied:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Room is already occupied",
-        )
+    slot_number = validate_room_can_accept_tenant(db, room)
 
     email = (
         str(payload.email)
@@ -196,6 +194,9 @@ def create_tenant_account(
             landlord_id=landlord_id,
             tenant_id=tenant.id,
             room_id=room.id,
+            occupancy_slot_number=slot_number,
+            is_active=True,
+            assigned_at=datetime.now(timezone.utc),
             move_in_date=payload.lease_start_date or date.today(),
             monthly_rent=monthly_rent,
             deposit_amount=deposit,
@@ -206,21 +207,22 @@ def create_tenant_account(
         db.add(occupancy)
         db.flush()
 
-        room.status = RoomStatus.occupied
+        sync_room_capacity_status(db, room)
 
-        (
-            db.query(RoomListing)
-            .filter(
-                RoomListing.room_id == room.id,
-                RoomListing.status == ListingStatus.published,
+        if room_available_slots(db, room) <= 0:
+            (
+                db.query(RoomListing)
+                .filter(
+                    RoomListing.room_id == room.id,
+                    RoomListing.status == ListingStatus.published,
+                )
+                .update(
+                    {
+                        "status": ListingStatus.rented,
+                        "is_public": False,
+                    }
+                )
             )
-            .update(
-                {
-                    "status": ListingStatus.rented,
-                    "is_public": False,
-                }
-            )
-        )
 
         generate_initial_rent_due(db, occupancy)
 
@@ -325,7 +327,10 @@ def remove_tenant(
     )
 
     for occupancy in active_occupancies:
-        occupancy.status = OccupancyStatus.ended
+        end_occupancy(occupancy)
+        room = db.get(Room, occupancy.room_id)
+        if room:
+            sync_room_capacity_status(db, room)
 
     db.commit()
 

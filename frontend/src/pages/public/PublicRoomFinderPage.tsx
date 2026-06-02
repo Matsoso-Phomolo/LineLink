@@ -71,6 +71,12 @@ function roomLabel(listing: Listing) {
   return listing.room_number ?? listing.title.match(/[A-Z]-\d{3}/i)?.[0] ?? listing.title;
 }
 
+function sharedSlotLabel(listing: Listing) {
+  if (listing.occupancy_mode !== "shared_independent") return null;
+  const slots = listing.available_occupancy_slots ?? 0;
+  return `Shared room - ${slots} slot${slots === 1 ? "" : "s"} left`;
+}
+
 function toNullable(value: string) {
   return value.trim() ? value.trim() : null;
 }
@@ -502,12 +508,14 @@ export function PublicRoomFinderPage({
                   <div>
                     <div className="card-topline">
                       <StatusPill value="available" />
+                      {sharedSlotLabel(listing) ? <StatusPill value="shared_room" /> : null}
                       <StatusPill value="available_now" />
                       <StatusPill value="public" />
                       <span>{listing.distance_from_nul ?? "Near NUL"}</span>
                     </div>
 
                     <h2>{roomLabel(listing)} - {listing.room_size} {listing.room_type}</h2>
+                    {sharedSlotLabel(listing) ? <p>{sharedSlotLabel(listing)}</p> : null}
                     <p>{listing.property_name ?? "Line-house"} - {listing.location_area}</p>
                   </div>
 
@@ -523,6 +531,7 @@ export function PublicRoomFinderPage({
                     <div><dt>Deposit</dt><dd>{money(listing.deposit_amount)}</dd></div>
                     <div><dt>Tenant</dt><dd>{listing.allowed_tenant_type.replace("_", " ")}</dd></div>
                     <div><dt>Gender</dt><dd>{(listing.gender_preference ?? "any").replace("_", " ")}</dd></div>
+                    <div><dt>Slots</dt><dd>{listing.occupancy_mode === "shared_independent" ? `${listing.current_occupants_count ?? 0}/${listing.max_occupants ?? 1}` : "Private room"}</dd></div>
                     <div><dt>Area</dt><dd>{listing.location_area}</dd></div>
                   </dl>
 
@@ -561,12 +570,14 @@ export function PublicRoomFinderPage({
 
             <div className="card-topline">
               <StatusPill value="available" />
+              {sharedSlotLabel(selectedListing) ? <StatusPill value="shared_room" /> : null}
               <StatusPill value="available_now" />
               <StatusPill value="public" />
               <span>{selectedListing.property_name ?? "Line-house"} - {selectedListing.location_area}</span>
             </div>
 
             <h2>{roomLabel(selectedListing)} - {selectedListing.room_size} {selectedListing.room_type}</h2>
+            {sharedSlotLabel(selectedListing) ? <p>{sharedSlotLabel(selectedListing)}</p> : null}
             <p>{selectedListing.description}</p>
 
             <dl className="detail-grid">

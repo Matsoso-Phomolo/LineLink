@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api/client";
 import { ErrorState, LoadingState } from "../../components/DataState";
+import { StatusPill } from "../../components/StatusPill";
 import type { PropertyItem, Room } from "../../types";
 
 function naturalRoomCompare(left: Room, right: Room) {
@@ -67,12 +68,17 @@ export function RoomsPage() {
               <th>Property</th>
               <th>Room</th>
               <th>Type</th>
+              <th>Occupancy mode</th>
+              <th>Capacity</th>
+              <th>Current occupants</th>
+              <th>Slots left</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {visibleRooms.length === 0 ? (
               <tr>
-                <td colSpan={3}>No approved rooms are available.</td>
+                <td colSpan={8}>No approved rooms are available.</td>
               </tr>
             ) : null}
             {visibleRooms.map((room) => {
@@ -86,6 +92,11 @@ export function RoomsPage() {
                   </td>
                   <td>{room.room_number}</td>
                   <td>{room.room_type}</td>
+                  <td>{room.occupancy_mode === "shared_independent" ? "Shared independent" : "Private room"}</td>
+                  <td>{room.max_occupants ?? 1}</td>
+                  <td>{room.current_occupants_count ?? 0}</td>
+                  <td>{room.available_occupancy_slots ?? Math.max((room.max_occupants ?? 1) - (room.current_occupants_count ?? 0), 0)}</td>
+                  <td><StatusPill value={room.status === "occupied" && room.occupancy_mode === "shared_independent" ? "occupied/full" : room.status} /></td>
                 </tr>
               );
             })}

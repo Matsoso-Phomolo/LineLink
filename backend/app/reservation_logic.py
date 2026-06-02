@@ -20,6 +20,7 @@ from app.models import (
     RoomReservationStatus,
     RoomStatus,
 )
+from app.services.tenant_capacity import room_available_slots
 
 
 ACTIVE_RESERVATION_STATUSES = {
@@ -75,7 +76,7 @@ def get_active_reservation_for_room(db: Session, room_id: uuid.UUID) -> RoomRese
 
 
 def assert_room_can_receive_reservation(db: Session, room: Room, exclude_reservation_id: uuid.UUID | None = None) -> None:
-    if room.status != RoomStatus.vacant:
+    if room_available_slots(db, room) <= 0:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room is no longer available.")
     active = get_active_reservation_for_room(db, room.id)
     if active and active.id != exclude_reservation_id:
@@ -139,7 +140,7 @@ def complete_room_reservation_payment(db: Session, transaction: PaymentTransacti
         transaction.failure_reason = f"Reservation is not payable from {reservation.status.value}"
         return
     room = db.get(Room, reservation.room_id)
-    if not room or room.status != RoomStatus.vacant:
+    if not room or room_available_slots(db, room) <= 0:
         transaction.status = PaymentTransactionStatus.failed
         transaction.failure_reason = "Room is no longer available for reservation confirmation"
         return

@@ -155,7 +155,32 @@ export function TenantsPage({ mode = "list" }: TenantsPageProps) {
     });
   }, [editTenantId, mode, tenants]);
 
-  const vacantRooms = useMemo(() => rooms.filter((room) => room.status === "vacant"), [rooms]);
+  const capacitySummary = useMemo(() => {
+    const total = rooms.reduce((sum, room) => sum + (room.max_occupants ?? 1), 0);
+    const used = rooms.reduce((sum, room) => sum + (room.current_occupants_count ?? 0), 0);
+    return {
+      total,
+      used,
+      remaining: Math.max(total - used, 0)
+    };
+  }, [rooms]);
+
+  const assignableRooms = useMemo(
+    () => rooms,
+    [rooms]
+  );
+
+  function roomCapacityLabel(room: Room) {
+    const max = room.max_occupants ?? 1;
+    const current = room.current_occupants_count ?? 0;
+    const slots = room.available_occupancy_slots ?? Math.max(max - current, 0);
+    if (room.status === "maintenance") return `${room.room_number} - Maintenance unavailable`;
+    if (slots <= 0) return `${room.room_number} - Full`;
+    if (room.occupancy_mode === "shared_independent") {
+      return `${room.room_number} - ${current}/${max} occupied, ${slots} slot${slots === 1 ? "" : "s"} left`;
+    }
+    return `${room.room_number} - Private vacant`;
+  }
 
   function update<K extends keyof TenantForm>(key: K, value: TenantForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -279,6 +304,13 @@ export function TenantsPage({ mode = "list" }: TenantsPageProps) {
         {!loading && !error ? (
           <form className="panel form-panel" onSubmit={saveTenant}>
             <div><p className="eyebrow">{form.id ? "Edit tenant" : "Create tenant"}</p><h2>{form.id ? form.full_name : "Register tenant account"}</h2></div>
+            {!form.id ? (
+              <div className="metric-grid">
+                <div className="metric-card"><span>Tenant account capacity</span><strong>{capacitySummary.total}</strong></div>
+                <div className="metric-card"><span>Used accounts</span><strong>{capacitySummary.used}</strong></div>
+                <div className="metric-card"><span>Accounts left</span><strong>{capacitySummary.remaining}</strong></div>
+              </div>
+            ) : null}
             <div className="form-grid">
               <label>Full names<input required value={form.full_name} onChange={(event) => update("full_name", event.target.value)} /></label>
               <label>Gender<select value={form.gender} onChange={(event) => update("gender", event.target.value)}>
@@ -308,7 +340,10 @@ export function TenantsPage({ mode = "list" }: TenantsPageProps) {
               <label>Lease start<input type="date" value={form.lease_start_date} onChange={(event) => update("lease_start_date", event.target.value)} /></label>
               <label>Lease end<input type="date" value={form.lease_end_date} onChange={(event) => update("lease_end_date", event.target.value)} /></label>
             </div>
-            {!form.id ? <label>Assign vacant room<select value={form.room_id} onChange={(event) => update("room_id", event.target.value)}><option value="">Choose vacant room</option>{vacantRooms.map((room) => <option key={room.id} value={room.id}>{room.room_number} - M{Number(room.rent_price).toLocaleString()}</option>)}</select></label> : null}
+            {!form.id ? <label>Assign room slot<select value={form.room_id} onChange={(event) => update("room_id", event.target.value)}><option value="">Choose available room</option>{assignableRooms.map((room) => {
+              const disabled = room.status === "maintenance" || (room.available_occupancy_slots ?? 0) <= 0;
+              return <option key={room.id} value={room.id} disabled={disabled}>{roomCapacityLabel(room)}</option>;
+            })}</select></label> : null}
             <div className="review-actions">
               <button className="primary-button" type="submit">{form.id ? "Save tenant" : "Create tenant account"}</button>
               <button type="button" onClick={() => navigate("/landlord/tenants")}>Cancel</button>

@@ -49,6 +49,7 @@ from app.schemas import (
     TenantApplicationRead,
     ViewingRequestRead,
 )
+from app.services.tenant_capacity import room_available_slots
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -214,10 +215,10 @@ def create_listing(
             detail="Listing area must match property area.",
         )
 
-    if not is_vacant_room_status(room.status):
+    if room_available_slots(db, room) <= 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Only vacant rooms can be published as public listings.",
+            detail="Only rooms with available tenant slots can be published.",
         )
 
     listing = (
@@ -307,6 +308,15 @@ def my_listings(
                     rl.verification_status::text as verification_status,
                     rl.verification_note,
                     r.room_number as room_number,
+                    r.occupancy_mode::text as occupancy_mode,
+                    r.max_occupants,
+                    (
+                        select count(*)
+                        from occupancies o
+                        where o.room_id = r.id
+                        and o.status::text = 'active'
+                        and coalesce(o.is_active, true) is true
+                    ) as current_occupants_count,
                     p.name as property_name,
                     rl.created_at
                 from room_listings rl
@@ -333,6 +343,7 @@ def my_listings(
             "verification_status": normalize_listing_verification_status(
                 row.get("verification_status")
             ),
+            "available_occupancy_slots": max(int(row.get("max_occupants") or 1) - int(row.get("current_occupants_count") or 0), 0),
         }
         for row in rows
     ]
@@ -381,10 +392,10 @@ def update_listing(
         )
 
     if values.get("status") == ListingStatus.published or values.get("is_public") is True:
-        if not is_vacant_room_status(room.status):
+        if room_available_slots(db, room) <= 0:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Only vacant rooms can be published as public listings.",
+                detail="Only rooms with available tenant slots can be published.",
             )
         duplicate = (
             active_listing_query(db, room.id)

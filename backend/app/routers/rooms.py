@@ -20,13 +20,32 @@ from app.models import (
     UserRole,
 )
 from app.ownership import get_property_in_scope, get_room_in_scope, scoped_query
-from app.schemas import RoomCreate, RoomRead, RoomUpdate
+from app.schemas import PropertyTenantCapacityRead, RoomCreate, RoomRead, RoomUpdate
+from app.services.tenant_capacity import active_occupancy_count, calculate_property_tenant_capacity, room_available_slots, sync_room_capacity_status
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 
 class RoomStatusUpdate(BaseModel):
     status: RoomStatus
+
+
+@router.get("/properties/{property_id}/tenant-capacity", response_model=PropertyTenantCapacityRead)
+def property_tenant_capacity(
+    property_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.landlord, UserRole.caretaker, UserRole.district_admin)),
+):
+    get_property_in_scope(db, user, property_id)
+    result = calculate_property_tenant_capacity(db, property_id)
+    return {
+        "property_id": property_id,
+        "total_rooms": result.total_rooms,
+        "total_account_capacity": result.total_account_capacity,
+        "used_tenant_accounts": result.used_tenant_accounts,
+        "remaining_tenant_accounts": result.remaining_tenant_accounts,
+        "room_breakdown": [item.__dict__ for item in result.room_breakdown],
+    }
 
 
 def normalize_room_status(raw_status: object) -> str:
@@ -111,6 +130,8 @@ def list_rooms(
                     r.status::text as status,
                     r.room_type::text as room_type,
                     r.room_size,
+                    r.occupancy_mode::text as occupancy_mode,
+                    r.max_occupants,
                     r.rent_price,
                     r.deposit_amount,
                     r.notes,
@@ -141,6 +162,8 @@ def list_rooms(
             **dict(row),
             "status": normalize_room_status(row.get("status")),
             "room_type": normalize_room_type(row.get("room_type")),
+            "current_occupants_count": active_occupancy_count(db, row["id"]),
+            "available_occupancy_slots": room_available_slots(db, db.get(Room, row["id"])),
         }
         for row in rows
     ]
@@ -187,6 +210,8 @@ def update_room_status(
         )
 
     room.status = next_status
+    if next_status != RoomStatus.maintenance:
+        sync_room_capacity_status(db, room)
 
     if next_status != RoomStatus.vacant:
         listing_status = ListingStatus.rented if next_status == RoomStatus.occupied else ListingStatus.archived
@@ -228,6 +253,10 @@ def update_room(
 
     for key, value in values.items():
         setattr(room, key, value)
+
+    if room.occupancy_mode.value == "private":
+        room.max_occupants = 1
+    sync_room_capacity_status(db, room)
 
     if room.status == RoomStatus.occupied:
         (

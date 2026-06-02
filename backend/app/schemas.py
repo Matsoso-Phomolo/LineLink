@@ -17,6 +17,7 @@ from app.models import (
     InspectionStatus,
     InspectionType,
     DamageStatus,
+    OccupancyMode,
     SubscriptionStatus,
     PaymentMethod,
     PaymentSubmissionStatus,
@@ -390,9 +391,19 @@ class RoomBase(BaseModel):
     status: RoomStatus = RoomStatus.vacant
     room_type: RoomType
     room_size: str | None = None
+    occupancy_mode: OccupancyMode = OccupancyMode.private
+    max_occupants: int = Field(default=1, ge=1)
     rent_price: float
     deposit_amount: float = 0
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_capacity(self):
+        if self.occupancy_mode == OccupancyMode.private:
+            self.max_occupants = 1
+        elif self.max_occupants < 2:
+            raise ValueError("shared_independent rooms require max_occupants of at least 2")
+        return self
 
 
 class RoomCreate(RoomBase):
@@ -405,15 +416,46 @@ class RoomUpdate(BaseModel):
     status: RoomStatus | None = None
     room_type: RoomType | None = None
     room_size: str | None = None
+    occupancy_mode: OccupancyMode | None = None
+    max_occupants: int | None = Field(default=None, ge=1)
     rent_price: float | None = None
     deposit_amount: float | None = None
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_capacity(self):
+        if self.occupancy_mode == OccupancyMode.private:
+            self.max_occupants = 1
+        if self.occupancy_mode == OccupancyMode.shared_independent and (self.max_occupants is None or self.max_occupants < 2):
+            raise ValueError("shared_independent rooms require max_occupants of at least 2")
+        return self
 
 
 class RoomRead(RoomBase, ORMModel):
     id: uuid.UUID
     landlord_id: uuid.UUID
+    current_occupants_count: int = 0
+    available_occupancy_slots: int = 1
     created_at: datetime
+
+
+class RoomCapacityRead(BaseModel):
+    room_id: uuid.UUID
+    room_number: str
+    occupancy_mode: str
+    max_occupants: int
+    current_occupants_count: int
+    available_slots: int
+    status: str
+
+
+class PropertyTenantCapacityRead(BaseModel):
+    property_id: uuid.UUID
+    total_rooms: int
+    total_account_capacity: int
+    used_tenant_accounts: int
+    remaining_tenant_accounts: int
+    room_breakdown: list[RoomCapacityRead]
 
 
 class TenantBase(BaseModel):
@@ -592,6 +634,10 @@ class OccupancyRead(ORMModel):
     landlord_id: uuid.UUID
     tenant_id: uuid.UUID
     room_id: uuid.UUID
+    occupancy_slot_number: int = 1
+    is_active: bool = True
+    assigned_at: datetime | None = None
+    ended_at: datetime | None = None
     move_in_date: date
     move_out_date: date | None
     monthly_rent: float
@@ -869,6 +915,10 @@ class ListingRead(ListingBase, ORMModel):
     area_id: uuid.UUID | None = None
     room_number: str | None = None
     property_name: str | None = None
+    occupancy_mode: str | None = None
+    max_occupants: int | None = None
+    current_occupants_count: int = 0
+    available_occupancy_slots: int = 0
     created_at: datetime
 
 

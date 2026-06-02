@@ -56,6 +56,10 @@ export type Room = {
   status: "vacant" | "occupied" | "partially_occupied" | "full" | "maintenance" | "reserved";
   room_type: "single" | "double" | "multiple";
   room_size?: string | null;
+  occupancy_mode?: "private" | "shared_independent";
+  max_occupants?: number;
+  current_occupants_count?: number;
+  available_occupancy_slots?: number;
   rent_price: number;
   deposit_amount: number;
   notes?: string | null;
@@ -69,6 +73,10 @@ export type Listing = {
   room_id: string;
   room_number?: string | null;
   property_name?: string | null;
+  occupancy_mode?: "private" | "shared_independent" | string | null;
+  max_occupants?: number | null;
+  current_occupants_count?: number;
+  available_occupancy_slots?: number;
   title: string;
   description?: string | null;
   rent_price: number;

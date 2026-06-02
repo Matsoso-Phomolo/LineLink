@@ -22,7 +22,7 @@ from app.models import (
     TenantType,
     ViewingRequest,
 )
-from app.room_status import VACANT_ROOM_STATUSES
+from app.services.tenant_capacity import room_available_slots
 from app.tenant_categories import GENDER_PREFERENCES, normalize_gender_preference
 from app.schemas import (
     ListingRead,
@@ -50,12 +50,12 @@ def get_public_listing(db: Session, listing_id: uuid.UUID) -> RoomListing:
             RoomListing.id == listing_id,
             RoomListing.status == ListingStatus.published,
             RoomListing.is_public.is_(True),
-            Room.status.in_(VACANT_ROOM_STATUSES),
+            Room.status != RoomStatus.maintenance,
         )
         .first()
     )
 
-    if not listing:
+    if not listing or not listing.room or room_available_slots(db, listing.room) <= 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=ROOM_UNAVAILABLE_MESSAGE,
@@ -84,7 +84,20 @@ def public_listings(
     clauses = [
         "rl.status::text = :published_status",
         "rl.is_public is true",
-        "r.status::text in ('vacant', 'available')",
+        "r.status::text != 'maintenance'",
+        """
+        greatest(
+            coalesce(r.max_occupants, 1)
+            - (
+                select count(*)
+                from occupancies o
+                where o.room_id = r.id
+                and o.status::text = 'active'
+                and coalesce(o.is_active, true) is true
+            ),
+            0
+        ) > 0
+        """,
     ]
     params: dict[str, object] = {
         "published_status": ListingStatus.published.value,
@@ -195,6 +208,26 @@ def public_listings(
             rl.verification_status::text as verification_status,
             rl.verification_note,
             r.room_number as room_number,
+            r.occupancy_mode::text as occupancy_mode,
+            r.max_occupants,
+            (
+                select count(*)
+                from occupancies o
+                where o.room_id = r.id
+                and o.status::text = 'active'
+                and coalesce(o.is_active, true) is true
+            ) as current_occupants_count,
+            greatest(
+                coalesce(r.max_occupants, 1)
+                - (
+                    select count(*)
+                    from occupancies o
+                    where o.room_id = r.id
+                    and o.status::text = 'active'
+                    and coalesce(o.is_active, true) is true
+                ),
+                0
+            ) as available_occupancy_slots,
             p.name as property_name,
             rl.created_at
         from room_listings rl

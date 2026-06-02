@@ -39,6 +39,11 @@ class RoomStatus(str, enum.Enum):
     maintenance = "maintenance"
 
 
+class OccupancyMode(str, enum.Enum):
+    private = "private"
+    shared_independent = "shared_independent"
+
+
 class RentalMode(str, enum.Enum):
     private = "private"
     family = "family"
@@ -615,6 +620,12 @@ class Room(Base, TimestampMixin):
         default=RentalMode.private,
         index=True,
     )
+    occupancy_mode: Mapped[OccupancyMode] = mapped_column(
+        Enum(OccupancyMode, name="occupancy_mode"),
+        default=OccupancyMode.private,
+        index=True,
+    )
+    max_occupants: Mapped[int] = mapped_column(Integer, default=1, index=True)
 
     rent_price: Mapped[float] = mapped_column(Numeric(12, 2))
     deposit_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
@@ -680,6 +691,9 @@ class Occupancy(Base, TimestampMixin):
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     room_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rooms.id"), index=True)
     occupancy_slot_number: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     move_in_date: Mapped[date] = mapped_column(Date)
     move_out_date: Mapped[date | None] = mapped_column(Date)
     monthly_rent: Mapped[float] = mapped_column(Numeric(12, 2))
