@@ -23,6 +23,12 @@ const SecurityPage = lazy(() =>
   }))
 );
 
+const NotificationsPage = lazy(() =>
+  import("../pages/NotificationsPage").then((module) => ({
+    default: module.NotificationsPage,
+  }))
+);
+
 const PublicRoomFinderPage = lazy(() =>
   import("../pages/public/PublicRoomFinderPage").then((module) => ({
     default: module.PublicRoomFinderPage,
@@ -56,6 +62,12 @@ const LandlordVerificationPage = lazy(() =>
 const LandlordDashboardPage = lazy(() =>
   import("../pages/landlord/LandlordDashboardPage").then((module) => ({
     default: module.LandlordDashboardPage,
+  }))
+);
+
+const LandlordRemindersPage = lazy(() =>
+  import("../pages/landlord/LandlordRemindersPage").then((module) => ({
+    default: module.LandlordRemindersPage,
   }))
 );
 
@@ -194,6 +206,7 @@ export function AppRoutes() {
 
           <Route element={<AppLayout />}>
             <Route path="/security" element={<SecurityPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
 
             <Route element={<ProtectedRoute roles={["national_admin"]} />}>
               <Route path="/admin" element={<Navigate to="/admin/district-admins" replace />} />
@@ -201,6 +214,7 @@ export function AppRoutes() {
               <Route path="/admin/plans" element={<AdminDashboardPage section="plans" />} />
               <Route path="/admin/districts" element={<AdminDashboardPage section="districts" />} />
               <Route path="/admin/district-admins" element={<AdminDashboardPage section="district-admins" />} />
+              <Route path="/admin/reminders" element={<AdminDashboardPage section="reminders" />} />
             </Route>
 
             <Route element={<ProtectedRoute roles={["district_admin"]} />}>
@@ -242,6 +256,7 @@ export function AppRoutes() {
               <Route path="/landlord/requests" element={<RoomRequestsPage />} />
               <Route path="/landlord/reservations" element={<ReservationsPage />} />
               <Route path="/landlord/payments" element={<PaymentSubmissionsPage />} />
+              <Route path="/landlord/reminders" element={<LandlordRemindersPage />} />
               <Route path="/landlord/support" element={<SupportTicketsPage />} />
             </Route>
 

@@ -793,12 +793,19 @@ textarea:focus {
 
 .content-area {
   min-width: 0;
+  height: 100vh;
+  overflow: auto;
   padding: 32px;
 }
 
 .page-stack {
   display: grid;
   gap: 24px;
+}
+
+.contained-page {
+  min-height: calc(100vh - 64px);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .public-topbar {
@@ -923,6 +930,11 @@ textarea:focus {
 
 .panel {
   padding: 24px;
+}
+
+.internal-panel {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel h2 {
@@ -1142,6 +1154,12 @@ th {
 .list-stack {
   display: grid;
   gap: 12px;
+}
+
+.internal-list {
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .row-item {
@@ -1447,6 +1465,11 @@ th {
   .sidebar {
     position: static;
     height: auto;
+  }
+
+  .content-area {
+    height: auto;
+    overflow: visible;
   }
 
   .metric-grid,

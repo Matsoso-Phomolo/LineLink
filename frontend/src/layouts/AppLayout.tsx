@@ -14,6 +14,8 @@ const landlordLinks = [
   { to: "/landlord/requests", label: "Room Requests" },
   { to: "/landlord/reservations", label: "Reservations" },
   { to: "/landlord/payments", label: "Payments" },
+  { to: "/landlord/reminders", label: "Reminders" },
+  { to: "/notifications", label: "Recent Notifications" },
   { to: "/landlord/billing", label: "Billing" },
   { to: "/landlord/support", label: "Support" },
   { to: "/security", label: "Security" },
@@ -27,6 +29,8 @@ const caretakerLinks = [
   { to: "/landlord/requests", label: "Room Requests" },
   { to: "/landlord/reservations", label: "Reservations" },
   { to: "/landlord/payments", label: "Payments" },
+  { to: "/landlord/reminders", label: "Reminders" },
+  { to: "/notifications", label: "Recent Notifications" },
   { to: "/landlord/support", label: "Support" },
   { to: "/security", label: "Security" },
 ];
@@ -34,6 +38,7 @@ const caretakerLinks = [
 const tenantLinks = [
   { to: "/tenant", label: "Overview" },
   { to: "/tenant/reminders", label: "Rent reminders" },
+  { to: "/notifications", label: "Recent Notifications" },
   { to: "/tenant/leases", label: "Lease agreements" },
   { to: "/tenant/rent-dues", label: "Rent dues" },
   { to: "/tenant/occupancy", label: "Occupancy" },
@@ -52,6 +57,7 @@ const districtAdminLinks = [
   { to: "/district/requests", label: "District Requests" },
   { to: "/district/areas", label: "Areas & Villages" },
   { to: "/district/reminders", label: "Payment Reminders" },
+  { to: "/notifications", label: "Recent Notifications" },
   { to: "/district/risk", label: "District Risk Center" },
 ];
 
@@ -60,6 +66,8 @@ const nationalAdminLinks = [
   { to: "/admin/plans", label: "Subscription Plans" },
   { to: "/admin/districts", label: "Districts" },
   { to: "/admin/district-admins", label: "District Admins" },
+  { to: "/admin/reminders", label: "Payment Reminders" },
+  { to: "/notifications", label: "Recent Notifications" },
   { to: "/security", label: "Security" },
 ];
 
