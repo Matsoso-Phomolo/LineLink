@@ -426,6 +426,17 @@ button {
   overflow: auto;
 }
 
+.public-request-shell {
+  align-items: stretch;
+}
+
+.public-request-shell .auth-copy,
+.public-request-shell .auth-card {
+  height: calc(100vh - 108px);
+  min-height: 620px;
+  overflow: auto;
+}
+
 label {
   display: grid;
   gap: 8px;
@@ -1502,6 +1513,12 @@ th {
 
   .application-form-card {
     max-height: none;
+  }
+
+  .public-request-shell .auth-copy,
+  .public-request-shell .auth-card {
+    height: auto;
+    min-height: 0;
   }
 
   .vacant-preview-header,
