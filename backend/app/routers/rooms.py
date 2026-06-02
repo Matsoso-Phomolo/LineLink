@@ -115,9 +115,16 @@ def list_rooms(
                     r.deposit_amount,
                     r.notes,
                     r.created_at
-                from rooms r
-                {where_sql}
-                order by
+        from rooms r
+        left join properties p on p.id = r.property_id
+        {where_sql}
+        order by
+                    p.name,
+                    case r.room_type::text
+                        when 'single' then 0
+                        when 'double' then 1
+                        else 2
+                    end,
                     regexp_replace(r.room_number, '\\d.*$', ''),
                     nullif(regexp_replace(r.room_number, '\\D', '', 'g'), '')::int,
                     r.room_number
